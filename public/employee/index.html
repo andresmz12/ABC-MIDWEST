@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>ABC Midwest - Employee</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="container" style="max-width:100%">
+      <div>
+        <h1>🧹 ABC Midwest</h1>
+        <div class="header-sub" id="headerName">Employee</div>
+      </div>
+      <button class="btn-logout" id="logoutBtn">Log Out</button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="shift">⏱ Shift</button>
+    <button class="tab-btn" data-tab="history">📋 History</button>
+  </div>
+
+  <!-- ── SHIFT TAB ─────────────────────────────────────────────── -->
+  <div id="tab-shift" class="content">
+    <div class="container">
+
+      <!-- Current status -->
+      <div id="shiftStatus" class="shift-status inactive" style="margin-top:16px">
+        <div class="status-label">Status</div>
+        <div class="store-name" id="statusStoreName">No active shift</div>
+        <div class="live-clock" id="liveClock">--:--:--</div>
+        <div class="time-label" id="statusClockIn"></div>
+      </div>
+
+      <!-- CLOCK IN FORM -->
+      <div id="clockInSection" class="card">
+        <h3 style="margin-bottom:16px;font-size:1rem">Start a Shift</h3>
+        <div class="alert alert-error" id="clockInError"></div>
+        <div class="form-group">
+          <label for="storeSelect">Select Store</label>
+          <select id="storeSelect" class="form-control">
+            <option value="">-- Choose a store --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Photo / Video (required)</label>
+          <div class="upload-area" id="clockInUploadArea">
+            <input type="file" id="clockInFiles" accept="image/*,video/*" multiple capture="environment">
+            <div class="upload-icon">📷</div>
+            <strong>Tap to take photo or video</strong>
+            <p>Upload evidence of your arrival</p>
+          </div>
+          <div class="preview-grid" id="clockInPreviews"></div>
+        </div>
+        <button class="btn btn-success" id="clockInBtn">
+          ▶ Clock In
+        </button>
+      </div>
+
+      <!-- CLOCK OUT FORM -->
+      <div id="clockOutSection" class="card" style="display:none">
+        <h3 style="margin-bottom:16px;font-size:1rem">End Shift</h3>
+        <div class="alert alert-error" id="clockOutError"></div>
+        <div class="form-group">
+          <label>Photo / Video (required)</label>
+          <div class="upload-area" id="clockOutUploadArea">
+            <input type="file" id="clockOutFiles" accept="image/*,video/*" multiple capture="environment">
+            <div class="upload-icon">📷</div>
+            <strong>Tap to take photo or video</strong>
+            <p>Upload evidence of completed work</p>
+          </div>
+          <div class="preview-grid" id="clockOutPreviews"></div>
+        </div>
+        <div class="form-group">
+          <label for="notesInput">Notes (optional)</label>
+          <input type="text" id="notesInput" class="form-control" placeholder="Any notes about the work...">
+        </div>
+        <button class="btn btn-danger" id="clockOutBtn">
+          ⏹ Clock Out
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── HISTORY TAB ────────────────────────────────────────────── -->
+  <div id="tab-history" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="padding:0;margin-top:16px;overflow:hidden">
+        <div style="padding:16px 16px 8px">
+          <h3 style="font-size:1rem;margin-bottom:0">My Recent Shifts</h3>
+        </div>
+        <div id="historyList" style="padding:0 16px 16px">
+          <div class="empty-state">
+            <span class="empty-icon">📋</span>
+            <p>No records yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEDIA VIEWER MODAL -->
+  <div class="modal-overlay" id="mediaModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Shift Photos & Videos</h3>
+        <button class="modal-close" id="closeMediaModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="mediaGallery"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    // ── Auth ─────────────────────────────────────────────────────
+    const token = localStorage.getItem('token');
+    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!token || !user || user.role !== 'employee') {
+      window.location.href = '/';
+      throw '';
+    }
+    document.getElementById('headerName').textContent = user.name;
+
+    const api = async (path, opts = {}) => {
+      const res = await fetch('/api' + path, {
+        ...opts,
+        headers: { Authorization: 'Bearer ' + token, ...(opts.headers || {}) }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    };
+
+    // ── Tabs ─────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.getElementById('tab-shift').style.display   = tab === 'shift'   ? '' : 'none';
+        document.getElementById('tab-history').style.display = tab === 'history' ? '' : 'none';
+        if (tab === 'history') loadHistory();
+      });
+    });
+
+    // ── Logout ───────────────────────────────────────────────────
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.clear(); window.location.href = '/';
+    });
+
+    // ── Live clock ───────────────────────────────────────────────
+    const clockEl = document.getElementById('liveClock');
+    let clockInterval = setInterval(() => {
+      clockEl.textContent = new Date().toLocaleTimeString();
+    }, 1000);
+    clockEl.textContent = new Date().toLocaleTimeString();
+
+    // ── State ────────────────────────────────────────────────────
+    let currentRecord = null;
+
+    // ── Load stores ───────────────────────────────────────────────
+    async function loadStores() {
+      const stores = await api('/employee/stores');
+      const sel = document.getElementById('storeSelect');
+      sel.innerHTML = '<option value="">-- Choose a store --</option>';
+      stores.forEach(s => {
+        sel.innerHTML += `<option value="${s.id}">${s.name} – ${s.address}</option>`;
+      });
+    }
+
+    // ── Check current shift ───────────────────────────────────────
+    async function checkCurrentShift() {
+      try {
+        currentRecord = await api('/employee/current-record');
+      } catch { currentRecord = null; }
+      renderShiftState();
+    }
+
+    function renderShiftState() {
+      const statusBox   = document.getElementById('shiftStatus');
+      const clockInSec  = document.getElementById('clockInSection');
+      const clockOutSec = document.getElementById('clockOutSection');
+      const statusStore = document.getElementById('statusStoreName');
+      const timeLabel   = document.getElementById('statusClockIn');
+
+      if (currentRecord) {
+        statusBox.classList.remove('inactive');
+        statusStore.textContent = currentRecord.store_name;
+        const ci = new Date(currentRecord.clock_in);
+        timeLabel.textContent = 'Clocked in at ' + ci.toLocaleTimeString();
+        clockInSec.style.display  = 'none';
+        clockOutSec.style.display = '';
+      } else {
+        statusBox.classList.add('inactive');
+        statusStore.textContent = 'No active shift';
+        timeLabel.textContent = '';
+        clockInSec.style.display  = '';
+        clockOutSec.style.display = 'none';
+      }
+    }
+
+    // ── File upload helpers ───────────────────────────────────────
+    function setupUploadArea(areaId, inputId, previewId) {
+      const area  = document.getElementById(areaId);
+      const input = document.getElementById(inputId);
+      const preview = document.getElementById(previewId);
+
+      area.addEventListener('click', () => input.click());
+      area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('drag-over'); });
+      area.addEventListener('dragleave', () => area.classList.remove('drag-over'));
+      area.addEventListener('drop', e => {
+        e.preventDefault(); area.classList.remove('drag-over');
+        addFiles(Array.from(e.dataTransfer.files));
+      });
+      input.addEventListener('change', () => {
+        addFiles(Array.from(input.files));
+        input.value = '';
+      });
+
+      function addFiles(newFiles) {
+        newFiles.forEach(file => {
+          if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+          const existing = input._files || [];
+          input._files = [...existing, file];
+          renderPreview();
+        });
+      }
+
+      function renderPreview() {
+        const files = input._files || [];
+        preview.innerHTML = '';
+        files.forEach((file, idx) => {
+          const item = document.createElement('div');
+          item.className = 'preview-item';
+          const url = URL.createObjectURL(file);
+          if (file.type.startsWith('video/')) {
+            item.innerHTML = `<video src="${url}" muted></video>`;
+          } else {
+            item.innerHTML = `<img src="${url}" alt="">`;
+          }
+          const rm = document.createElement('button');
+          rm.className = 'remove-btn';
+          rm.textContent = '×';
+          rm.addEventListener('click', e => {
+            e.stopPropagation();
+            input._files = input._files.filter((_, i) => i !== idx);
+            renderPreview();
+          });
+          item.appendChild(rm);
+          preview.appendChild(item);
+        });
+      }
+    }
+
+    setupUploadArea('clockInUploadArea',  'clockInFiles',  'clockInPreviews');
+    setupUploadArea('clockOutUploadArea', 'clockOutFiles', 'clockOutPreviews');
+
+    // ── Clock In ──────────────────────────────────────────────────
+    document.getElementById('clockInBtn').addEventListener('click', async () => {
+      const storeId = document.getElementById('storeSelect').value;
+      const files   = document.getElementById('clockInFiles')._files || [];
+      const errEl   = document.getElementById('clockInError');
+      errEl.classList.remove('show');
+
+      if (!storeId) { errEl.textContent = 'Please select a store.'; errEl.classList.add('show'); return; }
+      if (!files.length) { errEl.textContent = 'Please upload at least one photo or video.'; errEl.classList.add('show'); return; }
+
+      const btn = document.getElementById('clockInBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Clocking in...';
+
+      try {
+        const fd = new FormData();
+        fd.append('store_id', storeId);
+        files.forEach(f => fd.append('media', f));
+
+        currentRecord = await fetch('/api/employee/clock-in', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: fd
+        }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+
+        // Reload fresh record
+        await checkCurrentShift();
+        document.getElementById('clockInFiles')._files = [];
+        document.getElementById('clockInPreviews').innerHTML = '';
+        document.getElementById('storeSelect').value = '';
+      } catch(ex) {
+        errEl.textContent = ex.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false; btn.innerHTML = '▶ Clock In';
+      }
+    });
+
+    // ── Clock Out ─────────────────────────────────────────────────
+    document.getElementById('clockOutBtn').addEventListener('click', async () => {
+      const files = document.getElementById('clockOutFiles')._files || [];
+      const errEl = document.getElementById('clockOutError');
+      errEl.classList.remove('show');
+
+      if (!files.length) { errEl.textContent = 'Please upload at least one photo or video.'; errEl.classList.add('show'); return; }
+      if (!currentRecord) { errEl.textContent = 'No active shift found.'; errEl.classList.add('show'); return; }
+
+      const btn = document.getElementById('clockOutBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Clocking out...';
+
+      try {
+        const fd = new FormData();
+        fd.append('record_id', currentRecord.id);
+        fd.append('notes', document.getElementById('notesInput').value);
+        files.forEach(f => fd.append('media', f));
+
+        await fetch('/api/employee/clock-out', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + token },
+          body: fd
+        }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+
+        currentRecord = null;
+        document.getElementById('clockOutFiles')._files = [];
+        document.getElementById('clockOutPreviews').innerHTML = '';
+        document.getElementById('notesInput').value = '';
+        renderShiftState();
+      } catch(ex) {
+        errEl.textContent = ex.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false; btn.innerHTML = '⏹ Clock Out';
+      }
+    });
+
+    // ── History ───────────────────────────────────────────────────
+    async function loadHistory() {
+      const el = document.getElementById('historyList');
+      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      try {
+        const records = await api('/employee/my-records');
+        if (!records.length) {
+          el.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><p>No records yet</p></div>';
+          return;
+        }
+        el.innerHTML = records.map(r => `
+          <div class="list-item">
+            <div class="list-item-info">
+              <div class="list-item-name">${r.store}</div>
+              <div class="list-item-sub">
+                ${formatDate(r.date)} &bull;
+                ${formatTime(r.clock_in)} – ${r.clock_out ? formatTime(r.clock_out) : '<span style="color:#fd7e14">In progress</span>'}
+              </div>
+              <div class="list-item-sub" style="margin-top:3px">
+                ${r.media_count} file${r.media_count !== 1 ? 's' : ''} uploaded
+                ${r.clock_out ? '&bull; ' + calcDuration(r.clock_in, r.clock_out) : ''}
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="viewMedia(${r.id})">📷 View</button>
+          </div>
+        `).join('');
+      } catch {
+        el.innerHTML = '<div class="empty-state"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>';
+      }
+    }
+
+    // ── Media viewer ──────────────────────────────────────────────
+    window.viewMedia = async (recordId) => {
+      const modal   = document.getElementById('mediaModal');
+      const gallery = document.getElementById('mediaGallery');
+      gallery.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      modal.classList.add('open');
+
+      try {
+        const media = await api(`/admin/records/${recordId}/media`);
+        if (!media.length) {
+          gallery.innerHTML = '<div class="empty-state"><span class="empty-icon">📷</span><p>No media uploaded</p></div>';
+          return;
+        }
+        const inMedia  = media.filter(m => m.type === 'clock_in');
+        const outMedia = media.filter(m => m.type === 'clock_out');
+
+        let html = '';
+        if (inMedia.length) {
+          html += `<p style="font-size:.85rem;font-weight:700;color:#28a745;margin-bottom:8px">▶ Clock In Evidence</p>`;
+          html += '<div class="media-grid">' + inMedia.map(m => mediaThumb(m)).join('') + '</div>';
+        }
+        if (outMedia.length) {
+          html += `<p style="font-size:.85rem;font-weight:700;color:#dc3545;margin-top:14px;margin-bottom:8px">⏹ Clock Out Evidence</p>`;
+          html += '<div class="media-grid">' + outMedia.map(m => mediaThumb(m)).join('') + '</div>';
+        }
+        gallery.innerHTML = html;
+      } catch {
+        gallery.innerHTML = '<div class="empty-state"><p>Failed to load media</p></div>';
+      }
+    };
+
+    function mediaThumb(m) {
+      const url = `/uploads/${m.filename}`;
+      const isVideo = m.mime_type.startsWith('video/');
+      return `<div class="media-thumb" onclick="window.open('${url}','_blank')">
+        ${isVideo
+          ? `<video src="${url}" muted></video>`
+          : `<img src="${url}" alt="" loading="lazy">`}
+      </div>`;
+    }
+
+    document.getElementById('closeMediaModal').addEventListener('click', () => {
+      document.getElementById('mediaModal').classList.remove('open');
+    });
+    document.getElementById('mediaModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('mediaModal'))
+        document.getElementById('mediaModal').classList.remove('open');
+    });
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function formatDate(d) {
+      return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    function formatTime(iso) {
+      if (!iso) return '--';
+      return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+    function calcDuration(inT, outT) {
+      const mins = Math.round((new Date(outT) - new Date(inT)) / 60000);
+      if (mins < 60) return mins + 'm';
+      return Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+    loadStores();
+    checkCurrentShift();
+  })();
+  </script>
+</body>
+</html>
