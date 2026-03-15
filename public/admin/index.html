@@ -7,13 +7,23 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>ABC Midwest - Admin</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .logo-img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+    .export-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+    .export-row select { flex: 0 0 auto; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-size: .9rem; }
+    .btn-export { background: #28a745; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: .9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+    .btn-export:hover { background: #218838; }
+    .btn-download { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); border-radius: 6px; padding: 4px 8px; font-size: .8rem; cursor: pointer; margin-left: 4px; }
+    .btn-download:hover { background: var(--primary); color: #fff; }
+  </style>
 </head>
 <body>
   <!-- HEADER -->
   <header class="app-header">
     <div class="container" style="max-width:100%">
       <div>
-        <h1>🧹 ABC Midwest</h1>
+        <!-- Logo: replace /images/logo.svg with your real logo file -->
+        <h1><img src="/images/logo.svg" alt="ABC Midwest logo" class="logo-img"> ABC Midwest</h1>
         <div class="header-sub">Admin Panel</div>
       </div>
       <button class="btn-logout" id="logoutBtn">Log Out</button>
@@ -44,6 +54,14 @@
         <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="filterBtn">
           🔍 Filter
         </button>
+        <!-- Export -->
+        <div class="export-row">
+          <select id="exportFormat">
+            <option value="csv">CSV</option>
+            <option value="excel">Excel (.xlsx)</option>
+          </select>
+          <button class="btn-export" id="exportBtn">⬇ Export Records</button>
+        </div>
       </div>
 
       <div class="card" style="padding:0;overflow:hidden">
@@ -110,6 +128,11 @@
       </div>
       <div class="modal-body">
         <div id="mediaInfo" style="margin-bottom:12px;font-size:.85rem;color:var(--muted)"></div>
+        <div id="mediaDownloadRow" style="margin-bottom:12px;display:none">
+          <button class="btn-export" id="downloadEvidenceBtn" style="font-size:.85rem;padding:8px 12px">
+            ⬇ Download All Evidence (ZIP)
+          </button>
+        </div>
         <div id="mediaGallery"></div>
       </div>
     </div>
@@ -227,39 +250,46 @@
       if (mins < 60) return mins + 'm';
       return Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
     }
+    function escHtml(s) { return (s||'').replace(/['"<>&]/g, c => ({'\'': '&#39;', '"': '&quot;', '<': '&lt;', '>': '&gt;', '&': '&amp;'}[c])); }
 
     // ─────────────────────────────────────────────────────────────
     // RECORDS
     // ─────────────────────────────────────────────────────────────
-    async function loadRecords() {
-      const tbody = document.getElementById('recordsBody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>';
-
+    function getFilterParams() {
       const params = new URLSearchParams();
-      const date = document.getElementById('filterDate').value;
-      const emp  = document.getElementById('filterEmployee').value;
+      const date  = document.getElementById('filterDate').value;
+      const emp   = document.getElementById('filterEmployee').value;
       const store = document.getElementById('filterStore').value;
       if (date)  params.set('date', date);
       if (emp)   params.set('employee_id', emp);
       if (store) params.set('store_id', store);
+      return params;
+    }
+
+    async function loadRecords() {
+      const tbody = document.getElementById('recordsBody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>';
 
       try {
-        const records = await api('/admin/records?' + params);
+        const records = await api('/admin/records?' + getFilterParams());
         if (!records.length) {
           tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">No records found</td></tr>';
           return;
         }
         tbody.innerHTML = records.map(r => `
           <tr>
-            <td><strong>${r.employee}</strong></td>
-            <td>${r.store}</td>
+            <td><strong>${escHtml(r.employee)}</strong></td>
+            <td>${escHtml(r.store)}</td>
             <td style="white-space:nowrap">${formatDate(r.date)}</td>
             <td style="white-space:nowrap">${formatTime(r.clock_in)}</td>
             <td style="white-space:nowrap">${formatTime(r.clock_out)}</td>
             <td>${calcDuration(r.clock_in, r.clock_out)}</td>
-            <td>
+            <td style="white-space:nowrap">
               <button class="btn btn-sm btn-primary" onclick="viewMedia(${r.id}, '${escHtml(r.employee)}', '${escHtml(r.store)}', '${r.date}')">
                 📷 ${r.media_count}
+              </button>
+              <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
+                ⬇ ZIP
               </button>
             </td>
           </tr>
@@ -269,9 +299,54 @@
       }
     }
 
-    function escHtml(s) { return (s||'').replace(/['"<>&]/g, c => ({'\'': '&#39;', '"': '&quot;', '<': '&lt;', '>': '&gt;', '&': '&amp;'}[c])); }
-
     document.getElementById('filterBtn').addEventListener('click', loadRecords);
+
+    // ── Export ────────────────────────────────────────────────────
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const params = getFilterParams();
+      const format = document.getElementById('exportFormat').value;
+      params.set('format', format);
+      const url = '/api/admin/records/export?' + params;
+      const a = document.createElement('a');
+      a.href = url;
+      a.setAttribute('download', '');
+      // Pass auth header via a hidden fetch → blob download
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed');
+          const cd = r.headers.get('content-disposition') || '';
+          const fnMatch = cd.match(/filename="([^"]+)"/);
+          const filename = fnMatch ? fnMatch[1] : (format === 'excel' ? 'records.xlsx' : 'records.csv');
+          return r.blob().then(blob => ({ blob, filename }));
+        })
+        .then(({ blob, filename }) => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          link.click();
+          URL.revokeObjectURL(blobUrl);
+        })
+        .catch(err => alert('Export failed: ' + err.message));
+    });
+
+    // ── Download Evidence ─────────────────────────────────────────
+    window.downloadEvidence = (recordId) => {
+      fetch(`/api/admin/records/${recordId}/media/download`, {
+        headers: { Authorization: 'Bearer ' + token }
+      }).then(r => {
+        if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Download failed'); });
+        const cd = r.headers.get('content-disposition') || '';
+        const fnMatch = cd.match(/filename="([^"]+)"/);
+        const filename = fnMatch ? fnMatch[1] : 'evidence.zip';
+        return r.blob().then(blob => ({ blob, filename }));
+      }).then(({ blob, filename }) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; a.click();
+        URL.revokeObjectURL(url);
+      }).catch(err => alert(err.message));
+    };
 
     // Populate filter dropdowns
     async function populateFilters() {
@@ -281,20 +356,25 @@
       ]);
       const empSel   = document.getElementById('filterEmployee');
       const storeSel = document.getElementById('filterStore');
-      empSel.innerHTML   = '<option value="">All Employees</option>' + emps.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
-      storeSel.innerHTML = '<option value="">All Stores</option>'    + stores.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+      empSel.innerHTML   = '<option value="">All Employees</option>' + emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+      storeSel.innerHTML = '<option value="">All Stores</option>'    + stores.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
     }
 
     // ─────────────────────────────────────────────────────────────
     // MEDIA VIEWER
     // ─────────────────────────────────────────────────────────────
+    let currentMediaRecordId = null;
+
     window.viewMedia = async (recordId, employee, store, date) => {
+      currentMediaRecordId = recordId;
       const modal   = document.getElementById('mediaModal');
       const gallery = document.getElementById('mediaGallery');
       const info    = document.getElementById('mediaInfo');
+      const dlRow   = document.getElementById('mediaDownloadRow');
       document.getElementById('mediaModalTitle').textContent = 'Shift Evidence';
-      info.innerHTML = `<strong>${employee}</strong> &bull; ${store} &bull; ${formatDate(date)}`;
+      info.innerHTML = `<strong>${escHtml(employee)}</strong> &bull; ${escHtml(store)} &bull; ${formatDate(date)}`;
       gallery.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      dlRow.style.display = 'none';
       modal.classList.add('open');
 
       try {
@@ -303,6 +383,7 @@
           gallery.innerHTML = '<div class="empty-state"><span class="empty-icon">📷</span><p>No media uploaded</p></div>';
           return;
         }
+        dlRow.style.display = '';
         const inMedia  = media.filter(m => m.type === 'clock_in');
         const outMedia = media.filter(m => m.type === 'clock_out');
 
@@ -321,16 +402,28 @@
       }
     };
 
+    function mediaUrl(m) {
+      return m.url || `/uploads/${m.filename}`;
+    }
+
     function mediaThumb(m) {
-      const url = `/uploads/${m.filename}`;
+      const url = mediaUrl(m);
       const isVideo = m.mime_type.startsWith('video/');
-      return `<div class="media-thumb" onclick="window.open('${url}','_blank')" title="${escHtml(m.original_name)}">
-        ${isVideo
-          ? `<video src="${url}" muted></video>`
-          : `<img src="${url}" alt="" loading="lazy">`}
+      return `<div class="media-thumb" title="${escHtml(m.original_name)}">
+        <div onclick="window.open('${escHtml(url)}','_blank')" style="cursor:pointer">
+          ${isVideo
+            ? `<video src="${escHtml(url)}" muted></video>`
+            : `<img src="${escHtml(url)}" alt="" loading="lazy">`}
+        </div>
         <div class="media-label ${m.type === 'clock_in' ? 'clock-in' : 'clock-out'}">${m.type === 'clock_in' ? 'In' : 'Out'}</div>
+        <a href="${escHtml(url)}" download="${escHtml(m.original_name)}" target="_blank"
+           style="display:block;text-align:center;font-size:.75rem;padding:3px 0;color:var(--primary)">⬇ Download</a>
       </div>`;
     }
+
+    document.getElementById('downloadEvidenceBtn').addEventListener('click', () => {
+      if (currentMediaRecordId) downloadEvidence(currentMediaRecordId);
+    });
 
     document.getElementById('closeMediaModal').addEventListener('click', () => document.getElementById('mediaModal').classList.remove('open'));
     document.getElementById('mediaModal').addEventListener('click', e => { if (e.target === document.getElementById('mediaModal')) document.getElementById('mediaModal').classList.remove('open'); });

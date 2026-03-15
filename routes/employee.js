@@ -1,5 +1,4 @@
 const router = require('express').Router();
-const path = require('path');
 const db = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
@@ -47,10 +46,10 @@ router.post('/clock-in', upload.array('media', 10), (req, res) => {
 
   // Save media
   const insertMedia = db.prepare(
-    'INSERT INTO media (record_id, filename, original_name, mime_type, type) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO media (record_id, filename, original_name, mime_type, type, url) VALUES (?, ?, ?, ?, ?, ?)'
   );
   for (const file of req.files) {
-    insertMedia.run(recordId, file.filename, file.originalname, file.mimetype, 'clock_in');
+    insertMedia.run(recordId, file.filename, file.originalname, file.mimetype, 'clock_in', file.path || null);
   }
 
   res.status(201).json({ id: recordId, clock_in: clockIn });
@@ -77,10 +76,10 @@ router.post('/clock-out', upload.array('media', 10), (req, res) => {
   ).run(clockOut, notes || null, record.id);
 
   const insertMedia = db.prepare(
-    'INSERT INTO media (record_id, filename, original_name, mime_type, type) VALUES (?, ?, ?, ?, ?)'
+    'INSERT INTO media (record_id, filename, original_name, mime_type, type, url) VALUES (?, ?, ?, ?, ?, ?)'
   );
   for (const file of req.files) {
-    insertMedia.run(record.id, file.filename, file.originalname, file.mimetype, 'clock_out');
+    insertMedia.run(record.id, file.filename, file.originalname, file.mimetype, 'clock_out', file.path || null);
   }
 
   res.json({ success: true, clock_out: clockOut });

@@ -53,10 +53,14 @@ db.exec(`
     original_name TEXT NOT NULL,
     mime_type TEXT NOT NULL,
     type TEXT NOT NULL CHECK(type IN ('clock_in', 'clock_out')),
+    url TEXT,
     uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (record_id) REFERENCES work_records(id)
   );
 `);
+
+// Migration: add url column if it doesn't exist (for existing databases)
+try { db.exec('ALTER TABLE media ADD COLUMN url TEXT'); } catch (_) { /* column already exists */ }
 
 // Seed default admin if not exists
 const adminExists = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');

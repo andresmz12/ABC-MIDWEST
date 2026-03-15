@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <!-- Placeholder logo – replace this file with the real company logo -->
+  <rect width="200" height="200" rx="24" fill="#1a73e8"/>
+  <text x="100" y="90" font-family="Arial, sans-serif" font-size="28" font-weight="bold"
+        fill="white" text-anchor="middle" dominant-baseline="middle">ABC</text>
+  <text x="100" y="125" font-family="Arial, sans-serif" font-size="14"
+        fill="rgba(255,255,255,0.85)" text-anchor="middle" dominant-baseline="middle">MIDWEST</text>
+  <text x="100" y="152" font-family="Arial, sans-serif" font-size="10"
+        fill="rgba(255,255,255,0.65)" text-anchor="middle" dominant-baseline="middle">CLEANING</text>
+</svg>

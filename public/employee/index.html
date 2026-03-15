@@ -7,13 +7,17 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>ABC Midwest - Employee</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .logo-img { width: 28px; height: 28px; border-radius: 5px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+  </style>
 </head>
 <body>
   <!-- HEADER -->
   <header class="app-header">
     <div class="container" style="max-width:100%">
       <div>
-        <h1>🧹 ABC Midwest</h1>
+        <!-- Logo: replace /images/logo.svg with your real logo file -->
+        <h1><img src="/images/logo.svg" alt="ABC Midwest logo" class="logo-img"> ABC Midwest</h1>
         <div class="header-sub" id="headerName">Employee</div>
       </div>
       <button class="btn-logout" id="logoutBtn">Log Out</button>
@@ -401,7 +405,7 @@
     };
 
     function mediaThumb(m) {
-      const url = `/uploads/${m.filename}`;
+      const url = m.url || `/uploads/${m.filename}`;
       const isVideo = m.mime_type.startsWith('video/');
       return `<div class="media-thumb" onclick="window.open('${url}','_blank')">
         ${isVideo
