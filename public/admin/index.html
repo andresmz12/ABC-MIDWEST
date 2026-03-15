@@ -35,6 +35,7 @@
     <button class="tab-btn active" data-tab="records">📋 Records</button>
     <button class="tab-btn" data-tab="employees">👥 Employees</button>
     <button class="tab-btn" data-tab="stores">🏪 Stores</button>
+    <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
   </div>
 
   <!-- ── RECORDS TAB ────────────────────────────────────────────── -->
@@ -116,6 +117,82 @@
           <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── PAYROLL TAB ───────────────────────────────────────────── -->
+  <div id="tab-payroll" class="content" style="display:none">
+    <div class="container">
+
+      <!-- Register Payment -->
+      <div class="card" style="margin-top:16px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Register Payment</h2>
+        </div>
+        <form id="payrollForm">
+          <div class="filter-row">
+            <select id="payrollEmployee" class="form-control" required>
+              <option value="">Select Employee</option>
+            </select>
+            <input type="date" id="payrollDate" class="form-control" required>
+            <input type="number" id="payrollAmount" class="form-control"
+                   placeholder="Amount ($)" min="0.01" step="0.01" required
+                   style="max-width:160px">
+            <button type="submit" class="btn btn-primary" style="padding:10px 16px;white-space:nowrap"
+                    id="payrollSubmitBtn">+ Register Payment</button>
+          </div>
+          <div class="alert alert-error"   id="payrollError"   style="margin-top:8px"></div>
+          <div class="alert alert-success" id="payrollSuccess" style="margin-top:8px"></div>
+        </form>
+      </div>
+
+      <!-- Payment History -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Payment History</h2>
+          <div class="export-row" style="margin-top:0">
+            <select id="payrollYearExport" class="form-control" style="width:auto;padding:8px 10px"></select>
+            <button class="btn-export" id="payrollExportBtn">⬇ Export Excel</button>
+          </div>
+        </div>
+        <div class="filter-row">
+          <select id="payrollFilterEmployee" class="form-control">
+            <option value="">All Employees</option>
+          </select>
+          <select id="payrollFilterYear" class="form-control" style="width:auto"></select>
+          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="payrollFilterBtn">
+            🔍 Filter
+          </button>
+        </div>
+        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Payment Date</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="payrollBody">
+                <tr><td colspan="3" style="text-align:center;padding:32px;color:var(--muted)">Select filters and click Filter</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Annual Summary -->
+      <div class="card" style="margin-top:12px;margin-bottom:24px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Annual Summary</h2>
+          <select id="summaryYear" class="form-control" style="width:auto;padding:8px 10px"></select>
+        </div>
+        <div id="summaryBody">
+          <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -224,7 +301,7 @@
     });
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { records: 'tab-records', employees: 'tab-employees', stores: 'tab-stores' };
+    const TAB_IDS = { records: 'tab-records', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -232,9 +309,10 @@
         Object.values(TAB_IDS).forEach(id => document.getElementById(id).style.display = 'none');
         const tab = btn.dataset.tab;
         document.getElementById(TAB_IDS[tab]).style.display = '';
-        if (tab === 'records') loadRecords();
+        if (tab === 'records')   loadRecords();
         if (tab === 'employees') loadEmployees();
-        if (tab === 'stores') loadStores();
+        if (tab === 'stores')    loadStores();
+        if (tab === 'payroll')   initPayrollTab();
       });
     });
 
@@ -352,7 +430,7 @@
       }).catch(err => alert(err.message));
     };
 
-    // Populate filter dropdowns
+    // Populate filter dropdowns (records tab + payroll employee selects)
     async function populateFilters() {
       const [emps, stores] = await Promise.all([
         api('/admin/employees'),
@@ -362,6 +440,10 @@
       const storeSel = document.getElementById('filterStore');
       empSel.innerHTML   = '<option value="">All Employees</option>' + emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
       storeSel.innerHTML = '<option value="">All Stores</option>'    + stores.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
+      // Pre-populate payroll employee selects so they're ready if the user navigates there
+      const empOpts = emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+      document.getElementById('payrollFilterEmployee').innerHTML = '<option value="">All Employees</option>' + empOpts;
+      document.getElementById('payrollEmployee').innerHTML       = '<option value="">Select Employee</option>' + empOpts;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -596,6 +678,170 @@
       } finally {
         btn.disabled = false; btn.textContent = origText;
       }
+    });
+
+    // ─────────────────────────────────────────────────────────────
+    // PAYROLL
+    // ─────────────────────────────────────────────────────────────
+    function formatAmount(n) {
+      return '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function buildYearOptions(selectedYear) {
+      const cur = new Date().getFullYear();
+      let html = '';
+      for (let y = cur; y >= cur - 4; y--) {
+        html += `<option value="${y}" ${y === parseInt(selectedYear) ? 'selected' : ''}>${y}</option>`;
+      }
+      return html;
+    }
+
+    function populateYearSelects() {
+      const cur = new Date().getFullYear();
+      const opts = buildYearOptions(cur);
+      ['payrollFilterYear', 'payrollYearExport', 'summaryYear'].forEach(id => {
+        document.getElementById(id).innerHTML = opts;
+      });
+    }
+
+    async function populatePayrollEmployees() {
+      try {
+        const emps = await api('/admin/employees');
+        const opts = '<option value="">All Employees</option>' +
+          emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+        document.getElementById('payrollFilterEmployee').innerHTML = opts;
+        document.getElementById('payrollEmployee').innerHTML =
+          '<option value="">Select Employee</option>' +
+          emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+      } catch { /* silently skip */ }
+    }
+
+    async function loadPayrollHistory() {
+      const tbody = document.getElementById('payrollBody');
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+      const emp  = document.getElementById('payrollFilterEmployee').value;
+      const year = document.getElementById('payrollFilterYear').value;
+      const params = new URLSearchParams();
+      if (emp)  params.set('employee_id', emp);
+      if (year) params.set('year', year);
+      try {
+        const rows = await api('/admin/payroll?' + params);
+        if (!rows.length) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--muted)">No payments found</td></tr>';
+          return;
+        }
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td><strong>${escHtml(r.employee)}</strong></td>
+            <td style="white-space:nowrap">${formatDate(r.payment_date)}</td>
+            <td style="white-space:nowrap;text-align:right">${formatAmount(r.amount)}</td>
+          </tr>
+        `).join('');
+      } catch (ex) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--danger)">${ex.message}</td></tr>`;
+      }
+    }
+
+    async function loadPayrollSummary() {
+      const year = document.getElementById('summaryYear').value;
+      const el = document.getElementById('summaryBody');
+      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      try {
+        const rows = await api('/admin/payroll/summary?year=' + year);
+        const grandTotal = rows.reduce((s, r) => s + parseFloat(r.total), 0);
+        el.innerHTML = `
+          <div style="overflow:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th style="text-align:center">Payments</th>
+                  <th style="text-align:right">Total Paid ${year}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td><strong>${escHtml(r.employee)}</strong></td>
+                    <td style="text-align:center;color:var(--muted)">${r.payment_count}</td>
+                    <td style="text-align:right;white-space:nowrap">${formatAmount(r.total)}</td>
+                  </tr>
+                `).join('')}
+                <tr style="border-top:2px solid var(--border);font-weight:700">
+                  <td>Total</td>
+                  <td></td>
+                  <td style="text-align:right;white-space:nowrap">${formatAmount(grandTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      } catch (ex) {
+        el.innerHTML = `<div class="empty-state"><p style="color:var(--danger)">${ex.message}</p></div>`;
+      }
+    }
+
+    let payrollTabInitialized = false;
+    async function initPayrollTab() {
+      if (!payrollTabInitialized) {
+        populateYearSelects();
+        await populatePayrollEmployees();
+        payrollTabInitialized = true;
+      }
+      loadPayrollHistory();
+      loadPayrollSummary();
+    }
+
+    document.getElementById('payrollFilterBtn').addEventListener('click', loadPayrollHistory);
+    document.getElementById('summaryYear').addEventListener('change', loadPayrollSummary);
+
+    document.getElementById('payrollForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('payrollError');
+      const sucEl = document.getElementById('payrollSuccess');
+      errEl.classList.remove('show');
+      sucEl.classList.remove('show');
+      const btn = document.getElementById('payrollSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      try {
+        await api('/admin/payroll', {
+          method: 'POST',
+          body: JSON.stringify({
+            employee_id: document.getElementById('payrollEmployee').value,
+            payment_date: document.getElementById('payrollDate').value,
+            amount: document.getElementById('payrollAmount').value
+          })
+        });
+        sucEl.textContent = 'Payment registered successfully.';
+        sucEl.classList.add('show');
+        document.getElementById('payrollForm').reset();
+        loadPayrollHistory();
+        loadPayrollSummary();
+      } catch (ex) {
+        errEl.textContent = ex.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false; btn.textContent = '+ Register Payment';
+      }
+    });
+
+    document.getElementById('payrollExportBtn').addEventListener('click', () => {
+      const year = document.getElementById('payrollYearExport').value;
+      const url  = '/api/admin/payroll/export?year=' + year;
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed');
+          return r.blob().then(blob => ({ blob }));
+        })
+        .then(({ blob }) => {
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = `payroll_${year}.xlsx`;
+          link.click();
+          URL.revokeObjectURL(blobUrl);
+        })
+        .catch(err => alert('Export failed: ' + err.message));
     });
 
     // ── Init ──────────────────────────────────────────────────────

@@ -16,6 +16,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/admin', require('./routes/payroll'));
 app.use('/api/employee', require('./routes/employee'));
 
 // SPA fallback
