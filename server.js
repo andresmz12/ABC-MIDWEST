@@ -1,5 +1,6 @@
 const express = require('express');
 const path = require('path');
+const { initDb } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`ABC Midwest Cleaning App running on port ${PORT}`);
-});
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`ABC Midwest Cleaning App running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });

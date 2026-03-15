@@ -1,75 +1,68 @@
-const Database = require('better-sqlite3');
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
-const path = require('path');
-const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, 'data', 'app.db');
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-// Ensure data directory exists
-if (!fs.existsSync(path.join(__dirname, 'data'))) {
-  fs.mkdirSync(path.join(__dirname, 'data'));
+const query = (text, params) => pool.query(text, params);
+
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      username TEXT UNIQUE NOT NULL,
+      password TEXT NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('admin', 'employee')),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stores (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS work_records (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      store_id INTEGER NOT NULL REFERENCES stores(id),
+      clock_in TIMESTAMPTZ,
+      clock_out TIMESTAMPTZ,
+      date TEXT NOT NULL,
+      notes TEXT
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS media (
+      id SERIAL PRIMARY KEY,
+      record_id INTEGER NOT NULL REFERENCES work_records(id),
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('clock_in', 'clock_out')),
+      url TEXT,
+      uploaded_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
+  if (rows.length === 0) {
+    const hash = bcrypt.hashSync('admin123', 10);
+    await pool.query(
+      'INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4)',
+      ['Administrator', 'admin', hash, 'admin']
+    );
+    console.log('Default admin created: username=admin, password=admin123');
+  }
 }
 
-const db = new Database(DB_PATH);
-
-// Enable WAL mode for better performance
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
-// Create tables
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT NOT NULL CHECK(role IN ('admin', 'employee')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS stores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    address TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  CREATE TABLE IF NOT EXISTS work_records (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    store_id INTEGER NOT NULL,
-    clock_in DATETIME,
-    clock_out DATETIME,
-    date TEXT NOT NULL,
-    notes TEXT,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (store_id) REFERENCES stores(id)
-  );
-
-  CREATE TABLE IF NOT EXISTS media (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    record_id INTEGER NOT NULL,
-    filename TEXT NOT NULL,
-    original_name TEXT NOT NULL,
-    mime_type TEXT NOT NULL,
-    type TEXT NOT NULL CHECK(type IN ('clock_in', 'clock_out')),
-    url TEXT,
-    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (record_id) REFERENCES work_records(id)
-  );
-`);
-
-// Migration: add url column if it doesn't exist (for existing databases)
-try { db.exec('ALTER TABLE media ADD COLUMN url TEXT'); } catch (_) { /* column already exists */ }
-
-// Seed default admin if not exists
-const adminExists = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
-if (!adminExists) {
-  const hash = bcrypt.hashSync('admin123', 10);
-  db.prepare(
-    'INSERT INTO users (name, username, password, role) VALUES (?, ?, ?, ?)'
-  ).run('Administrator', 'admin', hash, 'admin');
-  console.log('Default admin created: username=admin, password=admin123');
-}
-
-module.exports = db;
+module.exports = { query, initDb };

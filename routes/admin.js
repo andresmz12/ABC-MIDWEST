@@ -4,7 +4,7 @@ const https  = require('https');
 const http   = require('http');
 const ExcelJS = require('exceljs');
 const archiver = require('archiver');
-const db = require('../database');
+const { query } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
 
 // All admin routes require admin role
@@ -12,70 +12,81 @@ router.use(requireAdmin);
 
 // ─── Employees ────────────────────────────────────────────────────────────────
 
-router.get('/employees', (req, res) => {
-  const employees = db.prepare(
-    "SELECT id, name, username, created_at FROM users WHERE role = 'employee' ORDER BY name"
-  ).all();
-  res.json(employees);
+router.get('/employees', async (req, res) => {
+  try {
+    const { rows } = await query(
+      "SELECT id, name, username, created_at FROM users WHERE role = 'employee' ORDER BY name"
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/employees', (req, res) => {
-  const { name, username, password } = req.body;
-  if (!name || !username || !password) {
-    return res.status(400).json({ error: 'Name, username and password required' });
-  }
-  const existing = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-  if (existing) return res.status(400).json({ error: 'Username already taken' });
+router.post('/employees', async (req, res) => {
+  try {
+    const { name, username, password } = req.body;
+    if (!name || !username || !password) {
+      return res.status(400).json({ error: 'Name, username and password required' });
+    }
+    const { rows: existing } = await query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existing.length) return res.status(400).json({ error: 'Username already taken' });
 
-  const hash = bcrypt.hashSync(password, 10);
-  const result = db.prepare(
-    'INSERT INTO users (name, username, password, role) VALUES (?, ?, ?, ?)'
-  ).run(name, username, hash, 'employee');
-
-  res.status(201).json({ id: result.lastInsertRowid, name, username });
+    const hash = bcrypt.hashSync(password, 10);
+    const { rows } = await query(
+      'INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4) RETURNING id',
+      [name, username, hash, 'employee']
+    );
+    res.status(201).json({ id: rows[0].id, name, username });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/employees/:id', (req, res) => {
-  db.prepare('DELETE FROM users WHERE id = ? AND role = ?').run(req.params.id, 'employee');
-  res.json({ success: true });
+router.delete('/employees/:id', async (req, res) => {
+  try {
+    await query("DELETE FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Stores ───────────────────────────────────────────────────────────────────
 
-router.get('/stores', (req, res) => {
-  const stores = db.prepare('SELECT * FROM stores ORDER BY name').all();
-  res.json(stores);
+router.get('/stores', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM stores ORDER BY name');
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/stores', (req, res) => {
-  const { name, address } = req.body;
-  if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
-
-  const result = db.prepare(
-    'INSERT INTO stores (name, address) VALUES (?, ?)'
-  ).run(name, address);
-
-  res.status(201).json({ id: result.lastInsertRowid, name, address });
+router.post('/stores', async (req, res) => {
+  try {
+    const { name, address } = req.body;
+    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
+    const { rows } = await query(
+      'INSERT INTO stores (name, address) VALUES ($1, $2) RETURNING id',
+      [name, address]
+    );
+    res.status(201).json({ id: rows[0].id, name, address });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.put('/stores/:id', (req, res) => {
-  const { name, address } = req.body;
-  if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
-
-  db.prepare('UPDATE stores SET name = ?, address = ? WHERE id = ?')
-    .run(name, address, req.params.id);
-  res.json({ success: true });
+router.put('/stores/:id', async (req, res) => {
+  try {
+    const { name, address } = req.body;
+    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
+    await query('UPDATE stores SET name = $1, address = $2 WHERE id = $3', [name, address, req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/stores/:id', (req, res) => {
-  db.prepare('DELETE FROM stores WHERE id = ?').run(req.params.id);
-  res.json({ success: true });
+router.delete('/stores/:id', async (req, res) => {
+  try {
+    await query('DELETE FROM stores WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Records ──────────────────────────────────────────────────────────────────
 
-function buildRecordsQuery(query) {
-  const { date_from, date_to, employee_id, store_id } = query;
+function buildRecordsQuery(reqQuery) {
+  const { date_from, date_to, employee_id, store_id } = reqQuery;
   let sql = `
     SELECT wr.id, u.name as employee, s.name as store, s.address,
            wr.date, wr.clock_in, wr.clock_out, wr.notes,
@@ -87,11 +98,12 @@ function buildRecordsQuery(query) {
     WHERE 1=1
   `;
   const params = [];
-  if (date_from)   { sql += ' AND wr.date >= ?';     params.push(date_from); }
-  if (date_to)     { sql += ' AND wr.date <= ?';     params.push(date_to); }
-  if (employee_id) { sql += ' AND wr.user_id = ?';   params.push(employee_id); }
-  if (store_id)    { sql += ' AND wr.store_id = ?';  params.push(store_id); }
-  sql += ' GROUP BY wr.id ORDER BY wr.date DESC, wr.clock_in DESC';
+  let i = 1;
+  if (date_from)   { sql += ` AND wr.date >= $${i++}`;    params.push(date_from); }
+  if (date_to)     { sql += ` AND wr.date <= $${i++}`;    params.push(date_to); }
+  if (employee_id) { sql += ` AND wr.user_id = $${i++}`;  params.push(employee_id); }
+  if (store_id)    { sql += ` AND wr.store_id = $${i++}`; params.push(store_id); }
+  sql += ' GROUP BY wr.id, u.name, s.name, s.address ORDER BY wr.date DESC, wr.clock_in DESC';
   return { sql, params };
 }
 
@@ -106,67 +118,75 @@ function formatDuration(mins) {
   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
 }
 
-router.get('/records', (req, res) => {
-  const { sql, params } = buildRecordsQuery(req.query);
-  res.json(db.prepare(sql).all(...params));
+router.get('/records', async (req, res) => {
+  try {
+    const { sql, params } = buildRecordsQuery(req.query);
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Export Records ───────────────────────────────────────────────────────────
 
 router.get('/records/export', async (req, res) => {
-  const { format = 'csv' } = req.query;
-  const { sql, params } = buildRecordsQuery(req.query);
-  const records = db.prepare(sql).all(...params);
+  try {
+    const { format = 'csv' } = req.query;
+    const { sql, params } = buildRecordsQuery(req.query);
+    const { rows: records } = await query(sql, params);
 
-  const rows = records.map(r => {
-    const mins = calcDurationMins(r.clock_in, r.clock_out);
-    return {
-      Employee: r.employee,
-      Store:    r.store,
-      Address:  r.address,
-      Date:     r.date,
-      'Clock In':  r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
-      'Clock Out': r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
-      'Duration':  formatDuration(mins),
-      'Notes':     r.notes || '',
-      'Media Files': r.media_count
-    };
-  });
+    const rows = records.map(r => {
+      const mins = calcDurationMins(r.clock_in, r.clock_out);
+      return {
+        Employee: r.employee,
+        Store:    r.store,
+        Address:  r.address,
+        Date:     r.date,
+        'Clock In':  r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
+        'Clock Out': r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
+        'Duration':  formatDuration(mins),
+        'Notes':     r.notes || '',
+        'Media Files': r.media_count
+      };
+    });
 
-  if (format === 'excel') {
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Records');
-    if (rows.length > 0) {
-      ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 20 }));
-      rows.forEach(r => ws.addRow(r));
-      ws.getRow(1).font = { bold: true };
+    if (format === 'excel') {
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Records');
+      if (rows.length > 0) {
+        ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 20 }));
+        rows.forEach(r => ws.addRow(r));
+        ws.getRow(1).font = { bold: true };
+      }
+      res.setHeader('Content-Disposition', 'attachment; filename="records.xlsx"');
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const buf = await wb.xlsx.writeBuffer();
+      return res.send(buf);
     }
-    res.setHeader('Content-Disposition', 'attachment; filename="records.xlsx"');
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    const buf = await wb.xlsx.writeBuffer();
-    return res.send(buf);
-  }
 
-  // Default: CSV
-  const cols = Object.keys(rows[0] || {});
-  const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
-  const csv = [
-    cols.map(csvEscape).join(','),
-    ...rows.map(r => cols.map(c => csvEscape(r[c])).join(','))
-  ].join('\r\n');
+    // Default: CSV
+    const cols = Object.keys(rows[0] || {});
+    const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [
+      cols.map(csvEscape).join(','),
+      ...rows.map(r => cols.map(c => csvEscape(r[c])).join(','))
+    ].join('\r\n');
 
-  res.setHeader('Content-Disposition', 'attachment; filename="records.csv"');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
+    res.setHeader('Content-Disposition', 'attachment; filename="records.csv"');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
-router.get('/records/:id/media', (req, res) => {
-  const media = db.prepare(
-    'SELECT * FROM media WHERE record_id = ? ORDER BY type, uploaded_at'
-  ).all(req.params.id);
-  res.json(media);
+router.get('/records/:id/media', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT * FROM media WHERE record_id = $1 ORDER BY type, uploaded_at',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Download Evidence (zip) ──────────────────────────────────────────────────
@@ -187,44 +207,44 @@ function fetchFileBuffer(urlStr) {
 }
 
 router.get('/records/:id/media/download', async (req, res) => {
-  const record = db.prepare(`
-    SELECT wr.id, u.name as employee, wr.date
-    FROM work_records wr JOIN users u ON u.id = wr.user_id
-    WHERE wr.id = ?
-  `).get(req.params.id);
+  try {
+    const { rows: recs } = await query(
+      'SELECT wr.id, u.name as employee, wr.date FROM work_records wr JOIN users u ON u.id = wr.user_id WHERE wr.id = $1',
+      [req.params.id]
+    );
+    const record = recs[0];
+    if (!record) return res.status(404).json({ error: 'Record not found' });
 
-  if (!record) return res.status(404).json({ error: 'Record not found' });
+    const { rows: media } = await query(
+      'SELECT * FROM media WHERE record_id = $1 ORDER BY type, uploaded_at',
+      [req.params.id]
+    );
+    if (!media.length) return res.status(404).json({ error: 'No media for this record' });
 
-  const media = db.prepare(
-    'SELECT * FROM media WHERE record_id = ? ORDER BY type, uploaded_at'
-  ).all(req.params.id);
+    const safeName = record.employee.replace(/[^a-z0-9]/gi, '_');
+    const filename = `evidence_${safeName}_${record.date}.zip`;
 
-  if (!media.length) return res.status(404).json({ error: 'No media for this record' });
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/zip');
 
-  const safeName = record.employee.replace(/[^a-z0-9]/gi, '_');
-  const filename = `evidence_${safeName}_${record.date}.zip`;
+    const archive = archiver('zip', { zlib: { level: 5 } });
+    archive.on('error', err => { console.error('Archive error:', err); });
+    archive.pipe(res);
 
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.setHeader('Content-Type', 'application/zip');
-
-  const archive = archiver('zip', { zlib: { level: 5 } });
-  archive.on('error', err => { console.error('Archive error:', err); });
-  archive.pipe(res);
-
-  for (const m of media) {
-    try {
-      const fileUrl = m.url || null;
-      if (!fileUrl) continue; // skip legacy local files without URL
-      const buf = await fetchFileBuffer(fileUrl);
-      const ext = m.original_name.includes('.') ? m.original_name.split('.').pop() : 'bin';
-      const entryName = `${m.type}/${m.id}_${m.original_name}`;
-      archive.append(buf, { name: entryName });
-    } catch (err) {
-      console.error(`Failed to fetch media ${m.id}:`, err.message);
+    for (const m of media) {
+      try {
+        if (!m.url) continue;
+        const buf = await fetchFileBuffer(m.url);
+        archive.append(buf, { name: `${m.type}/${m.id}_${m.original_name}` });
+      } catch (err) {
+        console.error(`Failed to fetch media ${m.id}:`, err.message);
+      }
     }
-  }
 
-  await archive.finalize();
+    await archive.finalize();
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;
