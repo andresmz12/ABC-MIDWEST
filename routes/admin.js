@@ -2,7 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const https  = require('https');
 const http   = require('http');
-const XLSX   = require('xlsx');
+const ExcelJS = require('exceljs');
 const archiver = require('archiver');
 const db = require('../database');
 const { requireAdmin } = require('../middleware/auth');
@@ -112,7 +112,7 @@ router.get('/records', (req, res) => {
 
 // ─── Export Records ───────────────────────────────────────────────────────────
 
-router.get('/records/export', (req, res) => {
+router.get('/records/export', async (req, res) => {
   const { format = 'csv' } = req.query;
   const { sql, params } = buildRecordsQuery(req.query);
   const records = db.prepare(sql).all(...params);
@@ -133,12 +133,16 @@ router.get('/records/export', (req, res) => {
   });
 
   if (format === 'excel') {
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Records');
-    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Records');
+    if (rows.length > 0) {
+      ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 20 }));
+      rows.forEach(r => ws.addRow(r));
+      ws.getRow(1).font = { bold: true };
+    }
     res.setHeader('Content-Disposition', 'attachment; filename="records.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const buf = await wb.xlsx.writeBuffer();
     return res.send(buf);
   }
 
