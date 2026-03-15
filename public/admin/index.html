@@ -43,7 +43,9 @@
       <div class="card" style="margin-top:16px">
         <!-- Filters -->
         <div class="filter-row">
-          <input type="date" id="filterDate" class="form-control" placeholder="Date">
+          <input type="date" id="filterDateFrom" class="form-control" title="Start date">
+          <span style="align-self:center;color:var(--muted);font-size:.85rem">to</span>
+          <input type="date" id="filterDateTo" class="form-control" title="End date">
           <select id="filterEmployee" class="form-control">
             <option value="">All Employees</option>
           </select>
@@ -257,12 +259,14 @@
     // ─────────────────────────────────────────────────────────────
     function getFilterParams() {
       const params = new URLSearchParams();
-      const date  = document.getElementById('filterDate').value;
-      const emp   = document.getElementById('filterEmployee').value;
-      const store = document.getElementById('filterStore').value;
-      if (date)  params.set('date', date);
-      if (emp)   params.set('employee_id', emp);
-      if (store) params.set('store_id', store);
+      const dateFrom = document.getElementById('filterDateFrom').value;
+      const dateTo   = document.getElementById('filterDateTo').value;
+      const emp      = document.getElementById('filterEmployee').value;
+      const store    = document.getElementById('filterStore').value;
+      if (dateFrom) params.set('date_from', dateFrom);
+      if (dateTo)   params.set('date_to',   dateTo);
+      if (emp)      params.set('employee_id', emp);
+      if (store)    params.set('store_id', store);
       return params;
     }
 

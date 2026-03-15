@@ -75,7 +75,7 @@ router.delete('/stores/:id', (req, res) => {
 // ─── Records ──────────────────────────────────────────────────────────────────
 
 function buildRecordsQuery(query) {
-  const { date, employee_id, store_id } = query;
+  const { date_from, date_to, employee_id, store_id } = query;
   let sql = `
     SELECT wr.id, u.name as employee, s.name as store, s.address,
            wr.date, wr.clock_in, wr.clock_out, wr.notes,
@@ -87,7 +87,8 @@ function buildRecordsQuery(query) {
     WHERE 1=1
   `;
   const params = [];
-  if (date)        { sql += ' AND wr.date = ?';      params.push(date); }
+  if (date_from)   { sql += ' AND wr.date >= ?';     params.push(date_from); }
+  if (date_to)     { sql += ' AND wr.date <= ?';     params.push(date_to); }
   if (employee_id) { sql += ' AND wr.user_id = ?';   params.push(employee_id); }
   if (store_id)    { sql += ' AND wr.store_id = ?';  params.push(store_id); }
   sql += ' GROUP BY wr.id ORDER BY wr.date DESC, wr.clock_in DESC';
