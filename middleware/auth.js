@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { query } = require('../database');
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET not set via environment variable. Using insecure fallback — set JWT_SECRET in production.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'abc-midwest-secret-2024';
 
 async function requireAuth(req, res, next) {

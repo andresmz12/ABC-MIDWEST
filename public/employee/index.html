@@ -46,7 +46,7 @@
         <h3 style="margin-bottom:16px;font-size:1rem">Start a Shift</h3>
         <div class="alert alert-error" id="clockInError"></div>
         <div class="form-group">
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
             <input type="checkbox" id="extraProjectToggle" style="width:18px;height:18px;cursor:pointer">
             <span style="font-weight:600">Extra Project</span>
           </label>
@@ -187,9 +187,16 @@
     async function loadStores() {
       const stores = await api('/employee/stores');
       const sel = document.getElementById('storeSelect');
-      sel.innerHTML = '<option value="">-- Choose a store --</option>';
+      sel.innerHTML = '';
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = '-- Choose a store --';
+      sel.appendChild(defaultOpt);
       stores.forEach(s => {
-        sel.innerHTML += `<option value="${s.id}">${s.name} – ${s.address}</option>`;
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.name} – ${s.address}`;
+        sel.appendChild(opt);
       });
     }
 
@@ -282,8 +289,17 @@
 
     // ── Extra Project toggle ──────────────────────────────────────
     document.getElementById('extraProjectToggle').addEventListener('change', function() {
-      document.getElementById('storeSelectGroup').style.display  = this.checked ? 'none' : '';
-      document.getElementById('projectNameGroup').style.display  = this.checked ? ''     : 'none';
+      const isExtra = this.checked;
+      document.getElementById('storeSelectGroup').style.display = isExtra ? 'none' : '';
+      document.getElementById('projectNameGroup').style.display = isExtra ? ''     : 'none';
+      if (isExtra) {
+        // Focus the project name input so the user knows what to fill in
+        setTimeout(() => {
+          const input = document.getElementById('projectNameInput');
+          input.focus();
+          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+      }
     });
 
     // ── Geolocation ───────────────────────────────────────────────
@@ -425,12 +441,12 @@
     let allHistoryRecords = [];
     let histFilter = 'store';
 
-    function setHistFilter(type) {
+    window.setHistFilter = function(type) {
       histFilter = type;
       document.getElementById('histTabStore').className   = 'btn btn-sm ' + (type === 'store'   ? 'btn-primary' : 'btn-outline');
       document.getElementById('histTabProject').className = 'btn btn-sm ' + (type === 'project' ? 'btn-primary' : 'btn-outline');
       renderHistory();
-    }
+    };
 
     function renderHistory() {
       const el = document.getElementById('historyList');
@@ -485,7 +501,7 @@
       modal.classList.add('open');
 
       try {
-        const media = await api(`/admin/records/${recordId}/media`);
+        const media = await api(`/employee/records/${recordId}/media`);
         if (!media.length) {
           gallery.innerHTML = '<div class="empty-state"><span class="empty-icon">📷</span><p>No media uploaded</p></div>';
           return;

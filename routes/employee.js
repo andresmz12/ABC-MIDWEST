@@ -104,6 +104,23 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Get media for a specific record (employee can only see their own records)
+router.get('/records/:id/media', async (req, res) => {
+  try {
+    const { rows: owned } = await query(
+      'SELECT id FROM work_records WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!owned.length) return res.status(404).json({ error: 'Record not found' });
+
+    const { rows } = await query(
+      'SELECT * FROM media WHERE record_id = $1 ORDER BY type, uploaded_at',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Get own records
 router.get('/my-records', async (req, res) => {
   try {

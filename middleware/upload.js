@@ -2,6 +2,9 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.warn('WARNING: Cloudinary credentials not set via environment variables. Using insecure fallback values.');
+}
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dmxvogxia',
   api_key:    process.env.CLOUDINARY_API_KEY    || '377228478858355',
