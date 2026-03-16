@@ -20,7 +20,12 @@ router.get('/stores', async (req, res) => {
 router.get('/current-record', async (req, res) => {
   try {
     const { rows } = await query(
-      'SELECT wr.*, s.name as store_name FROM work_records wr JOIN stores s ON s.id = wr.store_id WHERE wr.user_id = $1 AND wr.clock_out IS NULL ORDER BY wr.clock_in DESC LIMIT 1',
+      `SELECT wr.*, s.name as store_name,
+              COALESCE(s.name, wr.project_name) as display_name
+       FROM work_records wr
+       LEFT JOIN stores s ON s.id = wr.store_id
+       WHERE wr.user_id = $1 AND wr.clock_out IS NULL
+       ORDER BY wr.clock_in DESC LIMIT 1`,
       [req.user.id]
     );
     res.json(rows[0] || null);

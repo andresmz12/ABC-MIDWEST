@@ -60,6 +60,15 @@ router.delete('/employees/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/employees/:id/force-logout', async (req, res) => {
+  try {
+    const { rows } = await query("SELECT id FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Employee not found' });
+    await query('UPDATE users SET force_logout = TRUE WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.put('/employees/:id', async (req, res) => {
   try {
     const { name, username, password, store_ids } = req.body;

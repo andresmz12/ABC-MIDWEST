@@ -664,6 +664,7 @@
             </div>
             <div class="list-item-actions">
               <button class="btn btn-sm btn-outline" onclick="editEmployee(${e.id})">✏️ Edit</button>
+              <button class="btn btn-sm btn-warning" title="Force the employee to log out immediately" onclick="forceLogout(${e.id}, '${escHtml(e.name)}')">🔴 Force Out</button>
               <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${e.id}, '${escHtml(e.name)}')">Delete</button>
             </div>
           </div>
@@ -678,6 +679,14 @@
       try {
         await api(`/admin/employees/${id}`, { method: 'DELETE' });
         loadEmployees();
+      } catch(ex) { alert(ex.message); }
+    };
+
+    window.forceLogout = async (id, name) => {
+      if (!confirm(`Force logout "${name}"?\nTheir session will be terminated immediately.`)) return;
+      try {
+        await api(`/admin/employees/${id}/force-logout`, { method: 'POST' });
+        alert(`"${name}" has been logged out.`);
       } catch(ex) { alert(ex.message); }
     };
 

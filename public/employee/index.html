@@ -150,6 +150,7 @@
         headers: { Authorization: 'Bearer ' + token, ...(opts.headers || {}) }
       });
       const data = await res.json();
+      if (res.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; }
       if (!res.ok) throw new Error(data.error || 'Request failed');
       return data;
     };
@@ -208,7 +209,7 @@
 
       if (currentRecord) {
         statusBox.classList.remove('inactive');
-        statusStore.textContent = currentRecord.store_name;
+        statusStore.textContent = currentRecord.display_name || currentRecord.store_name || currentRecord.project_name;
         const ci = new Date(currentRecord.clock_in);
         timeLabel.textContent = 'Clocked in at ' + ci.toLocaleTimeString();
         clockInSec.style.display  = 'none';
@@ -349,7 +350,7 @@
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: fd
-        }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; } if (!r.ok) throw new Error(d.error); return d; });
 
         // Reload fresh record
         await checkCurrentShift();
@@ -404,7 +405,7 @@
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: fd
-        }).then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d; });
+        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; } if (!r.ok) throw new Error(d.error); return d; });
 
         currentRecord = null;
         document.getElementById('clockOutFiles')._files = [];

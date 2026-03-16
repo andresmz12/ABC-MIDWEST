@@ -1,20 +1,26 @@
 const jwt = require('jsonwebtoken');
+const { query } = require('../database');
 const JWT_SECRET = process.env.JWT_SECRET || 'abc-midwest-secret-2024';
 
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'No token provided' });
 
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
+    const { rows } = await query('SELECT force_logout FROM users WHERE id = $1', [payload.id]);
+    if (!rows.length || rows[0].force_logout) {
+      return res.status(401).json({ error: 'Session terminated by administrator. Please log in again.' });
+    }
+    req.user = payload;
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-function requireAdmin(req, res, next) {
-  requireAuth(req, res, () => {
+async function requireAdmin(req, res, next) {
+  await requireAuth(req, res, () => {
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }

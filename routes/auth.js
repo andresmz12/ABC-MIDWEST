@@ -17,6 +17,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    await query('UPDATE users SET force_logout = FALSE WHERE id = $1', [user.id]);
+
     const token = jwt.sign(
       { id: user.id, name: user.name, username: user.username, role: user.role },
       JWT_SECRET,
