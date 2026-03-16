@@ -10,7 +10,7 @@
   <style>
     .logo-img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
     .export-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-    .export-row select { flex: 0 0 auto; padding: 8px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-size: .9rem; }
+    .export-row select { flex: 0 0 auto; padding: 8px 36px 8px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--surface); font-size: .9rem; }
     .btn-export { background: #28a745; color: #fff; border: none; border-radius: 8px; padding: 10px 16px; font-size: .9rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
     .btn-export:hover { background: #218838; }
     .btn-download { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); border-radius: 6px; padding: 4px 8px; font-size: .8rem; cursor: pointer; margin-left: 4px; }
@@ -31,7 +31,7 @@
 
   <!-- TABS -->
   <div class="tab-bar">
-    <button class="tab-btn active" data-tab="records">📋 Records</button>
+    <button class="tab-btn active" data-tab="records">📋 Time Cards</button>
     <button class="tab-btn" data-tab="employees">👥 Employees</button>
     <button class="tab-btn" data-tab="stores">🏪 Stores</button>
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
@@ -150,7 +150,7 @@
         <div class="section-header" style="margin-bottom:12px">
           <h2>Payment History</h2>
           <div class="export-row" style="margin-top:0">
-            <select id="payrollYearExport" class="form-control" style="width:auto;padding:8px 10px"></select>
+            <select id="payrollYearExport" class="form-control" style="width:auto;padding:8px 36px 8px 10px"></select>
             <button class="btn-export" id="payrollExportBtn">⬇ Export Excel</button>
           </div>
         </div>
@@ -185,7 +185,7 @@
       <div class="card" style="margin-top:12px;margin-bottom:24px">
         <div class="section-header" style="margin-bottom:12px">
           <h2>Annual Summary</h2>
-          <select id="summaryYear" class="form-control" style="width:auto;padding:8px 10px"></select>
+          <select id="summaryYear" class="form-control" style="width:auto;padding:8px 36px 8px 10px"></select>
         </div>
         <div id="summaryBody">
           <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>

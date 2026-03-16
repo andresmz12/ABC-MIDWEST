@@ -471,6 +471,9 @@ tbody tr:hover { background: #f8f9fa; }
   padding: 10px 12px;
   font-size: 0.88rem;
 }
+.filter-row select.form-control {
+  padding-right: 40px;
+}
 
 /* ── Clock Display ────────────────────────────────────────────── */
 .live-clock {
