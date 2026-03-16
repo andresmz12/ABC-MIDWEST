@@ -30,8 +30,8 @@ router.get('/current-record', async (req, res) => {
 // Clock In
 router.post('/clock-in', upload.array('media', 10), async (req, res) => {
   try {
-    const { store_id, lat, lng } = req.body;
-    if (!store_id) return res.status(400).json({ error: 'Store required' });
+    const { store_id, lat, lng, project_name } = req.body;
+    if (!store_id && !project_name) return res.status(400).json({ error: 'Store or project name required' });
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'At least one photo or video is required' });
@@ -49,8 +49,8 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
     const clockIn = now.toISOString();
 
     const { rows } = await query(
-      'INSERT INTO work_records (user_id, store_id, clock_in, date, clock_in_lat, clock_in_lng) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [req.user.id, store_id, clockIn, date, lat || null, lng || null]
+      'INSERT INTO work_records (user_id, store_id, project_name, clock_in, date, clock_in_lat, clock_in_lng) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [req.user.id, store_id || null, project_name || null, clockIn, date, lat || null, lng || null]
     );
     const recordId = rows[0].id;
 

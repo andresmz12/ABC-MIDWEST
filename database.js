@@ -76,6 +76,8 @@ async function initDb() {
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_lng NUMERIC(10,7)`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_lat NUMERIC(10,7)`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_lng NUMERIC(10,7)`);
+  await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS project_name TEXT`);
+  await pool.query(`ALTER TABLE work_records ALTER COLUMN store_id DROP NOT NULL`);
 
   const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (rows.length === 0) {

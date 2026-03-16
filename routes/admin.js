@@ -220,6 +220,74 @@ router.get('/records/export', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Extra Projects ───────────────────────────────────────────────────────────
+
+function buildProjectsQuery(reqQuery) {
+  const { date_from, date_to, employee_id } = reqQuery;
+  let sql = `
+    SELECT wr.id, u.name as employee, wr.project_name,
+           wr.date, wr.clock_in, wr.clock_out, wr.notes,
+           wr.clock_in_lat, wr.clock_in_lng, wr.clock_out_lat, wr.clock_out_lng,
+           COUNT(m.id) as media_count
+    FROM work_records wr
+    JOIN users u ON u.id = wr.user_id
+    LEFT JOIN media m ON m.record_id = wr.id
+    WHERE wr.project_name IS NOT NULL
+  `;
+  const params = [];
+  let i = 1;
+  if (date_from)   { sql += ` AND wr.date >= $${i++}`;   params.push(date_from); }
+  if (date_to)     { sql += ` AND wr.date <= $${i++}`;   params.push(date_to); }
+  if (employee_id) { sql += ` AND wr.user_id = $${i++}`; params.push(employee_id); }
+  sql += ' GROUP BY wr.id, u.name ORDER BY wr.date DESC, wr.clock_in DESC';
+  return { sql, params };
+}
+
+router.get('/projects', async (req, res) => {
+  try {
+    const { sql, params } = buildProjectsQuery(req.query);
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/projects/export', async (req, res) => {
+  try {
+    const { sql, params } = buildProjectsQuery(req.query);
+    const { rows: records } = await query(sql, params);
+
+    const rows = records.map(r => {
+      const mins = calcDurationMins(r.clock_in, r.clock_out);
+      return {
+        Employee:    r.employee,
+        Project:     r.project_name,
+        Date:        r.date,
+        'Clock In':  r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
+        'Clock Out': r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
+        Duration:    formatDuration(mins),
+        Notes:       r.notes || '',
+        'Media Files': Number(r.media_count),
+        'Clock-In Lat':  r.clock_in_lat  || '',
+        'Clock-In Lng':  r.clock_in_lng  || '',
+        'Clock-Out Lat': r.clock_out_lat || '',
+        'Clock-Out Lng': r.clock_out_lng || ''
+      };
+    });
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Extra Projects');
+    if (rows.length > 0) {
+      ws.columns = Object.keys(rows[0]).map(k => ({ header: k, key: k, width: 22 }));
+      rows.forEach(r => ws.addRow(r));
+      ws.getRow(1).font = { bold: true };
+    }
+    res.setHeader('Content-Disposition', 'attachment; filename="extra_projects.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    const buf = await wb.xlsx.writeBuffer();
+    res.send(buf);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 router.get('/records/:id/media', async (req, res) => {

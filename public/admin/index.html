@@ -32,6 +32,7 @@
   <!-- TABS -->
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="records">📋 Time Cards</button>
+    <button class="tab-btn" data-tab="projects">🗂 Extra Projects</button>
     <button class="tab-btn" data-tab="employees">👥 Employees</button>
     <button class="tab-btn" data-tab="stores">🏪 Stores</button>
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
@@ -82,6 +83,50 @@
               </tr>
             </thead>
             <tbody id="recordsBody">
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── EXTRA PROJECTS TAB ────────────────────────────────────── -->
+  <div id="tab-projects" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div class="filter-row">
+          <input type="date" id="projFilterDateFrom" class="form-control" title="Start date">
+          <span style="align-self:center;color:var(--muted);font-size:.85rem">to</span>
+          <input type="date" id="projFilterDateTo" class="form-control" title="End date">
+          <select id="projFilterEmployee" class="form-control">
+            <option value="">All Employees</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="projFilterBtn">
+          🔍 Filter
+        </button>
+        <div class="export-row">
+          <button class="btn-export" id="projExportBtn">⬇ Export Excel</button>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Project</th>
+                <th>Date</th>
+                <th>In</th>
+                <th>Out</th>
+                <th>Duration</th>
+                <th>Media</th>
+                <th>Location</th>
+              </tr>
+            </thead>
+            <tbody id="projectsBody">
               <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>
             </tbody>
           </table>
@@ -306,7 +351,7 @@
     });
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { records: 'tab-records', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll' };
+    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -315,6 +360,7 @@
         const tab = btn.dataset.tab;
         document.getElementById(TAB_IDS[tab]).style.display = '';
         if (tab === 'records')   loadRecords();
+        if (tab === 'projects')  loadProjects();
         if (tab === 'employees') loadEmployees();
         if (tab === 'stores')    loadStores();
         if (tab === 'payroll')   initPayrollTab();
@@ -422,6 +468,74 @@
         .catch(err => alert('Export failed: ' + err.message));
     });
 
+    // ─────────────────────────────────────────────────────────────
+    // EXTRA PROJECTS
+    // ─────────────────────────────────────────────────────────────
+    function getProjectFilterParams() {
+      const params = new URLSearchParams();
+      const dateFrom = document.getElementById('projFilterDateFrom').value;
+      const dateTo   = document.getElementById('projFilterDateTo').value;
+      const emp      = document.getElementById('projFilterEmployee').value;
+      if (dateFrom) params.set('date_from', dateFrom);
+      if (dateTo)   params.set('date_to',   dateTo);
+      if (emp)      params.set('employee_id', emp);
+      return params;
+    }
+
+    async function loadProjects() {
+      const tbody = document.getElementById('projectsBody');
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>';
+      try {
+        const records = await api('/admin/projects?' + getProjectFilterParams());
+        if (!records.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No extra project records found</td></tr>';
+          return;
+        }
+        tbody.innerHTML = records.map(r => `
+          <tr>
+            <td><strong>${escHtml(r.employee)}</strong></td>
+            <td>${escHtml(r.project_name)}</td>
+            <td style="white-space:nowrap">${formatDate(r.date)}</td>
+            <td style="white-space:nowrap">${formatTime(r.clock_in)}</td>
+            <td style="white-space:nowrap">${formatTime(r.clock_out)}</td>
+            <td>${calcDuration(r.clock_in, r.clock_out)}</td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-sm btn-primary" onclick="viewMedia(${r.id}, '${escHtml(r.employee)}', '${escHtml(r.project_name)}', '${r.date}')">
+                📷 ${r.media_count}
+              </button>
+              <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
+                ⬇ ZIP
+              </button>
+            </td>
+            <td style="white-space:nowrap">
+              ${r.clock_in_lat ? `<a href="https://maps.google.com/?q=${r.clock_in_lat},${r.clock_in_lng}" target="_blank" title="Clock-In location" style="text-decoration:none;margin-right:4px">📍 In</a>` : ''}
+              ${r.clock_out_lat ? `<a href="https://maps.google.com/?q=${r.clock_out_lat},${r.clock_out_lng}" target="_blank" title="Clock-Out location" style="text-decoration:none">📍 Out</a>` : ''}
+              ${!r.clock_in_lat && !r.clock_out_lat ? '<span style="color:var(--muted)">–</span>' : ''}
+            </td>
+          </tr>
+        `).join('');
+      } catch(ex) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--danger)">${ex.message}</td></tr>`;
+      }
+    }
+
+    document.getElementById('projFilterBtn').addEventListener('click', loadProjects);
+    document.getElementById('projExportBtn').addEventListener('click', () => {
+      const params = getProjectFilterParams();
+      fetch('/api/admin/projects/export?' + params, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed');
+          return r.blob();
+        })
+        .then(blob => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'extra_projects.xlsx'; a.click();
+          URL.revokeObjectURL(url);
+        })
+        .catch(err => alert('Export failed: ' + err.message));
+    });
+
     // ── Download Evidence ─────────────────────────────────────────
     window.downloadEvidence = (recordId) => {
       fetch(`/api/admin/records/${recordId}/media/download`, {
@@ -450,8 +564,9 @@
       const storeSel = document.getElementById('filterStore');
       empSel.innerHTML   = '<option value="">All Employees</option>' + emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
       storeSel.innerHTML = '<option value="">All Stores</option>'    + stores.map(s => `<option value="${s.id}">${escHtml(s.name)}</option>`).join('');
-      // Pre-populate payroll employee selects so they're ready if the user navigates there
+      // Pre-populate other employee selects so they're ready if the user navigates there
       const empOpts = emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+      document.getElementById('projFilterEmployee').innerHTML    = '<option value="">All Employees</option>'  + empOpts;
       document.getElementById('payrollFilterEmployee').innerHTML = '<option value="">All Employees</option>' + empOpts;
       document.getElementById('payrollEmployee').innerHTML       = '<option value="">Select Employee</option>' + empOpts;
     }
