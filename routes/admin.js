@@ -14,18 +14,28 @@ router.use(requireAdmin);
 
 router.get('/employees', async (req, res) => {
   try {
-    const { rows } = await query(
-      "SELECT id, name, username, created_at FROM users WHERE role = 'employee' ORDER BY name"
-    );
+    const { rows } = await query(`
+      SELECT u.id, u.name, u.username, u.created_at,
+             COALESCE(json_agg(json_build_object('id', s.id, 'name', s.name) ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL), '[]') as stores
+      FROM users u
+      LEFT JOIN user_stores us ON us.user_id = u.id
+      LEFT JOIN stores s ON s.id = us.store_id
+      WHERE u.role = 'employee'
+      GROUP BY u.id
+      ORDER BY u.name
+    `);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/employees', async (req, res) => {
   try {
-    const { name, username, password } = req.body;
+    const { name, username, password, store_ids } = req.body;
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'Name, username and password required' });
+    }
+    if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
+      return res.status(400).json({ error: 'At least one store must be assigned' });
     }
     const { rows: existing } = await query('SELECT id FROM users WHERE username = $1', [username]);
     if (existing.length) return res.status(400).json({ error: 'Username already taken' });
@@ -35,13 +45,45 @@ router.post('/employees', async (req, res) => {
       'INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4) RETURNING id',
       [name, username, hash, 'employee']
     );
-    res.status(201).json({ id: rows[0].id, name, username });
+    const userId = rows[0].id;
+    for (const storeId of store_ids) {
+      await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [userId, storeId]);
+    }
+    res.status(201).json({ id: userId, name, username });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/employees/:id', async (req, res) => {
   try {
     await query("DELETE FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/employees/:id', async (req, res) => {
+  try {
+    const { name, username, password, store_ids } = req.body;
+    if (!name || !username) return res.status(400).json({ error: 'Name and username required' });
+    if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
+      return res.status(400).json({ error: 'At least one store must be assigned' });
+    }
+    const { rows: existing } = await query(
+      'SELECT id FROM users WHERE username = $1 AND id != $2', [username, req.params.id]
+    );
+    if (existing.length) return res.status(400).json({ error: 'Username already taken' });
+
+    if (password) {
+      const hash = bcrypt.hashSync(password, 10);
+      await query('UPDATE users SET name = $1, username = $2, password = $3 WHERE id = $4 AND role = $5',
+        [name, username, hash, req.params.id, 'employee']);
+    } else {
+      await query('UPDATE users SET name = $1, username = $2 WHERE id = $3 AND role = $4',
+        [name, username, req.params.id, 'employee']);
+    }
+    await query('DELETE FROM user_stores WHERE user_id = $1', [req.params.id]);
+    for (const storeId of store_ids) {
+      await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [req.params.id, storeId]);
+    }
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -90,6 +132,7 @@ function buildRecordsQuery(reqQuery) {
   let sql = `
     SELECT wr.id, u.name as employee, s.name as store, s.address,
            wr.date, wr.clock_in, wr.clock_out, wr.notes,
+           wr.clock_in_lat, wr.clock_in_lng, wr.clock_out_lat, wr.clock_out_lng,
            COUNT(m.id) as media_count
     FROM work_records wr
     JOIN users u ON u.id = wr.user_id

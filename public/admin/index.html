@@ -78,10 +78,11 @@
                 <th>Out</th>
                 <th>Duration</th>
                 <th>Media</th>
+                <th>Location</th>
               </tr>
             </thead>
             <tbody id="recordsBody">
-              <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>
+              <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>
             </tbody>
           </table>
         </div>
@@ -220,7 +221,7 @@
   <div class="modal-overlay" id="employeeModal">
     <div class="modal">
       <div class="modal-header">
-        <h3>Add Employee</h3>
+        <h3 id="empModalTitle">Add Employee</h3>
         <button class="modal-close" id="closeEmployeeModal">&times;</button>
       </div>
       <div class="modal-body">
@@ -238,7 +239,12 @@
           </div>
           <div class="form-group">
             <label for="empPassword">Password</label>
-            <input type="password" id="empPassword" class="form-control" placeholder="Set a password" required>
+            <input type="password" id="empPassword" class="form-control" placeholder="Set a password">
+            <small id="empPasswordHint" style="display:none;color:var(--muted);font-size:.8rem;margin-top:4px">Leave blank to keep current password</small>
+          </div>
+          <div class="form-group">
+            <label>Assign Stores <span style="color:var(--danger)">*</span></label>
+            <div id="empStoresList" style="display:grid;gap:6px;margin-top:6px;max-height:220px;overflow-y:auto"></div>
           </div>
           <button type="submit" class="btn btn-primary" id="empSubmitBtn">Create Employee</button>
         </form>
@@ -354,7 +360,7 @@
       try {
         const records = await api('/admin/records?' + getFilterParams());
         if (!records.length) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">No records found</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No records found</td></tr>';
           return;
         }
         tbody.innerHTML = records.map(r => `
@@ -373,10 +379,15 @@
                 ⬇ ZIP
               </button>
             </td>
+            <td style="white-space:nowrap">
+              ${r.clock_in_lat ? `<a href="https://maps.google.com/?q=${r.clock_in_lat},${r.clock_in_lng}" target="_blank" title="Clock-In location" style="text-decoration:none;margin-right:4px">📍 In</a>` : ''}
+              ${r.clock_out_lat ? `<a href="https://maps.google.com/?q=${r.clock_out_lat},${r.clock_out_lng}" target="_blank" title="Clock-Out location" style="text-decoration:none">📍 Out</a>` : ''}
+              ${!r.clock_in_lat && !r.clock_out_lat ? '<span style="color:var(--muted)">–</span>' : ''}
+            </td>
           </tr>
         `).join('');
       } catch(ex) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--danger)">${ex.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--danger)">${ex.message}</td></tr>`;
       }
     }
 
@@ -520,18 +531,24 @@
       const el = document.getElementById('employeeList');
       el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
       try {
-        const emps = await api('/admin/employees');
-        if (!emps.length) {
+        employees = await api('/admin/employees');
+        if (!employees.length) {
           el.innerHTML = '<div class="empty-state"><span class="empty-icon">👥</span><p>No employees yet</p></div>';
           return;
         }
-        el.innerHTML = emps.map(e => `
+        el.innerHTML = employees.map(e => `
           <div class="list-item">
             <div class="list-item-info">
               <div class="list-item-name">${escHtml(e.name)}</div>
               <div class="list-item-sub">@${escHtml(e.username)}</div>
+              <div class="list-item-sub" style="margin-top:4px">
+                ${e.stores.length
+                  ? e.stores.map(s => `<span style="background:#e8f0fe;color:var(--primary);padding:1px 8px;border-radius:10px;font-size:.75rem;margin-right:4px">${escHtml(s.name)}</span>`).join('')
+                  : '<span style="color:var(--warning);font-size:.8rem">No stores assigned</span>'}
+              </div>
             </div>
             <div class="list-item-actions">
+              <button class="btn btn-sm btn-outline" onclick="editEmployee(${e.id})">✏️ Edit</button>
               <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${e.id}, '${escHtml(e.name)}')">Delete</button>
             </div>
           </div>
@@ -549,11 +566,45 @@
       } catch(ex) { alert(ex.message); }
     };
 
-    document.getElementById('newEmployeeBtn').addEventListener('click', () => {
+    async function openEmployeeModal(emp) {
+      editingEmployeeId = emp ? emp.id : null;
+      document.getElementById('empModalTitle').textContent = emp ? 'Edit Employee' : 'Add Employee';
       document.getElementById('empError').classList.remove('show');
       document.getElementById('empSuccess').classList.remove('show');
-      document.getElementById('employeeForm').reset();
+      document.getElementById('empName').value     = emp ? emp.name     : '';
+      document.getElementById('empUsername').value = emp ? emp.username : '';
+      document.getElementById('empPassword').value = '';
+      document.getElementById('empPasswordHint').style.display = emp ? '' : 'none';
+      document.getElementById('empSubmitBtn').textContent = emp ? 'Update Employee' : 'Create Employee';
       document.getElementById('employeeModal').classList.add('open');
+
+      const listEl = document.getElementById('empStoresList');
+      listEl.innerHTML = '<div style="color:var(--muted);font-size:.88rem;padding:8px">Loading stores...</div>';
+      try {
+        const stores = await api('/admin/stores');
+        const assignedIds = emp ? emp.stores.map(s => s.id) : [];
+        if (!stores.length) {
+          listEl.innerHTML = '<div style="color:var(--warning);font-size:.88rem;padding:8px">No stores available. Add stores first.</div>';
+          return;
+        }
+        listEl.innerHTML = stores.map(s => `
+          <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer">
+            <input type="checkbox" name="empStore" value="${s.id}" ${assignedIds.includes(s.id) ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer">
+            <span><strong>${escHtml(s.name)}</strong> <span style="color:var(--muted);font-size:.82rem">${escHtml(s.address)}</span></span>
+          </label>
+        `).join('');
+      } catch {
+        listEl.innerHTML = '<div style="color:var(--danger);font-size:.88rem;padding:8px">Failed to load stores.</div>';
+      }
+    }
+
+    window.editEmployee = (id) => {
+      const emp = employees.find(e => e.id === id);
+      if (emp) openEmployeeModal(emp);
+    };
+
+    document.getElementById('newEmployeeBtn').addEventListener('click', () => {
+      openEmployeeModal(null);
     });
     document.getElementById('closeEmployeeModal').addEventListener('click', () => document.getElementById('employeeModal').classList.remove('open'));
     document.getElementById('employeeModal').addEventListener('click', e => { if (e.target === document.getElementById('employeeModal')) document.getElementById('employeeModal').classList.remove('open'); });
@@ -564,19 +615,41 @@
       const sucEl = document.getElementById('empSuccess');
       errEl.classList.remove('show');
       sucEl.classList.remove('show');
+
+      const storeIds = Array.from(document.querySelectorAll('input[name="empStore"]:checked')).map(cb => parseInt(cb.value));
+      if (!storeIds.length) {
+        errEl.textContent = 'Please assign at least one store.';
+        errEl.classList.add('show');
+        return;
+      }
+
       const btn = document.getElementById('empSubmitBtn');
+      const origText = btn.textContent;
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
 
       try {
-        const data = await api('/admin/employees', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: document.getElementById('empName').value.trim(),
-            username: document.getElementById('empUsername').value.trim(),
-            password: document.getElementById('empPassword').value
-          })
-        });
-        sucEl.textContent = `Employee "${data.name}" created successfully.`;
+        const name     = document.getElementById('empName').value.trim();
+        const username = document.getElementById('empUsername').value.trim();
+        const password = document.getElementById('empPassword').value;
+
+        if (editingEmployeeId) {
+          const payload = { name, username, store_ids: storeIds };
+          if (password) payload.password = password;
+          await api(`/admin/employees/${editingEmployeeId}`, { method: 'PUT', body: JSON.stringify(payload) });
+          sucEl.textContent = `Employee "${name}" updated successfully.`;
+        } else {
+          if (!password) {
+            errEl.textContent = 'Password is required.';
+            errEl.classList.add('show');
+            btn.disabled = false; btn.textContent = origText;
+            return;
+          }
+          const data = await api('/admin/employees', {
+            method: 'POST',
+            body: JSON.stringify({ name, username, password, store_ids: storeIds })
+          });
+          sucEl.textContent = `Employee "${data.name}" created successfully.`;
+        }
         sucEl.classList.add('show');
         document.getElementById('employeeForm').reset();
         loadEmployees();
@@ -585,7 +658,7 @@
         errEl.textContent = ex.message;
         errEl.classList.add('show');
       } finally {
-        btn.disabled = false; btn.textContent = 'Create Employee';
+        btn.disabled = false; btn.textContent = origText;
       }
     });
 
@@ -593,6 +666,8 @@
     // STORES
     // ─────────────────────────────────────────────────────────────
     let editingStoreId = null;
+    let editingEmployeeId = null;
+    let employees = [];
 
     async function loadStores() {
       const el = document.getElementById('storeList');

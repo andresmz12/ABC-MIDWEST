@@ -267,6 +267,28 @@
     setupUploadArea('clockInUploadArea',  'clockInFiles',  'clockInPreviews');
     setupUploadArea('clockOutUploadArea', 'clockOutFiles', 'clockOutPreviews');
 
+    // ── Geolocation ───────────────────────────────────────────────
+    function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation is not supported by this browser.'));
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          err => {
+            const msgs = {
+              1: 'Location access denied. Please enable location in your browser/device settings to clock in/out.',
+              2: 'Location unavailable. Please try again.',
+              3: 'Location request timed out. Please try again.'
+            };
+            reject(new Error(msgs[err.code] || 'Could not get location. Please try again.'));
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+      });
+    }
+
     // ── Clock In ──────────────────────────────────────────────────
     document.getElementById('clockInBtn').addEventListener('click', async () => {
       const storeId = document.getElementById('storeSelect').value;
@@ -278,11 +300,25 @@
       if (!files.length) { errEl.textContent = 'Please upload at least one photo or video.'; errEl.classList.add('show'); return; }
 
       const btn = document.getElementById('clockInBtn');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Clocking in...';
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Getting location...';
+
+      let geoPos;
+      try {
+        geoPos = await getLocation();
+      } catch(geoErr) {
+        errEl.textContent = geoErr.message;
+        errEl.classList.add('show');
+        btn.disabled = false; btn.innerHTML = '▶ Clock In';
+        return;
+      }
+
+      btn.innerHTML = '<span class="spinner"></span> Clocking in...';
 
       try {
         const fd = new FormData();
         fd.append('store_id', storeId);
+        fd.append('lat', geoPos.lat);
+        fd.append('lng', geoPos.lng);
         files.forEach(f => fd.append('media', f));
 
         currentRecord = await fetch('/api/employee/clock-in', {
@@ -314,12 +350,26 @@
       if (!currentRecord) { errEl.textContent = 'No active shift found.'; errEl.classList.add('show'); return; }
 
       const btn = document.getElementById('clockOutBtn');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Clocking out...';
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Getting location...';
+
+      let geoPos;
+      try {
+        geoPos = await getLocation();
+      } catch(geoErr) {
+        errEl.textContent = geoErr.message;
+        errEl.classList.add('show');
+        btn.disabled = false; btn.innerHTML = '⏹ Clock Out';
+        return;
+      }
+
+      btn.innerHTML = '<span class="spinner"></span> Clocking out...';
 
       try {
         const fd = new FormData();
         fd.append('record_id', currentRecord.id);
         fd.append('notes', document.getElementById('notesInput').value);
+        fd.append('lat', geoPos.lat);
+        fd.append('lng', geoPos.lng);
         files.forEach(f => fd.append('media', f));
 
         await fetch('/api/employee/clock-out', {

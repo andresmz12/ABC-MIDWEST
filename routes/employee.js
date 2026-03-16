@@ -5,10 +5,13 @@ const { upload } = require('../middleware/upload');
 
 router.use(requireAuth);
 
-// Get stores list
+// Get stores assigned to this employee
 router.get('/stores', async (req, res) => {
   try {
-    const { rows } = await query('SELECT * FROM stores ORDER BY name');
+    const { rows } = await query(
+      'SELECT s.* FROM stores s INNER JOIN user_stores us ON us.store_id = s.id WHERE us.user_id = $1 ORDER BY s.name',
+      [req.user.id]
+    );
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -27,7 +30,7 @@ router.get('/current-record', async (req, res) => {
 // Clock In
 router.post('/clock-in', upload.array('media', 10), async (req, res) => {
   try {
-    const { store_id } = req.body;
+    const { store_id, lat, lng } = req.body;
     if (!store_id) return res.status(400).json({ error: 'Store required' });
 
     if (!req.files || req.files.length === 0) {
@@ -46,8 +49,8 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
     const clockIn = now.toISOString();
 
     const { rows } = await query(
-      'INSERT INTO work_records (user_id, store_id, clock_in, date) VALUES ($1, $2, $3, $4) RETURNING id',
-      [req.user.id, store_id, clockIn, date]
+      'INSERT INTO work_records (user_id, store_id, clock_in, date, clock_in_lat, clock_in_lng) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [req.user.id, store_id, clockIn, date, lat || null, lng || null]
     );
     const recordId = rows[0].id;
 
@@ -65,7 +68,7 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
 // Clock Out
 router.post('/clock-out', upload.array('media', 10), async (req, res) => {
   try {
-    const { record_id, notes } = req.body;
+    const { record_id, notes, lat, lng } = req.body;
 
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ error: 'At least one photo or video is required' });
@@ -81,8 +84,8 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
     const clockOut = new Date().toISOString();
 
     await query(
-      'UPDATE work_records SET clock_out = $1, notes = $2 WHERE id = $3',
-      [clockOut, notes || null, record.id]
+      'UPDATE work_records SET clock_out = $1, notes = $2, clock_out_lat = $3, clock_out_lng = $4 WHERE id = $5',
+      [clockOut, notes || null, lat || null, lng || null, record.id]
     );
 
     for (const file of req.files) {
