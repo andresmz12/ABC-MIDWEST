@@ -4,8 +4,11 @@ const https  = require('https');
 const http   = require('http');
 const ExcelJS = require('exceljs');
 const archiver = require('archiver');
+const multer = require('multer');
 const { query } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
+
+const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // All admin routes require admin role
 router.use(requireAdmin);
@@ -115,6 +118,40 @@ router.post('/stores', async (req, res) => {
       [name, address]
     );
     res.status(201).json({ id: rows[0].id, name, address });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Import Stores from Excel ─────────────────────────────────────────────────
+// Excel format: single column with header "Store Number"
+router.post('/stores/import', memUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer);
+    const ws = wb.worksheets[0];
+    if (!ws) return res.status(400).json({ error: 'Empty or invalid Excel file' });
+
+    const names = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return; // skip header row
+      const val = String(row.getCell(1).value ?? '').trim();
+      if (val) names.push(val);
+    });
+
+    if (!names.length) return res.json({ imported: 0, errors: [] });
+
+    let imported = 0;
+    const errors = [];
+    for (const name of names) {
+      try {
+        await query('INSERT INTO stores (name, address) VALUES ($1, $2)', [name, '']);
+        imported++;
+      } catch (err) {
+        errors.push(`"${name}": ${err.message}`);
+      }
+    }
+    res.json({ imported, errors });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

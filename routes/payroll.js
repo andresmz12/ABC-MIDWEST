@@ -1,7 +1,10 @@
 const router = require('express').Router();
 const ExcelJS = require('exceljs');
+const multer = require('multer');
 const { query } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
+
+const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 router.use(requireAdmin);
 
@@ -104,6 +107,81 @@ router.get('/payroll/export', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="payroll_${year}.xlsx"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(await wb.xlsx.writeBuffer());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Import Payroll from Excel ─────────────────────────────────────────────────
+// Excel format: columns Employee | Payment Date | Amount
+router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer);
+    const ws = wb.worksheets[0];
+    if (!ws) return res.status(400).json({ error: 'Empty or invalid Excel file' });
+
+    // Build employee name → id map (case-insensitive)
+    const { rows: employees } = await query("SELECT id, name FROM users WHERE role = 'employee'");
+    const empMap = {};
+    employees.forEach(e => { empMap[e.name.toLowerCase()] = e.id; });
+
+    const dataRows = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return; // skip header
+      const empName   = String(row.getCell(1).value ?? '').trim();
+      const dateVal   = row.getCell(2).value;
+      const amountVal = row.getCell(3).value;
+      if (!empName && !dateVal && !amountVal) return; // skip blank rows
+      dataRows.push({ rowNum, empName, dateVal, amountVal });
+    });
+
+    let imported = 0;
+    const errors = [];
+
+    for (const { rowNum, empName, dateVal, amountVal } of dataRows) {
+      if (!empName)   { errors.push(`Row ${rowNum}: Employee name is required`); continue; }
+      if (!dateVal)   { errors.push(`Row ${rowNum}: Payment date is required`);  continue; }
+      if (!amountVal) { errors.push(`Row ${rowNum}: Amount is required`);        continue; }
+
+      const empId = empMap[empName.toLowerCase()];
+      if (!empId) { errors.push(`Row ${rowNum}: Employee "${empName}" not found`); continue; }
+
+      // Normalise date to YYYY-MM-DD
+      let dateStr;
+      try {
+        if (dateVal instanceof Date) {
+          dateStr = dateVal.toISOString().split('T')[0];
+        } else if (typeof dateVal === 'number') {
+          // Excel serial date
+          const d = new Date(Math.round((dateVal - 25569) * 86400000));
+          dateStr = d.toISOString().split('T')[0];
+        } else {
+          const d = new Date(String(dateVal).trim());
+          if (isNaN(d.getTime())) throw new Error(`Invalid date "${dateVal}"`);
+          dateStr = d.toISOString().split('T')[0];
+        }
+      } catch (e) {
+        errors.push(`Row ${rowNum}: ${e.message}`);
+        continue;
+      }
+
+      const parsedAmount = parseFloat(amountVal);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        errors.push(`Row ${rowNum}: Invalid amount "${amountVal}"`);
+        continue;
+      }
+
+      try {
+        await query('INSERT INTO payroll (user_id, payment_date, amount) VALUES ($1, $2, $3)',
+          [empId, dateStr, parsedAmount]);
+        imported++;
+      } catch (err) {
+        errors.push(`Row ${rowNum}: ${err.message}`);
+      }
+    }
+
+    res.json({ imported, errors });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
