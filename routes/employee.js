@@ -108,15 +108,15 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
 router.get('/my-records', async (req, res) => {
   try {
     const { rows } = await query(`
-      SELECT wr.id, s.name as store, wr.date, wr.clock_in, wr.clock_out,
+      SELECT wr.id, s.name as store, wr.project_name, wr.date, wr.clock_in, wr.clock_out,
              COUNT(m.id) as media_count
       FROM work_records wr
-      JOIN stores s ON s.id = wr.store_id
+      LEFT JOIN stores s ON s.id = wr.store_id
       LEFT JOIN media m ON m.record_id = wr.id
       WHERE wr.user_id = $1
-      GROUP BY wr.id, s.name
+      GROUP BY wr.id, s.name, wr.project_name
       ORDER BY wr.date DESC, wr.clock_in DESC
-      LIMIT 30
+      LIMIT 60
     `, [req.user.id]);
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }

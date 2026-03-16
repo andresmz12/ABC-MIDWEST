@@ -107,14 +107,15 @@
   <div id="tab-history" class="content" style="display:none">
     <div class="container">
       <div class="card" style="padding:0;margin-top:16px;overflow:hidden">
-        <div style="padding:16px 16px 8px">
-          <h3 style="font-size:1rem;margin-bottom:0">My Recent Shifts</h3>
+        <div style="padding:16px 16px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:1rem;margin:0">My Recent Shifts</h3>
+          <div style="display:flex;gap:6px">
+            <button id="histTabStore"   class="btn btn-sm btn-primary"  onclick="setHistFilter('store')">🏪 Stores</button>
+            <button id="histTabProject" class="btn btn-sm btn-outline"   onclick="setHistFilter('project')">🗂 Extra Projects</button>
+          </div>
         </div>
         <div id="historyList" style="padding:0 16px 16px">
-          <div class="empty-state">
-            <span class="empty-icon">📋</span>
-            <p>No records yet</p>
-          </div>
+          <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
         </div>
       </div>
     </div>
@@ -421,19 +422,36 @@
     });
 
     // ── History ───────────────────────────────────────────────────
-    async function loadHistory() {
+    let allHistoryRecords = [];
+    let histFilter = 'store';
+
+    function setHistFilter(type) {
+      histFilter = type;
+      document.getElementById('histTabStore').className   = 'btn btn-sm ' + (type === 'store'   ? 'btn-primary' : 'btn-outline');
+      document.getElementById('histTabProject').className = 'btn btn-sm ' + (type === 'project' ? 'btn-primary' : 'btn-outline');
+      renderHistory();
+    }
+
+    function renderHistory() {
       const el = document.getElementById('historyList');
-      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
-      try {
-        const records = await api('/employee/my-records');
-        if (!records.length) {
-          el.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><p>No records yet</p></div>';
-          return;
-        }
-        el.innerHTML = records.map(r => `
+      const filtered = allHistoryRecords.filter(r =>
+        histFilter === 'store' ? !r.project_name : !!r.project_name
+      );
+      if (!filtered.length) {
+        const icon = histFilter === 'store' ? '🏪' : '🗂';
+        const msg  = histFilter === 'store' ? 'No store shifts yet' : 'No extra project records yet';
+        el.innerHTML = `<div class="empty-state"><span class="empty-icon">${icon}</span><p>${msg}</p></div>`;
+        return;
+      }
+      el.innerHTML = filtered.map(r => {
+        const label = r.project_name
+          ? `<span style="background:#fff3cd;color:#856404;padding:1px 7px;border-radius:10px;font-size:.72rem;font-weight:700;margin-left:6px">🗂 Project</span>`
+          : '';
+        const name = r.project_name || r.store || '–';
+        return `
           <div class="list-item">
             <div class="list-item-info">
-              <div class="list-item-name">${r.store}</div>
+              <div class="list-item-name">${name}${label}</div>
               <div class="list-item-sub">
                 ${formatDate(r.date)} &bull;
                 ${formatTime(r.clock_in)} – ${r.clock_out ? formatTime(r.clock_out) : '<span style="color:#fd7e14">In progress</span>'}
@@ -444,8 +462,16 @@
               </div>
             </div>
             <button class="btn btn-sm btn-outline" onclick="viewMedia(${r.id})">📷 View</button>
-          </div>
-        `).join('');
+          </div>`;
+      }).join('');
+    }
+
+    async function loadHistory() {
+      const el = document.getElementById('historyList');
+      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      try {
+        allHistoryRecords = await api('/employee/my-records');
+        renderHistory();
       } catch {
         el.innerHTML = '<div class="empty-state"><span class="empty-icon">⚠️</span><p>Failed to load</p></div>';
       }

@@ -424,6 +424,7 @@
               <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
                 ⬇ ZIP
               </button>
+              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'records')" title="Force clock out this shift">⏹ Force Out</button>` : ''}
             </td>
             <td style="white-space:nowrap">
               ${r.clock_in_lat ? `<a href="https://maps.google.com/?q=${r.clock_in_lat},${r.clock_in_lng}" target="_blank" title="Clock-In location" style="text-decoration:none;margin-right:4px">📍 In</a>` : ''}
@@ -506,6 +507,7 @@
               <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
                 ⬇ ZIP
               </button>
+              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'projects')" title="Force clock out this shift">⏹ Force Out</button>` : ''}
             </td>
             <td style="white-space:nowrap">
               ${r.clock_in_lat ? `<a href="https://maps.google.com/?q=${r.clock_in_lat},${r.clock_in_lng}" target="_blank" title="Clock-In location" style="text-decoration:none;margin-right:4px">📍 In</a>` : ''}
@@ -664,7 +666,6 @@
             </div>
             <div class="list-item-actions">
               <button class="btn btn-sm btn-outline" onclick="editEmployee(${e.id})">✏️ Edit</button>
-              <button class="btn btn-sm btn-warning" title="Force the employee to log out immediately" onclick="forceLogout(${e.id}, '${escHtml(e.name)}')">🔴 Force Out</button>
               <button class="btn btn-sm btn-danger" onclick="deleteEmployee(${e.id}, '${escHtml(e.name)}')">Delete</button>
             </div>
           </div>
@@ -682,11 +683,12 @@
       } catch(ex) { alert(ex.message); }
     };
 
-    window.forceLogout = async (id, name) => {
-      if (!confirm(`Force logout "${name}"?\nTheir session will be terminated immediately.`)) return;
+    window.forceClockOut = async (id, context) => {
+      if (!confirm('Force clock out this shift? This cannot be undone.')) return;
       try {
-        await api(`/admin/employees/${id}/force-logout`, { method: 'POST' });
-        alert(`"${name}" has been logged out.`);
+        await api(`/admin/records/${id}/force-clock-out`, { method: 'POST' });
+        if (context === 'projects') loadProjects();
+        else loadRecords();
       } catch(ex) { alert(ex.message); }
     };
 

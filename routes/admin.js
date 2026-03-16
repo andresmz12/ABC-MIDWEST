@@ -299,6 +299,22 @@ router.get('/projects/export', async (req, res) => {
 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
+router.post('/records/:id/force-clock-out', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT id FROM work_records WHERE id = $1 AND clock_out IS NULL',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Active record not found' });
+    const clockOut = new Date().toISOString();
+    await query(
+      "UPDATE work_records SET clock_out = $1, notes = COALESCE(NULLIF(notes,''), '') || CASE WHEN notes IS NOT NULL AND notes <> '' THEN ' | ' ELSE '' END || '[Forced clock-out by admin]' WHERE id = $2",
+      [clockOut, req.params.id]
+    );
+    res.json({ success: true, clock_out: clockOut });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/records/:id/media', async (req, res) => {
   try {
     const { rows } = await query(
