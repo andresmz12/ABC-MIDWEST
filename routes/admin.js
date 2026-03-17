@@ -121,6 +121,46 @@ router.post('/stores', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Import Employees from Excel ──────────────────────────────────────────────
+// Excel format: columns Name, Username, Password
+router.post('/employees/import', memUpload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(req.file.buffer);
+    const ws = wb.worksheets[0];
+    if (!ws) return res.status(400).json({ error: 'Empty or invalid Excel file' });
+
+    const rows = [];
+    ws.eachRow((row, rowNum) => {
+      if (rowNum === 1) return; // skip header
+      const name     = String(row.getCell(1).value ?? '').trim();
+      const username = String(row.getCell(2).value ?? '').trim();
+      const password = String(row.getCell(3).value ?? '').trim();
+      if (name && username && password) rows.push({ name, username, password });
+    });
+
+    if (!rows.length) return res.json({ imported: 0, errors: [] });
+
+    let imported = 0;
+    const errors = [];
+    for (const emp of rows) {
+      try {
+        const { rows: existing } = await query('SELECT id FROM users WHERE username = $1', [emp.username]);
+        if (existing.length) { errors.push(`"${emp.username}": username already taken`); continue; }
+        const hash = bcrypt.hashSync(emp.password, 10);
+        await query('INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4)',
+          [emp.name, emp.username, hash, 'employee']);
+        imported++;
+      } catch (err) {
+        errors.push(`"${emp.username}": ${err.message}`);
+      }
+    }
+    res.json({ imported, errors });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── Import Stores from Excel ─────────────────────────────────────────────────
 // Excel format: single column with header "Store Number"
 router.post('/stores/import', memUpload.single('file'), async (req, res) => {

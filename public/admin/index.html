@@ -141,8 +141,14 @@
       <div class="card" style="margin-top:16px">
         <div class="section-header">
           <h2>Employees</h2>
-          <button class="btn btn-primary btn-sm" id="newEmployeeBtn">+ Add</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary btn-sm" id="newEmployeeBtn">+ Add</button>
+            <button class="btn btn-sm btn-outline" id="importEmployeesBtn">📥 Import Excel</button>
+            <input type="file" id="employeeImportInput" accept=".xlsx" style="display:none">
+          </div>
         </div>
+        <div class="alert alert-success" id="employeeImportSuccess"></div>
+        <div class="alert alert-error"   id="employeeImportError"></div>
         <div id="employeeList">
           <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
         </div>
@@ -890,6 +896,38 @@
         errEl.classList.add('show');
       } finally {
         btn.disabled = false; btn.textContent = origText;
+      }
+    });
+
+    // ── Import Employees from Excel ───────────────────────────────
+    document.getElementById('importEmployeesBtn').addEventListener('click', () => {
+      document.getElementById('employeeImportInput').click();
+    });
+    document.getElementById('employeeImportInput').addEventListener('change', async function() {
+      const file = this.files[0];
+      if (!file) return;
+      this.value = '';
+      const sucEl = document.getElementById('employeeImportSuccess');
+      const errEl = document.getElementById('employeeImportError');
+      sucEl.classList.remove('show');
+      errEl.classList.remove('show');
+      const btn = document.getElementById('importEmployeesBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Importing...';
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const data = await api('/admin/employees/import', { method: 'POST', body: fd });
+        let msg = `${data.imported} employee(s) imported successfully.`;
+        if (data.errors && data.errors.length) msg += ` ${data.errors.length} row(s) skipped.`;
+        sucEl.textContent = msg;
+        sucEl.classList.add('show');
+        loadEmployees();
+        populateFilters();
+      } catch (ex) {
+        errEl.textContent = ex.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false; btn.textContent = '📥 Import Excel';
       }
     });
 
