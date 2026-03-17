@@ -302,7 +302,7 @@
       }
     });
 
-    // ── Geolocation ───────────────────────────────────────────────
+    // ── Geolocation + Reverse Geocoding ──────────────────────────
     function getLocation() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -322,6 +322,19 @@
           { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
       });
+    }
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
+          { headers: { 'Accept-Language': 'en' } }
+        );
+        const data = await res.json();
+        return data.display_name || null;
+      } catch {
+        return null;
+      }
     }
 
     // ── Clock In ──────────────────────────────────────────────────
@@ -350,6 +363,9 @@
         return;
       }
 
+      btn.innerHTML = '<span class="spinner"></span> Resolving address...';
+      const clockInAddress = await reverseGeocode(geoPos.lat, geoPos.lng);
+
       btn.innerHTML = '<span class="spinner"></span> Clocking in...';
 
       try {
@@ -361,6 +377,7 @@
         }
         fd.append('lat', geoPos.lat);
         fd.append('lng', geoPos.lng);
+        if (clockInAddress) fd.append('address', clockInAddress);
         files.forEach(f => fd.append('media', f));
 
         currentRecord = await fetch('/api/employee/clock-in', {
@@ -408,6 +425,9 @@
         return;
       }
 
+      btn.innerHTML = '<span class="spinner"></span> Resolving address...';
+      const clockOutAddress = await reverseGeocode(geoPos.lat, geoPos.lng);
+
       btn.innerHTML = '<span class="spinner"></span> Clocking out...';
 
       try {
@@ -416,6 +436,7 @@
         fd.append('notes', document.getElementById('notesInput').value);
         fd.append('lat', geoPos.lat);
         fd.append('lng', geoPos.lng);
+        if (clockOutAddress) fd.append('address', clockOutAddress);
         files.forEach(f => fd.append('media', f));
 
         await fetch('/api/employee/clock-out', {
