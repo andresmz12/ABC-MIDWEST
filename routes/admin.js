@@ -219,6 +219,7 @@ function buildRecordsQuery(reqQuery) {
     SELECT wr.id, u.name as employee, s.name as store, s.address,
            wr.date, wr.clock_in, wr.clock_out, wr.notes,
            wr.clock_in_lat, wr.clock_in_lng, wr.clock_out_lat, wr.clock_out_lng,
+           wr.clock_in_address, wr.clock_out_address,
            COUNT(m.id) as media_count
     FROM work_records wr
     JOIN users u ON u.id = wr.user_id
@@ -232,7 +233,7 @@ function buildRecordsQuery(reqQuery) {
   if (date_to)     { sql += ` AND wr.date <= $${i++}`;    params.push(date_to); }
   if (employee_id) { sql += ` AND wr.user_id = $${i++}`;  params.push(employee_id); }
   if (store_id)    { sql += ` AND wr.store_id = $${i++}`; params.push(store_id); }
-  sql += ' GROUP BY wr.id, u.name, s.name, s.address ORDER BY wr.date DESC, wr.clock_in DESC';
+  sql += ' GROUP BY wr.id, u.name, s.name, s.address, wr.clock_in_address, wr.clock_out_address ORDER BY wr.date DESC, wr.clock_in DESC';
   return { sql, params };
 }
 
@@ -270,11 +271,13 @@ router.get('/records/export', async (req, res) => {
         Store:    r.store,
         Address:  r.address,
         Date:     r.date,
-        'Clock In':  r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
-        'Clock Out': r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
-        'Duration':  formatDuration(mins),
-        'Notes':     r.notes || '',
-        'Media Files': r.media_count
+        'Clock In':          r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
+        'Clock-In Address':  r.clock_in_address  || '',
+        'Clock Out':         r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
+        'Clock-Out Address': r.clock_out_address || '',
+        'Duration':          formatDuration(mins),
+        'Notes':             r.notes || '',
+        'Media Files':       r.media_count
       };
     });
 
@@ -314,6 +317,7 @@ function buildProjectsQuery(reqQuery) {
     SELECT wr.id, u.name as employee, wr.project_name,
            wr.date, wr.clock_in, wr.clock_out, wr.notes,
            wr.clock_in_lat, wr.clock_in_lng, wr.clock_out_lat, wr.clock_out_lng,
+           wr.clock_in_address, wr.clock_out_address,
            COUNT(m.id) as media_count
     FROM work_records wr
     JOIN users u ON u.id = wr.user_id
@@ -325,7 +329,7 @@ function buildProjectsQuery(reqQuery) {
   if (date_from)   { sql += ` AND wr.date >= $${i++}`;   params.push(date_from); }
   if (date_to)     { sql += ` AND wr.date <= $${i++}`;   params.push(date_to); }
   if (employee_id) { sql += ` AND wr.user_id = $${i++}`; params.push(employee_id); }
-  sql += ' GROUP BY wr.id, u.name ORDER BY wr.date DESC, wr.clock_in DESC';
+  sql += ' GROUP BY wr.id, u.name, wr.clock_in_address, wr.clock_out_address ORDER BY wr.date DESC, wr.clock_in DESC';
   return { sql, params };
 }
 
@@ -345,18 +349,16 @@ router.get('/projects/export', async (req, res) => {
     const rows = records.map(r => {
       const mins = calcDurationMins(r.clock_in, r.clock_out);
       return {
-        Employee:    r.employee,
-        Project:     r.project_name,
-        Date:        r.date,
-        'Clock In':  r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
-        'Clock Out': r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
-        Duration:    formatDuration(mins),
-        Notes:       r.notes || '',
-        'Media Files': Number(r.media_count),
-        'Clock-In Lat':  r.clock_in_lat  || '',
-        'Clock-In Lng':  r.clock_in_lng  || '',
-        'Clock-Out Lat': r.clock_out_lat || '',
-        'Clock-Out Lng': r.clock_out_lng || ''
+        Employee:            r.employee,
+        Project:             r.project_name,
+        Date:                r.date,
+        'Clock In':          r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
+        'Clock-In Address':  r.clock_in_address  || '',
+        'Clock Out':         r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
+        'Clock-Out Address': r.clock_out_address || '',
+        Duration:            formatDuration(mins),
+        Notes:               r.notes || '',
+        'Media Files':       Number(r.media_count)
       };
     });
 

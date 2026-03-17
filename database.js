@@ -79,6 +79,8 @@ async function initDb() {
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS project_name TEXT`);
   await pool.query(`ALTER TABLE work_records ALTER COLUMN store_id DROP NOT NULL`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS force_logout BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_address TEXT`);
+  await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_address TEXT`);
 
   const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (rows.length === 0) {

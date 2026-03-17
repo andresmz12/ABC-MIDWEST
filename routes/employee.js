@@ -1,7 +1,28 @@
 const router = require('express').Router();
+const https  = require('https');
 const { query } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
+
+// ── Reverse geocoding via Google Maps Geocoding API ──────────────────────────
+function reverseGeocode(lat, lng) {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey || !lat || !lng) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`;
+    https.get(url, res => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(data);
+          const addr = json.results && json.results[0] && json.results[0].formatted_address;
+          resolve(addr || null);
+        } catch { resolve(null); }
+      });
+    }).on('error', () => resolve(null));
+  });
+}
 
 router.use(requireAuth);
 
@@ -52,10 +73,11 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
     const now = new Date();
     const date = now.toISOString().split('T')[0];
     const clockIn = now.toISOString();
+    const clockInAddress = await reverseGeocode(lat, lng);
 
     const { rows } = await query(
-      'INSERT INTO work_records (user_id, store_id, project_name, clock_in, date, clock_in_lat, clock_in_lng) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [req.user.id, store_id || null, project_name || null, clockIn, date, lat || null, lng || null]
+      'INSERT INTO work_records (user_id, store_id, project_name, clock_in, date, clock_in_lat, clock_in_lng, clock_in_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [req.user.id, store_id || null, project_name || null, clockIn, date, lat || null, lng || null, clockInAddress]
     );
     const recordId = rows[0].id;
 
@@ -87,10 +109,11 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
     if (!record) return res.status(404).json({ error: 'Open record not found' });
 
     const clockOut = new Date().toISOString();
+    const clockOutAddress = await reverseGeocode(lat, lng);
 
     await query(
-      'UPDATE work_records SET clock_out = $1, notes = $2, clock_out_lat = $3, clock_out_lng = $4 WHERE id = $5',
-      [clockOut, notes || null, lat || null, lng || null, record.id]
+      'UPDATE work_records SET clock_out = $1, notes = $2, clock_out_lat = $3, clock_out_lng = $4, clock_out_address = $5 WHERE id = $6',
+      [clockOut, notes || null, lat || null, lng || null, clockOutAddress, record.id]
     );
 
     for (const file of req.files) {
