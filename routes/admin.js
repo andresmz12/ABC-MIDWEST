@@ -5,7 +5,7 @@ const http   = require('http');
 const ExcelJS = require('exceljs');
 const archiver = require('archiver');
 const multer = require('multer');
-const { query } = require('../database');
+const { query, withTransaction } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
 
 const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -84,18 +84,20 @@ router.put('/employees/:id', async (req, res) => {
     );
     if (existing.length) return res.status(400).json({ error: 'Username already taken' });
 
-    if (password) {
-      const hash = bcrypt.hashSync(password, 10);
-      await query('UPDATE users SET name = $1, username = $2, password = $3 WHERE id = $4 AND role = $5',
-        [name, username, hash, req.params.id, 'employee']);
-    } else {
-      await query('UPDATE users SET name = $1, username = $2 WHERE id = $3 AND role = $4',
-        [name, username, req.params.id, 'employee']);
-    }
-    await query('DELETE FROM user_stores WHERE user_id = $1', [req.params.id]);
-    for (const storeId of store_ids) {
-      await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [req.params.id, storeId]);
-    }
+    await withTransaction(async client => {
+      if (password) {
+        const hash = bcrypt.hashSync(password, 10);
+        await client.query('UPDATE users SET name = $1, username = $2, password = $3 WHERE id = $4 AND role = $5',
+          [name, username, hash, req.params.id, 'employee']);
+      } else {
+        await client.query('UPDATE users SET name = $1, username = $2 WHERE id = $3 AND role = $4',
+          [name, username, req.params.id, 'employee']);
+      }
+      await client.query('DELETE FROM user_stores WHERE user_id = $1', [req.params.id]);
+      for (const storeId of store_ids) {
+        await client.query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [req.params.id, storeId]);
+      }
+    });
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -8,6 +8,21 @@ const pool = new Pool({
 
 const query = (text, params) => pool.query(text, params);
 
+async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
@@ -93,4 +108,4 @@ async function initDb() {
   }
 }
 
-module.exports = { query, initDb };
+module.exports = { query, withTransaction, initDb };

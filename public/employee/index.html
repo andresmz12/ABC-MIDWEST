@@ -326,10 +326,13 @@
 
     async function reverseGeocode(lat, lng) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 6000);
         const res = await fetch(
           `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`,
-          { headers: { 'Accept-Language': 'en' } }
+          { headers: { 'Accept-Language': 'en' }, signal: controller.signal }
         );
+        clearTimeout(timer);
         const data = await res.json();
         return data.display_name || null;
       } catch {
