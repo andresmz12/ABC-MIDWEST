@@ -392,7 +392,7 @@ router.delete('/invoices/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── Download PDF ──────────────────────────────────────────────────────────────
+// ── Download PDF (Wave-style layout) ─────────────────────────────────────────
 router.get('/invoices/:id/pdf', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM invoices WHERE id=$1', [req.params.id]);
@@ -405,160 +405,208 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="invoice_${inv.invoice_number}.pdf"`);
     doc.pipe(res);
 
-    const blue    = '#1a56db';
-    const dark    = '#111827';
-    const muted   = '#6b7280';
-    const lightBg = '#f3f4f6';
-    const L       = 40;  // left margin
-    const R       = doc.page.width - 40; // right edge
-    const W       = R - L;  // usable width = 532
+    const navy  = '#1a3a5c';
+    const dark  = '#111827';
+    const muted = '#6b7280';
+    const lineC = '#e5e7eb';
+    const hilit = '#eef2ff';
+    const L = 40, R = doc.page.width - 40, W = R - L;
 
-    // ── Header band ─────────────────────────────────────────────────────────
-    doc.rect(L, 40, W, 64).fill(blue);
-
-    // Logo (if present)
+    // ── 1. Header — circular logo left, INVOICE + company right ──────────────
     const logoPath = path.join(__dirname, '..', 'public', 'images', 'logo.png');
-    let logoEndX = L + 10;
+    const logoR = 34, logoCX = L + logoR, logoCY = 40 + logoR;
+
     if (fs.existsSync(logoPath)) {
       try {
-        doc.image(logoPath, L + 8, 46, { height: 50, fit: [50, 50] });
-        logoEndX = L + 66;
-      } catch (_) { logoEndX = L + 10; }
+        doc.save();
+        doc.circle(logoCX, logoCY, logoR).clip();
+        doc.image(logoPath, L, 40, { width: logoR * 2, height: logoR * 2 });
+        doc.restore();
+        // thin border ring around circle
+        doc.circle(logoCX, logoCY, logoR).lineWidth(1).stroke('#d1d5db');
+      } catch (_) {
+        doc.circle(logoCX, logoCY, logoR).fill(navy);
+        doc.fillColor('#fff').fontSize(12).font('Helvetica-Bold')
+           .text('ABC', L, logoCY - 8, { width: logoR * 2, align: 'center' });
+      }
+    } else {
+      doc.circle(logoCX, logoCY, logoR).fill(navy);
+      doc.fillColor('#fff').fontSize(12).font('Helvetica-Bold')
+         .text('ABC', L, logoCY - 8, { width: logoR * 2, align: 'center' });
     }
 
-    doc.fillColor('#fff').fontSize(15).font('Helvetica-Bold')
-       .text('ABC Midwest Cleaning', logoEndX, 50, { width: 220 });
-    doc.fontSize(8).font('Helvetica').fillColor('rgba(255,255,255,0.8)')
-       .text('Professional Cleaning Services', logoEndX, 68);
+    // "INVOICE" — large, right-aligned
+    doc.fillColor(navy).fontSize(30).font('Helvetica-Bold')
+       .text('INVOICE', L, 40, { align: 'right', width: W });
 
-    // INVOICE label + number on right
-    doc.fontSize(22).font('Helvetica-Bold').fillColor('#fff')
-       .text('INVOICE', L, 48, { align: 'right', width: W });
-    doc.fontSize(9).font('Helvetica')
-       .text(`#${inv.invoice_number}`, L, 73, { align: 'right', width: W });
+    // Company info — right-aligned below INVOICE
+    doc.fillColor(dark).fontSize(9).font('Helvetica-Bold')
+       .text('ABC Midwest Cleaning', L, 79, { align: 'right', width: W });
+    doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+       .text('Chicago, IL 60601', L, 92, { align: 'right', width: W })
+       .text('United States', L, 104, { align: 'right', width: W });
 
-    // ── Meta row (date / due / PO / status) ─────────────────────────────────
-    let y = 116;
-    // Left side: bill info
-    doc.fillColor(blue).fontSize(8).font('Helvetica-Bold').text('BILL TO', L, y);
-    doc.moveTo(L, y + 11).lineTo(L + 200, y + 11).lineWidth(0.5).stroke(blue);
-    y += 16;
-    doc.fillColor(dark).fontSize(10).font('Helvetica-Bold').text(inv.client_name, L, y);
-    y += 14;
+    // Separator
+    doc.moveTo(L, 124).lineTo(R, 124).lineWidth(0.5).stroke(lineC);
+
+    // ── 2. Bill To (left) + Invoice meta (right) ──────────────────────────────
+    let y = 138;
+
+    // LEFT — Bill To
+    doc.fillColor(muted).fontSize(7.5).font('Helvetica-Bold')
+       .text('BILL TO', L, y);
+    y += 13;
+    doc.fillColor(dark).fontSize(11).font('Helvetica-Bold')
+       .text(inv.client_name || '', L, y, { width: 255 });
+    y += 17;
     if (inv.client_address) {
-      doc.fontSize(8).font('Helvetica').fillColor(muted).text(inv.client_address, L, y, { width: 200 });
-      y += 12 * (Math.ceil(inv.client_address.length / 40));
+      doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+         .text(inv.client_address, L, y, { width: 255 });
+      y += doc.heightOfString(inv.client_address, { width: 255 }) + 5;
     }
     if (inv.client_email) {
-      doc.fontSize(8).font('Helvetica').fillColor(muted).text(inv.client_email, L, y);
-      y += 12;
+      doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+         .text(inv.client_email, L, y, { width: 255 });
+      y += 13;
     }
 
-    // Right side: meta box
-    const metaX = R - 190;
-    let metaY = 116;
+    // RIGHT — Invoice meta key-value list
+    const metaTopY = 138;
+    const metaX    = R - 215;
+    const metaLblW = 110;
+    const metaValW = 105;
+
     const metaRows = [
-      ['Invoice Date:', inv.invoice_date || ''],
-      ['Due Date:',     inv.due_date || '–'],
-      ['PO #:',         inv.po_number || '–'],
-      ['Status:',       inv.status === 'paid' ? 'PAID' : 'PENDING'],
+      ['Invoice #:',    inv.invoice_number || ''],
+      ['P.O./S.O.:',   inv.po_number || '–'],
+      ['Invoice Date:', inv.invoice_date  || ''],
+      ['Payment Due:',  inv.due_date || '–'],
     ];
-    doc.rect(metaX - 6, metaY - 4, 196, metaRows.length * 16 + 8).fill(lightBg);
-    metaRows.forEach(([label, val], i) => {
-      const ry = metaY + i * 16;
-      doc.fillColor(muted).fontSize(8).font('Helvetica').text(label, metaX, ry, { width: 76 });
-      const isStatus = label === 'Status:';
-      doc.fillColor(isStatus ? (inv.status === 'paid' ? '#16a34a' : '#dc2626') : dark)
-         .font(isStatus ? 'Helvetica-Bold' : 'Helvetica')
-         .text(val, metaX + 80, ry, { width: 110 });
+
+    metaRows.forEach(([lbl, val], i) => {
+      const ry = metaTopY + i * 17;
+      doc.fillColor(muted).fontSize(8).font('Helvetica')
+         .text(lbl, metaX, ry, { width: metaLblW });
+      doc.fillColor(dark).fontSize(8).font('Helvetica')
+         .text(val, metaX + metaLblW, ry, { width: metaValW, align: 'right' });
     });
 
-    // ── Items table ───────────────────────────────────────────────────────────
-    const tableTop = Math.max(y + 12, 116 + metaRows.length * 16 + 20);
-    const colW = { desc: W - 180, qty: 40, price: 65, sub: 65 };
+    // Amount Due (USD) — highlighted box
+    const adY = metaTopY + metaRows.length * 17 + 6;
+    doc.rect(metaX - 6, adY - 3, metaLblW + metaValW + 12, 24).fill(hilit);
+    doc.fillColor(navy).fontSize(8.5).font('Helvetica-Bold')
+       .text('Amount Due (USD):', metaX, adY + 5, { width: metaLblW });
+    doc.fillColor(navy).fontSize(10).font('Helvetica-Bold')
+       .text(`$${parseFloat(inv.total || 0).toFixed(2)}`, metaX + metaLblW, adY + 4, { width: metaValW, align: 'right' });
+
+    // Table starts below whichever section is taller
+    const tableTop = Math.max(y + 14, adY + 34);
+
+    // ── 3. Items table ────────────────────────────────────────────────────────
+    const colW = { desc: W - 170, qty: 55, price: 58, amt: 57 };
     const colX = {
       desc:  L,
       qty:   L + colW.desc,
       price: L + colW.desc + colW.qty,
-      sub:   L + colW.desc + colW.qty + colW.price,
+      amt:   L + colW.desc + colW.qty + colW.price,
     };
 
-    // Table header
-    doc.rect(L, tableTop, W, 18).fill(dark);
-    doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
-    doc.text('Description', colX.desc + 4, tableTop + 5, { width: colW.desc - 4 });
-    doc.text('Qty',   colX.qty,   tableTop + 5, { width: colW.qty,   align: 'right' });
-    doc.text('Price', colX.price, tableTop + 5, { width: colW.price, align: 'right' });
-    doc.text('Subtotal', colX.sub, tableTop + 5, { width: colW.sub,  align: 'right' });
+    const drawTableHeader = (yy) => {
+      doc.rect(L, yy, W, 20).fill(navy);
+      doc.fillColor('#fff').fontSize(8.5).font('Helvetica-Bold');
+      doc.text('Items',    colX.desc  + 6, yy + 6, { width: colW.desc  - 6 });
+      doc.text('Quantity', colX.qty,        yy + 6, { width: colW.qty,   align: 'center' });
+      doc.text('Price',    colX.price,      yy + 6, { width: colW.price, align: 'right' });
+      doc.text('Amount',   colX.amt,        yy + 6, { width: colW.amt,   align: 'right' });
+      return yy + 20;
+    };
 
-    let ty = tableTop + 18;
+    let ty = drawTableHeader(tableTop);
+
     items.forEach((item, idx) => {
-      // Estimate row height based on description length
-      const descText = String(item.description || '');
-      const lines    = Math.max(1, Math.ceil(doc.widthOfString(descText) / (colW.desc - 8)));
-      const rowH     = Math.max(16, lines * 11 + 6);
+      const fullDesc = String(item.description || '');
+      const descLines = fullDesc.split('\n').map(l => l.trim()).filter(Boolean);
+      const title    = descLines[0] || '';
+      const subLines = descLines.slice(1);
+      const rowH     = Math.max(24, 14 + subLines.length * 12 + (subLines.length ? 6 : 0));
 
-      // New page if needed
+      // Pagination
       if (ty + rowH > doc.page.height - 120) {
         doc.addPage();
         ty = 40;
-        // Re-draw table header on new page
-        doc.rect(L, ty, W, 18).fill(dark);
-        doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
-        doc.text('Description', colX.desc + 4, ty + 5, { width: colW.desc - 4 });
-        doc.text('Qty',   colX.qty,   ty + 5, { width: colW.qty,   align: 'right' });
-        doc.text('Price', colX.price, ty + 5, { width: colW.price, align: 'right' });
-        doc.text('Subtotal', colX.sub, ty + 5, { width: colW.sub,  align: 'right' });
-        ty += 18;
+        ty = drawTableHeader(ty);
       }
 
-      if (idx % 2 === 0) doc.rect(L, ty, W, rowH).fill(lightBg);
-      doc.fillColor(dark).fontSize(8.5).font('Helvetica');
-      doc.text(descText, colX.desc + 4, ty + 4, { width: colW.desc - 8 });
-      doc.text(String(item.quantity || 0), colX.qty, ty + 4, { width: colW.qty, align: 'right' });
-      doc.text(`$${parseFloat(item.unit_price || 0).toFixed(2)}`, colX.price, ty + 4, { width: colW.price, align: 'right' });
-      doc.text(`$${parseFloat(item.subtotal || 0).toFixed(2)}`,   colX.sub,   ty + 4, { width: colW.sub,   align: 'right' });
+      // Row separator (skip first)
+      if (idx > 0) {
+        doc.moveTo(L, ty).lineTo(R, ty).lineWidth(0.3).stroke(lineC);
+      }
+
+      // Item title — bold
+      doc.fillColor(dark).fontSize(8.5).font('Helvetica-Bold')
+         .text(title, colX.desc + 6, ty + 6, { width: colW.desc - 10 });
+
+      // Sub-lines — muted smaller
+      subLines.forEach((sub, si) => {
+        doc.fillColor(muted).fontSize(7.5).font('Helvetica')
+           .text(sub, colX.desc + 6, ty + 19 + si * 12, { width: colW.desc - 10 });
+      });
+
+      // Qty / Price / Amount — vertically centered
+      const midY = ty + Math.floor(rowH / 2) - 4;
+      doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+         .text(String(item.quantity || ''), colX.qty,   midY, { width: colW.qty,   align: 'center' });
+      doc.text(`$${parseFloat(item.unit_price || 0).toFixed(2)}`, colX.price, midY, { width: colW.price, align: 'right' });
+      doc.text(`$${parseFloat(item.subtotal   || 0).toFixed(2)}`, colX.amt,   midY, { width: colW.amt,   align: 'right' });
+
       ty += rowH;
     });
 
-    doc.moveTo(L, ty).lineTo(R, ty).lineWidth(0.5).stroke('#e5e7eb');
+    // Bottom table border
+    doc.moveTo(L, ty).lineTo(R, ty).lineWidth(0.5).stroke(lineC);
 
-    // ── Totals ────────────────────────────────────────────────────────────────
-    ty += 8;
-    const totX = R - 160;
-    const totLW = 80;
-    const totVW = 70;
-
-    doc.fillColor(muted).fontSize(8.5).font('Helvetica');
-    doc.text('Subtotal:', totX, ty, { width: totLW, align: 'right' });
-    doc.fillColor(dark).text(`$${parseFloat(inv.subtotal || 0).toFixed(2)}`, totX + totLW, ty, { width: totVW, align: 'right' });
+    // ── 4. Totals — right-aligned ─────────────────────────────────────────────
     ty += 14;
-    doc.fillColor(muted).text('Tax:', totX, ty, { width: totLW, align: 'right' });
-    doc.fillColor(dark).text(`$${parseFloat(inv.tax || 0).toFixed(2)}`, totX + totLW, ty, { width: totVW, align: 'right' });
-    ty += 8;
-    doc.moveTo(totX, ty).lineTo(R, ty).lineWidth(0.8).stroke(blue);
-    ty += 6;
-    doc.fillColor(blue).fontSize(11).font('Helvetica-Bold');
-    doc.text('TOTAL:', totX, ty, { width: totLW, align: 'right' });
-    doc.text(`$${parseFloat(inv.total || 0).toFixed(2)}`, totX + totLW, ty, { width: totVW, align: 'right' });
-    ty += 22;
+    const totX  = R - 230;
+    const tLblW = 125;
+    const tValW = 95;
 
-    // ── Notes ─────────────────────────────────────────────────────────────────
+    doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+       .text('Subtotal:', totX, ty, { width: tLblW, align: 'right' });
+    doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+       .text(`$${parseFloat(inv.subtotal || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+    ty += 15;
+
+    doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+       .text('Tax:', totX, ty, { width: tLblW, align: 'right' });
+    doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+       .text(`$${parseFloat(inv.tax || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+    ty += 11;
+
+    doc.moveTo(totX, ty).lineTo(R, ty).lineWidth(0.8).stroke(navy);
+    ty += 8;
+
+    doc.fillColor(navy).fontSize(9.5).font('Helvetica-Bold')
+       .text('Amount Due (USD):', totX, ty, { width: tLblW, align: 'right' });
+    doc.fillColor(navy).fontSize(10).font('Helvetica-Bold')
+       .text(`$${parseFloat(inv.total || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+    ty += 28;
+
+    // ── 5. Notes (optional) ───────────────────────────────────────────────────
     if (inv.notes) {
-      if (ty + 40 > doc.page.height - 80) { doc.addPage(); ty = 40; }
-      doc.rect(L, ty, W, 1).fill(lightBg);
-      ty += 8;
-      doc.fillColor(blue).fontSize(8).font('Helvetica-Bold').text('NOTES', L, ty);
-      ty += 12;
+      if (ty + 50 > doc.page.height - 80) { doc.addPage(); ty = 40; }
+      doc.moveTo(L, ty).lineTo(R, ty).lineWidth(0.3).stroke(lineC);
+      ty += 10;
+      doc.fillColor(navy).fontSize(8).font('Helvetica-Bold').text('NOTES', L, ty);
+      ty += 13;
       doc.fillColor(muted).fontSize(8.5).font('Helvetica').text(inv.notes, L, ty, { width: W });
-      ty += doc.heightOfString(inv.notes, { width: W }) + 8;
     }
 
-    // ── Footer ────────────────────────────────────────────────────────────────
-    const footerY = doc.page.height - 45;
-    doc.rect(L, footerY - 4, W, 0.5).fill('#e5e7eb');
+    // ── 6. Footer ─────────────────────────────────────────────────────────────
+    const fY = doc.page.height - 45;
+    doc.moveTo(L, fY - 6).lineTo(R, fY - 6).lineWidth(0.5).stroke(lineC);
     doc.fillColor(muted).fontSize(8).font('Helvetica')
-       .text('Thank you for your business! — ABC Midwest Cleaning', L, footerY, { align: 'center', width: W });
+       .text('Thank you for your business! — ABC Midwest Cleaning', L, fY, { align: 'center', width: W });
 
     doc.end();
   } catch (err) { res.status(500).json({ error: err.message }); }
