@@ -406,6 +406,7 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     doc.pipe(res);
 
     const navy  = '#1a3a5c';
+    const blue  = '#1a56db';
     const dark  = '#111827';
     const muted = '#6b7280';
     const lineC = '#e5e7eb';
@@ -413,44 +414,40 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     const L = 40, R = doc.page.width - 40, W = R - L;
 
     // ── 1. Header — circular logo left, INVOICE + company right ──────────────
-    const logoPath = path.join(__dirname, '..', 'public', 'images', 'logo.png');
-    const logoR = 34, logoCX = L + logoR, logoCY = 40 + logoR;
+    // Fix: logo.png is a corrupt 1-byte file — use the JPEG as primary source
+    const logoJpeg = path.join(__dirname, '..', 'public', 'images', 'WhatsApp Image 2026-03-15 at 15.01.42.jpeg');
+    const logoPng  = path.join(__dirname, '..', 'public', 'images', 'logo.png');
+    const logoFile = (fs.existsSync(logoJpeg) && fs.statSync(logoJpeg).size > 100) ? logoJpeg
+                   : (fs.existsSync(logoPng)  && fs.statSync(logoPng).size  > 100) ? logoPng
+                   : null;
+    const logoR = 45, logoCX = L + logoR, logoCY = 40 + logoR;
 
-    if (fs.existsSync(logoPath)) {
+    if (logoFile) {
       try {
         doc.save();
         doc.circle(logoCX, logoCY, logoR).clip();
-        doc.image(logoPath, L, 40, { width: logoR * 2, height: logoR * 2 });
+        doc.image(logoFile, L, 40, { width: logoR * 2, height: logoR * 2 });
         doc.restore();
-        // thin border ring around circle
         doc.circle(logoCX, logoCY, logoR).lineWidth(1).stroke('#d1d5db');
-      } catch (_) {
-        doc.circle(logoCX, logoCY, logoR).fill(navy);
-        doc.fillColor('#fff').fontSize(12).font('Helvetica-Bold')
-           .text('ABC', L, logoCY - 8, { width: logoR * 2, align: 'center' });
-      }
-    } else {
-      doc.circle(logoCX, logoCY, logoR).fill(navy);
-      doc.fillColor('#fff').fontSize(12).font('Helvetica-Bold')
-         .text('ABC', L, logoCY - 8, { width: logoR * 2, align: 'center' });
+      } catch (_) { /* skip logo on unexpected image error */ }
     }
 
     // "INVOICE" — large, right-aligned
     doc.fillColor(navy).fontSize(30).font('Helvetica-Bold')
        .text('INVOICE', L, 40, { align: 'right', width: W });
 
-    // Company info — right-aligned below INVOICE
+    // Company info — right-aligned (shifts down because larger logo)
     doc.fillColor(dark).fontSize(9).font('Helvetica-Bold')
-       .text('ABC Midwest Cleaning', L, 79, { align: 'right', width: W });
+       .text('ABC MIDWEST CLEANING SERVICES LLC', L, 85, { align: 'right', width: W });
     doc.fillColor(muted).fontSize(8.5).font('Helvetica')
-       .text('Chicago, IL 60601', L, 92, { align: 'right', width: W })
-       .text('United States', L, 104, { align: 'right', width: W });
+       .text('CHICAGO, Illinois 60638', L, 99, { align: 'right', width: W })
+       .text('United States', L, 112, { align: 'right', width: W });
 
-    // Separator
-    doc.moveTo(L, 124).lineTo(R, 124).lineWidth(0.5).stroke(lineC);
+    // Separator (at y=135, after 90px logo + padding)
+    doc.moveTo(L, 135).lineTo(R, 135).lineWidth(0.5).stroke(lineC);
 
     // ── 2. Bill To (left) + Invoice meta (right) ──────────────────────────────
-    let y = 138;
+    let y = 150;
 
     // LEFT — Bill To
     doc.fillColor(muted).fontSize(7.5).font('Helvetica-Bold')
@@ -471,21 +468,21 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     }
 
     // RIGHT — Invoice meta key-value list
-    const metaTopY = 138;
-    const metaX    = R - 215;
-    const metaLblW = 110;
-    const metaValW = 105;
+    const metaTopY = 150;
+    const metaX    = R - 225;
+    const metaLblW = 118;
+    const metaValW = 107;
 
     const metaRows = [
-      ['Invoice #:',    inv.invoice_number || ''],
-      ['P.O./S.O.:',   inv.po_number || '–'],
-      ['Invoice Date:', inv.invoice_date  || ''],
-      ['Payment Due:',  inv.due_date || '–'],
+      ['Invoice Number:',    inv.invoice_number || ''],
+      ['P.O./S.O. Number:',  inv.po_number || '–'],
+      ['Invoice Date:',      inv.invoice_date  || ''],
+      ['Payment Due:',       inv.due_date || '–'],
     ];
 
     metaRows.forEach(([lbl, val], i) => {
       const ry = metaTopY + i * 17;
-      doc.fillColor(muted).fontSize(8).font('Helvetica')
+      doc.fillColor(muted).fontSize(8).font('Helvetica-Bold')
          .text(lbl, metaX, ry, { width: metaLblW });
       doc.fillColor(dark).fontSize(8).font('Helvetica')
          .text(val, metaX + metaLblW, ry, { width: metaValW, align: 'right' });
@@ -512,7 +509,7 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     };
 
     const drawTableHeader = (yy) => {
-      doc.rect(L, yy, W, 20).fill(navy);
+      doc.rect(L, yy, W, 20).fill(blue);   // medium blue (not dark navy)
       doc.fillColor('#fff').fontSize(8.5).font('Helvetica-Bold');
       doc.text('Items',    colX.desc  + 6, yy + 6, { width: colW.desc  - 6 });
       doc.text('Quantity', colX.qty,        yy + 6, { width: colW.qty,   align: 'center' });
@@ -570,20 +567,30 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     const totX  = R - 230;
     const tLblW = 125;
     const tValW = 95;
+    const tax   = parseFloat(inv.tax || 0);
 
-    doc.fillColor(muted).fontSize(8.5).font('Helvetica')
-       .text('Subtotal:', totX, ty, { width: tLblW, align: 'right' });
-    doc.fillColor(dark).fontSize(8.5).font('Helvetica')
-       .text(`$${parseFloat(inv.subtotal || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
-    ty += 15;
+    if (tax > 0) {
+      // Show Subtotal + Tax when tax is non-zero
+      doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+         .text('Subtotal:', totX, ty, { width: tLblW, align: 'right' });
+      doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+         .text(`$${parseFloat(inv.subtotal || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+      ty += 14;
+      doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+         .text('Tax:', totX, ty, { width: tLblW, align: 'right' });
+      doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+         .text(`$${tax.toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+      ty += 14;
+    } else {
+      // No tax — just show Total
+      doc.fillColor(muted).fontSize(8.5).font('Helvetica')
+         .text('Total:', totX, ty, { width: tLblW, align: 'right' });
+      doc.fillColor(dark).fontSize(8.5).font('Helvetica')
+         .text(`$${parseFloat(inv.total || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
+      ty += 14;
+    }
 
-    doc.fillColor(muted).fontSize(8.5).font('Helvetica')
-       .text('Tax:', totX, ty, { width: tLblW, align: 'right' });
-    doc.fillColor(dark).fontSize(8.5).font('Helvetica')
-       .text(`$${parseFloat(inv.tax || 0).toFixed(2)}`, totX + tLblW, ty, { width: tValW, align: 'right' });
-    ty += 11;
-
-    doc.moveTo(totX, ty).lineTo(R, ty).lineWidth(0.8).stroke(navy);
+    doc.moveTo(totX, ty).lineTo(R, ty).lineWidth(0.8).stroke(lineC);
     ty += 8;
 
     doc.fillColor(navy).fontSize(9.5).font('Helvetica-Bold')
@@ -606,7 +613,7 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     const fY = doc.page.height - 45;
     doc.moveTo(L, fY - 6).lineTo(R, fY - 6).lineWidth(0.5).stroke(lineC);
     doc.fillColor(muted).fontSize(8).font('Helvetica')
-       .text('Thank you for your business! — ABC Midwest Cleaning', L, fY, { align: 'center', width: W });
+       .text('Thank you for your business! — ABC Midwest Cleaning Services LLC', L, fY, { align: 'center', width: W });
 
     doc.end();
   } catch (err) { res.status(500).json({ error: err.message }); }
