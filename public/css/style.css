@@ -497,6 +497,45 @@ tbody tr:hover { background: #f8f9fa; }
   margin: 8px 0;
 }
 
+/* ── Dashboard ────────────────────────────────────────────────── */
+.dash-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.dash-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 14px 14px;
+  text-align: center;
+}
+.dash-card-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+.dash-card-value {
+  font-size: 1.95rem;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.1;
+  word-break: break-word;
+}
+.dash-card-value--sm {
+  font-size: 1.05rem;
+}
+.dash-card-sub {
+  font-size: .76rem;
+  color: var(--muted);
+  margin-top: 5px;
+  min-height: 1em;
+}
+
 /* ══════════════════════════════════════════════════════════════
    BREAKPOINTS
    ══════════════════════════════════════════════════════════════ */

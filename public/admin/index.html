@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>ABC Midwest - Admin</title>
   <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     .logo-img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
     .export-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
@@ -31,6 +32,7 @@
 
   <!-- TABS -->
   <div class="tab-bar">
+    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
     <button class="tab-btn active" data-tab="records">📋 Time Cards</button>
     <button class="tab-btn" data-tab="projects">🗂 Extra Projects</button>
     <button class="tab-btn" data-tab="employees">👥 Employees</button>
@@ -39,6 +41,61 @@
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
     <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
     <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
+  </div>
+
+  <!-- ── DASHBOARD TAB ───────────────────────────────────────────── -->
+  <div id="tab-dashboard" class="content" style="display:none">
+    <div class="container">
+      <!-- Filters -->
+      <div class="card" style="margin-top:16px">
+        <div class="filter-row">
+          <input type="date" id="dashDateFrom" class="form-control" title="From date">
+          <span style="align-self:center;color:var(--muted);font-size:.85rem">to</span>
+          <input type="date" id="dashDateTo" class="form-control" title="To date">
+          <button class="btn btn-primary" id="dashFilterBtn" style="padding:10px 18px;font-size:.9rem">🔍 Apply</button>
+        </div>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="dash-cards">
+        <div class="dash-card">
+          <div class="dash-card-label">Total Hours</div>
+          <div class="dash-card-value" id="dashTotalHours">—</div>
+          <div class="dash-card-sub">this period</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-label">Active Employees</div>
+          <div class="dash-card-value" id="dashActiveEmployees">—</div>
+          <div class="dash-card-sub">with records</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-label">Top Store</div>
+          <div class="dash-card-value dash-card-value--sm" id="dashTopStore">—</div>
+          <div class="dash-card-sub" id="dashTopStoreHours"></div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-label">Top Employee</div>
+          <div class="dash-card-value dash-card-value--sm" id="dashTopEmployee">—</div>
+          <div class="dash-card-sub" id="dashTopEmployeeHours"></div>
+        </div>
+      </div>
+
+      <!-- Hours per Employee chart -->
+      <div class="card" style="margin-top:16px">
+        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)">Hours per Employee</h3>
+        <div style="position:relative;height:260px">
+          <canvas id="dashEmpChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Hours by Store chart -->
+      <div class="card" style="margin-top:16px;margin-bottom:24px">
+        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)">Attendance by Store</h3>
+        <div style="position:relative;height:220px">
+          <canvas id="dashStoreChart"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- ── RECORDS TAB ────────────────────────────────────────────── -->
@@ -640,7 +697,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -648,6 +705,7 @@
         Object.values(TAB_IDS).forEach(id => document.getElementById(id).style.display = 'none');
         const tab = btn.dataset.tab;
         document.getElementById(TAB_IDS[tab]).style.display = '';
+        if (tab === 'dashboard') initDashboard();
         if (tab === 'records')   loadRecords();
         if (tab === 'projects')  loadProjects();
         if (tab === 'employees') loadEmployees();
@@ -2038,6 +2096,73 @@
       try { await api(`/admin/calendar-access/${userId}`, { method: 'DELETE' }); loadCalendarAccess(); }
       catch(ex) { alert(ex.message); }
     };
+
+    // ── Dashboard ────────────────────────────────────────────────
+    let _dashEmpChart = null, _dashStoreChart = null;
+    let _dashInited = false;
+
+    function initDashboard() {
+      if (!_dashInited) {
+        _dashInited = true;
+        const now = new Date();
+        const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+        document.getElementById('dashDateFrom').value = `${y}-${m}-01`;
+        const lastDay = new Date(y, now.getMonth() + 1, 0).toISOString().slice(0, 10);
+        document.getElementById('dashDateTo').value = lastDay;
+        document.getElementById('dashFilterBtn').addEventListener('click', loadDashboard);
+      }
+      loadDashboard();
+    }
+
+    async function loadDashboard() {
+      const from = document.getElementById('dashDateFrom').value;
+      const to   = document.getElementById('dashDateTo').value;
+      try {
+        const d = await api(`/admin/dashboard?date_from=${from}&date_to=${to}`);
+
+        document.getElementById('dashTotalHours').textContent      = d.totalHours.toFixed(1) + 'h';
+        document.getElementById('dashActiveEmployees').textContent  = d.activeEmployees;
+        document.getElementById('dashTopStore').textContent         = d.topStore    ? d.topStore.name    : '—';
+        document.getElementById('dashTopStoreHours').textContent    = d.topStore    ? d.topStore.hours.toFixed(1)    + 'h' : '';
+        document.getElementById('dashTopEmployee').textContent      = d.topEmployee ? d.topEmployee.name  : '—';
+        document.getElementById('dashTopEmployeeHours').textContent = d.topEmployee ? d.topEmployee.hours.toFixed(1) + 'h' : '';
+
+        _dashEmpChart   = _buildBarChart('dashEmpChart',   _dashEmpChart,   d.hoursPerEmployee, '#1a56db');
+        _dashStoreChart = _buildBarChart('dashStoreChart', _dashStoreChart, d.hoursByStore,      '#10b981');
+      } catch (err) { console.error('Dashboard error', err); }
+    }
+
+    function _buildBarChart(id, existing, items, color) {
+      if (existing) existing.destroy();
+      if (!items.length) {
+        const ctx = document.getElementById(id).getContext('2d');
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        return null;
+      }
+      return new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: {
+          labels: items.map(i => i.name),
+          datasets: [{
+            label: 'Hours',
+            data: items.map(i => parseFloat(i.hours)),
+            backgroundColor: color + '99',
+            borderColor: color,
+            borderWidth: 1.5,
+            borderRadius: 5,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { font: { size: 11 } }, grid: { color: '#e5e7eb' } },
+            x: { ticks: { font: { size: 11 }, maxRotation: 35 }, grid: { display: false } }
+          }
+        }
+      });
+    }
 
     // ── Init ──────────────────────────────────────────────────────
     populateFilters().then(() => loadRecords());

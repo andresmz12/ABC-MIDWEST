@@ -699,6 +699,67 @@ router.get('/rest-days/export-pdf', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+router.get('/dashboard', async (req, res) => {
+  try {
+    const now = new Date();
+    const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+    const defaultFrom = `${y}-${m}-01`;
+    const lastDay = new Date(y, now.getMonth() + 1, 0);
+    const defaultTo = lastDay.toISOString().slice(0, 10);
+
+    const dateFrom = req.query.date_from || defaultFrom;
+    const dateTo   = req.query.date_to   || defaultTo;
+
+    const [summaryRes, empRes, storeRes] = await Promise.all([
+      query(`
+        SELECT
+          COALESCE(ROUND(SUM(EXTRACT(EPOCH FROM (wr.clock_out - wr.clock_in)) / 3600)::numeric, 2), 0) AS total_hours,
+          COUNT(DISTINCT wr.user_id) AS active_employees
+        FROM work_records wr
+        WHERE wr.clock_out IS NOT NULL
+          AND wr.date >= $1 AND wr.date <= $2
+      `, [dateFrom, dateTo]),
+
+      query(`
+        SELECT u.name,
+               ROUND(SUM(EXTRACT(EPOCH FROM (wr.clock_out - wr.clock_in)) / 3600)::numeric, 2) AS hours
+        FROM work_records wr
+        JOIN users u ON u.id = wr.user_id
+        WHERE wr.clock_out IS NOT NULL
+          AND wr.date >= $1 AND wr.date <= $2
+        GROUP BY u.name
+        ORDER BY hours DESC
+      `, [dateFrom, dateTo]),
+
+      query(`
+        SELECT COALESCE(s.name, 'No Store') AS name,
+               ROUND(SUM(EXTRACT(EPOCH FROM (wr.clock_out - wr.clock_in)) / 3600)::numeric, 2) AS hours
+        FROM work_records wr
+        LEFT JOIN stores s ON s.id = wr.store_id
+        WHERE wr.clock_out IS NOT NULL
+          AND wr.date >= $1 AND wr.date <= $2
+        GROUP BY s.name
+        ORDER BY hours DESC
+      `, [dateFrom, dateTo]),
+    ]);
+
+    const summary = summaryRes.rows[0];
+    const hoursPerEmployee = empRes.rows;
+    const hoursByStore = storeRes.rows;
+
+    res.json({
+      totalHours:      parseFloat(summary.total_hours),
+      activeEmployees: parseInt(summary.active_employees, 10),
+      topEmployee:     hoursPerEmployee[0] || null,
+      topStore:        hoursByStore[0] || null,
+      hoursPerEmployee,
+      hoursByStore,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
 
 module.exports = router;
