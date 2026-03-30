@@ -173,6 +173,13 @@ async function initDb() {
   // ── Scheduled Jobs image attachments ──────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}'`);
 
+  // ── Calendar Access (employees allowed to view/edit calendar) ─────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS calendar_access (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
   const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (rows.length === 0) {
     const hash = bcrypt.hashSync('admin123', 10);

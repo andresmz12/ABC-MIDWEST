@@ -132,6 +132,13 @@ body {
   outline: none;
   border-color: var(--primary);
 }
+/* Fix: browser datalist combo-box may override text color */
+input[list].form-control,
+input[list].form-control:focus {
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+  background-color: #fff;
+}
 select.form-control {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236c757d' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

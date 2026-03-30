@@ -28,6 +28,7 @@
     <button class="tab-btn active" data-tab="shift">⏱ Shift</button>
     <button class="tab-btn" data-tab="history">📋 History</button>
     <button class="tab-btn" data-tab="restdays">🗓 Day Off</button>
+    <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
   </div>
 
   <!-- ── SHIFT TAB ─────────────────────────────────────────────── -->
@@ -157,6 +158,61 @@
     </div>
   </div>
 
+  <!-- CALENDAR TAB -->
+  <div id="tab-calendar" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-sm btn-outline" id="empCalPrev">◀</button>
+            <h2 id="empCalMonthLabel" style="margin:0;min-width:160px;text-align:center"></h2>
+            <button class="btn btn-sm btn-outline" id="empCalNext">▶</button>
+          </div>
+          <button class="btn btn-primary btn-sm" id="empNewJobBtn">+ Schedule Job</button>
+        </div>
+        <div class="alert alert-error" id="empCalError" style="margin-top:8px"></div>
+        <div id="empCalGrid" style="margin-top:16px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin:0 0 12px">All Jobs This Month</h3>
+        <div id="empCalJobList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Employee Job Modal -->
+  <div class="modal-overlay" id="empJobModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="empJobModalTitle">Schedule Job</h3>
+        <button class="modal-close" id="closeEmpJobModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-error" id="empJobError"></div>
+        <form id="empJobForm">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="empJobTitle" class="form-control" placeholder="Job / project title" required>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="empJobDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="empJobLocation" class="form-control" placeholder="Address or description">
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="empJobNotes" class="form-control" rows="2" placeholder="Additional notes"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="empJobSubmitBtn">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- MEDIA VIEWER MODAL -->
   <div class="modal-overlay" id="mediaModal">
     <div class="modal">
@@ -201,8 +257,10 @@
         document.getElementById('tab-shift').style.display    = tab === 'shift'    ? '' : 'none';
         document.getElementById('tab-history').style.display  = tab === 'history'  ? '' : 'none';
         document.getElementById('tab-restdays').style.display = tab === 'restdays' ? '' : 'none';
+        document.getElementById('tab-calendar').style.display = tab === 'calendar' ? '' : 'none';
         if (tab === 'history')  loadHistory();
         if (tab === 'restdays') initRestDaysTab();
+        if (tab === 'calendar') initEmpCalendar();
       });
     });
 
@@ -701,6 +759,139 @@
         loadMyRestDays();
       } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
       finally { btn.disabled = false; btn.textContent = 'Save Day Off'; }
+    });
+
+    // ── Employee Calendar ─────────────────────────────────────────
+    let empCalYear, empCalMonth, empCalJobs = [], empCalEditId = null;
+
+    function empCalMonthStr() { return `${empCalYear}-${String(empCalMonth + 1).padStart(2,'0')}`; }
+    function escHtmlE(s) { return (s||'').replace(/['"<>&]/g, c => ({'\'':'&#39;','"':'&quot;','<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+
+    async function renderEmpCalendar() {
+      const grid   = document.getElementById('empCalGrid');
+      const errEl  = document.getElementById('empCalError');
+      const listEl = document.getElementById('empCalJobList');
+      errEl.classList.remove('show');
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted)">Loading...</div>';
+      document.getElementById('empCalMonthLabel').textContent =
+        new Date(empCalYear, empCalMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      try {
+        empCalJobs = await api(`/employee/calendar?month=${empCalMonthStr()}`);
+        const firstDay = new Date(empCalYear, empCalMonth, 1).getDay();
+        const daysInMonth = new Date(empCalYear, empCalMonth + 1, 0).getDate();
+        const today = new Date().toISOString().split('T')[0];
+        let cells = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(d =>
+          `<div style="font-weight:700;font-size:.75rem;color:var(--muted);padding:4px">${d}</div>`);
+        for (let i = 0; i < firstDay; i++) cells.push('<div></div>');
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = `${empCalYear}-${String(empCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          const dayJobs = empCalJobs.filter(j => j.scheduled_date === dateStr);
+          const isToday = dateStr === today;
+          cells.push(`<div onclick="empCalOpenDay('${dateStr}')" style="cursor:pointer;padding:4px 2px;border-radius:6px;min-height:44px;background:${isToday?'var(--primary)':'var(--surface-alt,#f3f4f6)'};color:${isToday?'#fff':'inherit'};transition:background .15s">
+            <div style="font-size:.85rem;font-weight:600">${d}</div>
+            ${dayJobs.length ? `<div style="font-size:.65rem;background:${isToday?'rgba(255,255,255,0.3)':'#1a56db22'};border-radius:4px;padding:1px 3px;margin-top:2px;color:${isToday?'#fff':'#1a56db'}">${dayJobs.length} job${dayJobs.length>1?'s':''}</div>` : ''}
+          </div>`);
+        }
+        grid.innerHTML = cells.join('');
+        if (!empCalJobs.length) { listEl.innerHTML = '<span style="color:var(--muted)">No jobs this month.</span>'; return; }
+        listEl.innerHTML = empCalJobs.map(j => `
+          <div class="list-item" style="align-items:flex-start">
+            <div style="flex:1">
+              <strong>${escHtmlE(j.title)}</strong>
+              <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
+              ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">${escHtmlE(j.location)}</div>` : ''}
+              ${j.notes    ? `<div style="font-size:.82rem;color:var(--muted)">${escHtmlE(j.notes)}</div>` : ''}
+              ${Array.isArray(j.image_urls) && j.image_urls.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${j.image_urls.map(u=>`<img src="${u}" style="width:50px;height:50px;object-fit:cover;border-radius:4px">`).join('')}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              <button class="btn btn-sm btn-outline" onclick="empCalEditJob(${j.id})">Edit</button>
+              <button class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="empCalDeleteJob(${j.id})">Delete</button>
+            </div>
+          </div>`).join('');
+      } catch(ex) {
+        const msg = ex.message || '';
+        if (msg.includes('No calendar access') || msg.includes('403')) {
+          errEl.textContent = 'No tienes acceso al calendario. Pídele al administrador que te dé acceso.';
+        } else {
+          errEl.textContent = 'Error cargando calendario: ' + msg;
+        }
+        errEl.classList.add('show');
+        grid.innerHTML = '';
+        listEl.innerHTML = '';
+      }
+    }
+
+    function initEmpCalendar() {
+      const now = new Date();
+      if (empCalYear === undefined) { empCalYear = now.getFullYear(); empCalMonth = now.getMonth(); }
+      renderEmpCalendar();
+    }
+
+    window.empCalOpenDay = function(dateStr) {
+      empCalEditId = null;
+      document.getElementById('empJobModalTitle').textContent = 'Schedule Job';
+      document.getElementById('empJobDate').value    = dateStr;
+      document.getElementById('empJobTitle').value   = '';
+      document.getElementById('empJobLocation').value = '';
+      document.getElementById('empJobNotes').value   = '';
+      document.getElementById('empJobError').classList.remove('show');
+      document.getElementById('empJobModal').classList.add('open');
+    };
+
+    window.empCalEditJob = function(id) {
+      const job = empCalJobs.find(j => j.id === id);
+      if (!job) return;
+      empCalEditId = id;
+      document.getElementById('empJobModalTitle').textContent = 'Edit Job';
+      document.getElementById('empJobTitle').value    = job.title;
+      document.getElementById('empJobDate').value     = job.scheduled_date;
+      document.getElementById('empJobLocation').value = job.location || '';
+      document.getElementById('empJobNotes').value    = job.notes || '';
+      document.getElementById('empJobError').classList.remove('show');
+      document.getElementById('empJobModal').classList.add('open');
+    };
+
+    window.empCalDeleteJob = async function(id) {
+      if (!confirm('Delete this job?')) return;
+      try { await api(`/employee/calendar/${id}`, { method: 'DELETE' }); renderEmpCalendar(); }
+      catch(ex) { alert(ex.message); }
+    };
+
+    document.getElementById('empNewJobBtn').addEventListener('click', () => {
+      empCalOpenDay(new Date().toISOString().split('T')[0]);
+    });
+    document.getElementById('closeEmpJobModal').addEventListener('click', () =>
+      document.getElementById('empJobModal').classList.remove('open'));
+    document.getElementById('empJobModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('empJobModal'))
+        document.getElementById('empJobModal').classList.remove('open');
+    });
+    document.getElementById('empCalPrev').addEventListener('click', () => {
+      empCalMonth--; if (empCalMonth < 0) { empCalMonth = 11; empCalYear--; } renderEmpCalendar();
+    });
+    document.getElementById('empCalNext').addEventListener('click', () => {
+      empCalMonth++; if (empCalMonth > 11) { empCalMonth = 0; empCalYear++; } renderEmpCalendar();
+    });
+
+    document.getElementById('empJobForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('empJobError');
+      errEl.classList.remove('show');
+      const btn = document.getElementById('empJobSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const body = JSON.stringify({
+        title: document.getElementById('empJobTitle').value.trim(),
+        scheduled_date: document.getElementById('empJobDate').value,
+        location: document.getElementById('empJobLocation').value.trim(),
+        notes: document.getElementById('empJobNotes').value.trim()
+      });
+      try {
+        if (empCalEditId) { await api(`/employee/calendar/${empCalEditId}`, { method: 'PUT', body }); }
+        else              { await api('/employee/calendar', { method: 'POST', body }); }
+        document.getElementById('empJobModal').classList.remove('open');
+        renderEmpCalendar();
+      } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.textContent = 'Save'; }
     });
 
     // ── Init ──────────────────────────────────────────────────────

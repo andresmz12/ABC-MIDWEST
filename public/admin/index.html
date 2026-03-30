@@ -37,6 +37,7 @@
     <button class="tab-btn" data-tab="stores">🏪 Stores</button>
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
+    <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
     <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
   </div>
 
@@ -306,11 +307,27 @@
         <div id="calJobList"></div>
       </div>
 
-      <!-- Rest Days Section -->
+      <!-- Calendar Access -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Rest Days</h2>
-          <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Export Excel</button>
+          <h2>Calendar Access</h2>
+          <span style="font-size:.85rem;color:var(--muted)">Choose who can see and edit this calendar</span>
+        </div>
+        <div id="calAccessList" style="color:var(--muted);font-size:.9rem">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DESCANSOS TAB ──────────────────────────────────────────── -->
+  <div id="tab-restdays" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Descansos Empleados</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Excel</button>
+            <button class="btn-export" id="exportRestDaysPdfBtn" style="font-size:.85rem;padding:8px 14px">⬇ PDF</button>
+          </div>
         </div>
         <div class="filter-row">
           <input type="month" id="rdFilterMonth" class="form-control" style="width:auto">
@@ -345,7 +362,8 @@
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
             </select>
-            <button class="btn btn-sm btn-outline" id="exportInvoicesBtn">⬇ Export Excel</button>
+            <button class="btn btn-sm btn-outline" id="exportInvoicesBtn">⬇ Excel</button>
+            <button class="btn btn-sm btn-outline" id="exportInvoicesPdfBtn">⬇ PDF Report</button>
             <button class="btn btn-primary btn-sm" id="newInvoiceBtn">+ New Invoice</button>
           </div>
         </div>
@@ -413,10 +431,6 @@
           <div class="form-group">
             <label>Location</label>
             <input type="text" id="jobLocation" class="form-control" placeholder="Address or description">
-          </div>
-          <div class="form-group">
-            <label>Assigned Employees</label>
-            <div id="jobEmpCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
           </div>
           <div class="form-group">
             <label>Notes</label>
@@ -615,7 +629,7 @@
     });
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', invoices: 'tab-invoices' };
+    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -629,6 +643,7 @@
         if (tab === 'stores')    loadStores();
         if (tab === 'payroll')   initPayrollTab();
         if (tab === 'calendar')  initCalendarTab();
+        if (tab === 'restdays')  loadRestDays();
         if (tab === 'invoices')  initInvoicesTab();
       });
     });
@@ -1478,7 +1493,6 @@
       document.getElementById('jobImagesSection').style.display = 'none';
       document.getElementById('jobImagesList').innerHTML = '';
       document.getElementById('jobImgUploadStatus').textContent = '';
-      renderJobEmpCheckboxes([]);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1492,7 +1506,6 @@
       document.getElementById('jobLocation').value = job.location || '';
       document.getElementById('jobNotes').value    = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
-      renderJobEmpCheckboxes(job.assigned_to || []);
       // Show existing images
       const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
       document.getElementById('jobImagesSection').style.display = '';
@@ -1545,15 +1558,6 @@
       } catch(ex) { statusEl.textContent = 'Upload failed: ' + ex.message; }
     });
 
-    function renderJobEmpCheckboxes(selected) {
-      const container = document.getElementById('jobEmpCheckboxes');
-      if (!employees || !employees.length) { container.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No employees found</span>'; return; }
-      container.innerHTML = employees.map(e => `
-        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer">
-          <input type="checkbox" value="${e.id}" ${(selected||[]).includes(e.id)?'checked':''}>
-          ${escHtml(e.name)}
-        </label>`).join('');
-    }
 
     document.getElementById('newJobBtn').addEventListener('click', () => {
       const today = new Date().toISOString().split('T')[0];
@@ -1570,13 +1574,12 @@
       errEl.classList.remove('show');
       const btn = document.getElementById('jobSubmitBtn');
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-      const assigned = [...document.querySelectorAll('#jobEmpCheckboxes input:checked')].map(el => parseInt(el.value));
       const body = JSON.stringify({
         title: document.getElementById('jobTitle').value.trim(),
         scheduled_date: document.getElementById('jobDate').value,
         location: document.getElementById('jobLocation').value.trim(),
         notes: document.getElementById('jobNotes').value.trim(),
-        assigned_to: assigned
+        assigned_to: []
       });
       try {
         if (calEditId) {
@@ -1605,7 +1608,7 @@
       const now = new Date();
       if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
       await renderCalendar();
-      loadRestDays();
+      loadCalendarAccess();
     }
 
     // ── Invoices Tab ─────────────────────────────────────────────
@@ -1958,6 +1961,72 @@
           URL.revokeObjectURL(link.href);
         }).catch(err => alert('Export failed: ' + err.message));
     });
+
+    document.getElementById('exportRestDaysPdfBtn').addEventListener('click', () => {
+      const month = document.getElementById('rdFilterMonth').value;
+      const emp   = document.getElementById('rdFilterEmployee').value;
+      const p = [];
+      if (month) p.push('month=' + month);
+      if (emp)   p.push('employee_id=' + emp);
+      const url = '/api/admin/rest-days/export-pdf' + (p.length ? '?' + p.join('&') : '');
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.blob()).then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'rest_days.pdf';
+          link.click(); URL.revokeObjectURL(link.href);
+        }).catch(err => alert('Export failed: ' + err.message));
+    });
+
+    // ── Invoice PDF Report button ─────────────────────────────────
+    document.getElementById('exportInvoicesPdfBtn').addEventListener('click', () => {
+      const status = document.getElementById('invFilterStatus').value;
+      const url = '/api/admin/invoices/export-pdf' + (status ? '?status=' + status : '');
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.blob()).then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'invoices_report.pdf';
+          link.click(); URL.revokeObjectURL(link.href);
+        }).catch(err => alert('Export failed: ' + err.message));
+    });
+
+    // ── Calendar Access ───────────────────────────────────────────
+    async function loadCalendarAccess() {
+      const el = document.getElementById('calAccessList');
+      try {
+        const [access, allEmps] = await Promise.all([
+          api('/admin/calendar-access'),
+          api('/admin/employees')
+        ]);
+        const accessIds = new Set(access.map(a => a.user_id));
+        const empOnly   = allEmps.filter(e => e.role !== 'admin');
+        if (!empOnly.length) { el.innerHTML = '<span style="color:var(--muted)">No employees found.</span>'; return; }
+        el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">` +
+          empOnly.map(e => {
+            const has = accessIds.has(e.id);
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:${has?'#dcfce7':'var(--surface-alt,#f3f4f6)'};border-radius:8px;gap:8px">
+              <div>
+                <strong>${escHtml(e.name)}</strong>
+                <span style="margin-left:8px;font-size:.8rem;color:${has?'#16a34a':'var(--muted)'}">${has?'✓ Can view & edit calendar':'No access'}</span>
+              </div>
+              ${has
+                ? `<button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="revokeCalAccess(${e.id})">Revoke</button>`
+                : `<button class="btn btn-sm btn-outline" style="flex-shrink:0" onclick="grantCalAccess(${e.id})">Grant Access</button>`}
+            </div>`;
+          }).join('') + '</div>';
+      } catch(ex) { el.textContent = 'Error loading: ' + ex.message; }
+    }
+
+    window.grantCalAccess = async function(userId) {
+      try { await api('/admin/calendar-access', { method: 'POST', body: JSON.stringify({ user_id: userId }) }); loadCalendarAccess(); }
+      catch(ex) { alert(ex.message); }
+    };
+    window.revokeCalAccess = async function(userId) {
+      if (!confirm('Revoke calendar access for this employee?')) return;
+      try { await api(`/admin/calendar-access/${userId}`, { method: 'DELETE' }); loadCalendarAccess(); }
+      catch(ex) { alert(ex.message); }
+    };
 
     // ── Init ──────────────────────────────────────────────────────
     populateFilters().then(() => loadRecords());

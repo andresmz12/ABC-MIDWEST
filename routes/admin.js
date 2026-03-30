@@ -1,8 +1,11 @@
 const router = require('express').Router();
+const path   = require('path');
+const fs     = require('fs');
 const bcrypt = require('bcryptjs');
 const https  = require('https');
 const http   = require('http');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 const archiver = require('archiver');
 const multer = require('multer');
 const { query, withTransaction } = require('../database');
@@ -537,6 +540,33 @@ router.delete('/scheduled-jobs/:id/images', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Calendar Access ──────────────────────────────────────────────────────────
+
+router.get('/calendar-access', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT ca.user_id, u.name FROM calendar_access ca JOIN users u ON u.id = ca.user_id ORDER BY u.name`
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/calendar-access', async (req, res) => {
+  try {
+    const { user_id } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id required' });
+    await query('INSERT INTO calendar_access (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user_id]);
+    res.status(201).json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/calendar-access/:userId', async (req, res) => {
+  try {
+    await query('DELETE FROM calendar_access WHERE user_id=$1', [req.params.userId]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── Rest Days ────────────────────────────────────────────────────────────────
 
 router.get('/rest-days', async (req, res) => {
@@ -591,5 +621,84 @@ router.get('/rest-days/export', async (req, res) => {
     res.send(await wb.xlsx.writeBuffer());
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
+
+// ── Rest Days PDF export ──────────────────────────────────────────────────────
+router.get('/rest-days/export-pdf', async (req, res) => {
+  try {
+    const { month, employee_id } = req.query;
+    let sql = `SELECT u.name as employee, rd.date, rd.note,
+               COALESCE(
+                 (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+                  FROM stores s WHERE s.id = ANY(rd.store_ids)), ''
+               ) as stores
+               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
+    const params = []; let i = 1;
+    if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
+    if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
+    sql += ' ORDER BY u.name, rd.date';
+    const { rows } = await query(sql, params);
+
+    const doc = new PDFDocument({ margin: 40, size: 'LETTER', compress: true });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="rest_days${month?'_'+month:''}.pdf"`);
+    doc.pipe(res);
+
+    const blue = '#1a56db'; const dark = '#111827'; const muted = '#6b7280';
+    const L = 40; const R = doc.page.width - 40; const W = R - L;
+
+    // Header
+    doc.rect(L, 40, W, 50).fill(blue);
+    const logoPath = path.join(__dirname, '..', 'public', 'images', 'logo.png');
+    let logoEndX = L + 10;
+    if (fs.existsSync(logoPath)) {
+      try { doc.image(logoPath, L + 8, 46, { height: 38, fit: [38, 38] }); logoEndX = L + 54; } catch (_) {}
+    }
+    doc.fillColor('#fff').fontSize(14).font('Helvetica-Bold').text('ABC Midwest Cleaning', logoEndX, 50, { width: 200 });
+    doc.fontSize(9).font('Helvetica').fillColor('rgba(255,255,255,0.8)').text('Employee Rest Days Report', logoEndX, 67);
+    if (month) {
+      doc.fillColor('#fff').fontSize(9).font('Helvetica').text('Period: ' + month, L, 52, { align: 'right', width: W });
+    }
+
+    let y = 108;
+    // Group by employee
+    const byEmp = {};
+    rows.forEach(r => { if (!byEmp[r.employee]) byEmp[r.employee] = []; byEmp[r.employee].push(r); });
+
+    const colW = [W * 0.2, W * 0.18, W * 0.37, W * 0.25];
+    const colX = [L, L + colW[0], L + colW[0] + colW[1], L + colW[0] + colW[1] + colW[2]];
+
+    // Table header
+    const drawHeader = (yy) => {
+      doc.rect(L, yy, W, 18).fill(dark);
+      doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
+      ['Employee', 'Date', 'Stores', 'Note'].forEach((h, i) => {
+        doc.text(h, colX[i] + 4, yy + 5, { width: colW[i] - 8 });
+      });
+      return yy + 18;
+    };
+
+    y = drawHeader(y);
+    let rowIdx = 0;
+    Object.entries(byEmp).forEach(([emp, records]) => {
+      records.forEach(r => {
+        if (y > doc.page.height - 80) { doc.addPage(); y = 40; y = drawHeader(y); rowIdx = 0; }
+        if (rowIdx % 2 === 0) doc.rect(L, y, W, 16).fill('#f3f4f6');
+        doc.fillColor(dark).fontSize(8).font('Helvetica');
+        doc.text(escTxt(r.employee), colX[0] + 4, y + 4, { width: colW[0] - 8 });
+        doc.text(r.date,             colX[1] + 4, y + 4, { width: colW[1] - 8 });
+        doc.text(r.stores || '–',    colX[2] + 4, y + 4, { width: colW[2] - 8 });
+        doc.text(r.note   || '–',    colX[3] + 4, y + 4, { width: colW[3] - 8 });
+        y += 16; rowIdx++;
+      });
+    });
+
+    // Footer
+    doc.fillColor(muted).fontSize(8).font('Helvetica')
+       .text(`Total records: ${rows.length}`, L, y + 12);
+    doc.end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
 
 module.exports = router;

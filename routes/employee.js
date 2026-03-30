@@ -180,4 +180,57 @@ router.delete('/rest-days/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Employee Calendar (read/write if in calendar_access) ────────────────────
+async function checkCalendarAccess(userId) {
+  const { rows } = await query('SELECT 1 FROM calendar_access WHERE user_id=$1', [userId]);
+  return rows.length > 0;
+}
+
+router.get('/calendar', async (req, res) => {
+  try {
+    if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
+    const { month } = req.query;
+    let sql = 'SELECT * FROM scheduled_jobs';
+    const params = [];
+    if (month) { sql += ' WHERE scheduled_date LIKE $1'; params.push(month + '%'); }
+    sql += ' ORDER BY scheduled_date, id';
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/calendar', async (req, res) => {
+  try {
+    if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
+    const { title, scheduled_date, location, notes } = req.body;
+    if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
+    const { rows } = await query(
+      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [title, scheduled_date, [], location || null, notes || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/calendar/:id', async (req, res) => {
+  try {
+    if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
+    const { title, scheduled_date, location, notes } = req.body;
+    if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
+    await query(
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, location=$3, notes=$4 WHERE id=$5',
+      [title, scheduled_date, location || null, notes || null, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/calendar/:id', async (req, res) => {
+  try {
+    if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
+    await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
