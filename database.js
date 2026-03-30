@@ -97,6 +97,54 @@ async function initDb() {
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_address TEXT`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_address TEXT`);
 
+  // ── Scheduled Jobs (calendar) ──────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS scheduled_jobs (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      scheduled_date TEXT NOT NULL,
+      assigned_to INTEGER[] DEFAULT '{}',
+      location TEXT,
+      notes TEXT,
+      reminder_sent_night BOOLEAN DEFAULT FALSE,
+      reminder_sent_morning BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Rest Days ──────────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rest_days (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      store_ids INTEGER[] NOT NULL DEFAULT '{}',
+      note TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, date)
+    )
+  `);
+
+  // ── Invoices ───────────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id SERIAL PRIMARY KEY,
+      invoice_number TEXT UNIQUE NOT NULL,
+      invoice_date TEXT NOT NULL,
+      client_name TEXT NOT NULL,
+      client_address TEXT,
+      client_email TEXT,
+      items JSONB NOT NULL DEFAULT '[]',
+      subtotal NUMERIC(10,2) DEFAULT 0,
+      tax NUMERIC(10,2) DEFAULT 0,
+      total NUMERIC(10,2) DEFAULT 0,
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','paid')),
+      paid_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (rows.length === 0) {
     const hash = bcrypt.hashSync('admin123', 10);

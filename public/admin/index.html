@@ -36,6 +36,8 @@
     <button class="tab-btn" data-tab="employees">👥 Employees</button>
     <button class="tab-btn" data-tab="stores">🏪 Stores</button>
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
+    <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
+    <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
   </div>
 
   <!-- ── RECORDS TAB ────────────────────────────────────────────── -->
@@ -151,6 +153,31 @@
         <div class="alert alert-error"   id="employeeImportError"></div>
         <div id="employeeList">
           <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- Rest Days Section -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Rest Days</h2>
+          <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Export Excel</button>
+        </div>
+        <div class="filter-row">
+          <input type="month" id="rdFilterMonth" class="form-control" style="width:auto">
+          <select id="rdFilterEmployee" class="form-control">
+            <option value="">All Employees</option>
+          </select>
+          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="rdFilterBtn">🔍 Filter</button>
+        </div>
+        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Employee</th><th>Date</th><th>Stores</th><th>Note</th></tr>
+              </thead>
+              <tbody id="rdBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -281,6 +308,165 @@
     </div>
   </div>
 
+  <!-- ── CALENDAR TAB ─────────────────────────────────────────────── -->
+  <div id="tab-calendar" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div class="section-header">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-sm btn-outline" id="calPrev">◀</button>
+            <h2 id="calMonthLabel" style="margin:0;min-width:160px;text-align:center"></h2>
+            <button class="btn btn-sm btn-outline" id="calNext">▶</button>
+          </div>
+          <button class="btn btn-primary btn-sm" id="newJobBtn">+ Schedule Job</button>
+        </div>
+        <div class="alert alert-error" id="calError" style="margin-top:8px"></div>
+        <div id="calGrid" style="margin-top:16px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">
+          <!-- filled by JS -->
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3 style="margin:0 0 12px">All Jobs This Month</h3>
+        <div id="calJobList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INVOICES TAB ────────────────────────────────────────────── -->
+  <div id="tab-invoices" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div class="section-header">
+          <h2>Invoices</h2>
+          <button class="btn btn-primary btn-sm" id="newInvoiceBtn">+ New Invoice</button>
+        </div>
+        <div class="alert alert-success" id="invSuccess"></div>
+        <div class="alert alert-error"   id="invError"></div>
+        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Date</th>
+                  <th>Client</th>
+                  <th>Total</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="invoiceBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calendar / Job Modal -->
+  <div class="modal-overlay" id="jobModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="jobModalTitle">Schedule Job</h3>
+        <button class="modal-close" id="closeJobModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-error" id="jobError"></div>
+        <form id="jobForm">
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="jobTitle" class="form-control" placeholder="Job / project title" required>
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="jobDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input type="text" id="jobLocation" class="form-control" placeholder="Address or description">
+          </div>
+          <div class="form-group">
+            <label>Assigned Employees</label>
+            <div id="jobEmpCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px"></div>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="jobSubmitBtn">Save</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Modal -->
+  <div class="modal-overlay" id="invoiceModal">
+    <div class="modal" style="max-width:680px">
+      <div class="modal-header">
+        <h3 id="invModalTitle">New Invoice</h3>
+        <button class="modal-close" id="closeInvoiceModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-error" id="invFormError"></div>
+        <form id="invoiceForm">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>Invoice #</label>
+              <input type="text" id="invNumber" class="form-control" placeholder="INV-2024-001" required>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="invDate" class="form-control" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Client Name</label>
+            <input type="text" id="invClientName" class="form-control" placeholder="Client or company name" required>
+          </div>
+          <div class="form-group">
+            <label>Client Address</label>
+            <input type="text" id="invClientAddress" class="form-control" placeholder="123 Main St, City, State">
+          </div>
+          <div class="form-group">
+            <label>Client Email</label>
+            <input type="email" id="invClientEmail" class="form-control" placeholder="client@email.com">
+          </div>
+          <div class="form-group">
+            <label>Items</label>
+            <table style="width:100%;border-collapse:collapse;font-size:.85rem" id="invItemsTable">
+              <thead>
+                <tr style="background:var(--surface-alt,#f3f4f6)">
+                  <th style="padding:6px;text-align:left">Description</th>
+                  <th style="padding:6px;width:60px">Qty</th>
+                  <th style="padding:6px;width:90px">Unit Price</th>
+                  <th style="padding:6px;width:90px">Subtotal</th>
+                  <th style="padding:6px;width:36px"></th>
+                </tr>
+              </thead>
+              <tbody id="invItemsBody"></tbody>
+            </table>
+            <button type="button" class="btn btn-sm btn-outline" id="addItemBtn" style="margin-top:8px">+ Add Line</button>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:8px">
+            <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
+              <label style="margin:0;white-space:nowrap">Tax ($)</label>
+              <input type="number" id="invTax" class="form-control" style="width:90px" value="0" min="0" step="0.01">
+            </div>
+            <div style="font-size:.95rem">
+              Subtotal: <strong id="invSubtotalDisplay">$0.00</strong> &nbsp;|&nbsp;
+              Total: <strong id="invTotalDisplay" style="color:var(--primary)">$0.00</strong>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="invNotes" class="form-control" rows="2" placeholder="Payment terms, thank you note, etc."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="invSubmitBtn">Save Invoice</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- Employee Modal -->
   <div class="modal-overlay" id="employeeModal">
     <div class="modal">
@@ -371,7 +557,7 @@
     });
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll' };
+    const TAB_IDS = { records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', invoices: 'tab-invoices' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -384,6 +570,8 @@
         if (tab === 'employees') loadEmployees();
         if (tab === 'stores')    loadStores();
         if (tab === 'payroll')   initPayrollTab();
+        if (tab === 'calendar')  initCalendarTab();
+        if (tab === 'invoices')  loadInvoices();
       });
     });
 
@@ -1159,6 +1347,351 @@
         btn.disabled = false; btn.textContent = '📥 Import Excel';
       }
     });
+
+    // ── Calendar Tab ─────────────────────────────────────────────
+    let calYear, calMonth, calJobs = [], calEditId = null;
+
+    function calMonthStr() { return `${calYear}-${String(calMonth+1).padStart(2,'0')}`; }
+
+    async function renderCalendar() {
+      document.getElementById('calMonthLabel').textContent =
+        new Date(calYear, calMonth, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      calJobs = await api(`/admin/scheduled-jobs?month=${calMonthStr()}`);
+      const jobsByDate = {};
+      calJobs.forEach(j => { (jobsByDate[j.scheduled_date] = jobsByDate[j.scheduled_date] || []).push(j); });
+
+      const grid = document.getElementById('calGrid');
+      const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      const firstDay = new Date(calYear, calMonth, 1).getDay();
+      const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      let html = days.map(d => `<div style="font-size:.75rem;font-weight:600;color:var(--muted);padding:4px 0">${d}</div>`).join('');
+      for (let i = 0; i < firstDay; i++) html += '<div></div>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dayJobs = jobsByDate[dateStr] || [];
+        const isToday = dateStr === todayStr;
+        html += `<div style="min-height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;font-size:.78rem;cursor:pointer;background:${isToday?'#eff6ff':'#fff'}"
+                      onclick="calOpenDay('${dateStr}')">
+          <div style="font-weight:${isToday?'700':'400'};color:${isToday?'var(--primary)':'inherit'};margin-bottom:2px">${d}</div>
+          ${dayJobs.map(j => `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}">${escHtml(j.title)}</div>`).join('')}
+        </div>`;
+      }
+      grid.innerHTML = html;
+
+      // Job list below
+      const listEl = document.getElementById('calJobList');
+      if (!calJobs.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px 0">No jobs this month.</p>'; return; }
+      listEl.innerHTML = calJobs.map(j => `
+        <div class="list-item" style="align-items:flex-start">
+          <div style="flex:1">
+            <strong>${escHtml(j.title)}</strong>
+            <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
+            ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.location)}</div>` : ''}
+            ${j.notes    ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-sm btn-outline" onclick="calEditJob(${j.id})">Edit</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="calDeleteJob(${j.id})">Delete</button>
+          </div>
+        </div>`).join('');
+    }
+
+    window.calOpenDay = function(dateStr) {
+      calEditId = null;
+      document.getElementById('jobModalTitle').textContent = 'Schedule Job';
+      document.getElementById('jobDate').value = dateStr;
+      document.getElementById('jobTitle').value = '';
+      document.getElementById('jobLocation').value = '';
+      document.getElementById('jobNotes').value = '';
+      document.getElementById('jobError').classList.remove('show');
+      renderJobEmpCheckboxes([]);
+      document.getElementById('jobModal').classList.add('show');
+    };
+
+    window.calEditJob = function(id) {
+      const job = calJobs.find(j => j.id === id);
+      if (!job) return;
+      calEditId = id;
+      document.getElementById('jobModalTitle').textContent = 'Edit Job';
+      document.getElementById('jobTitle').value    = job.title;
+      document.getElementById('jobDate').value     = job.scheduled_date;
+      document.getElementById('jobLocation').value = job.location || '';
+      document.getElementById('jobNotes').value    = job.notes || '';
+      document.getElementById('jobError').classList.remove('show');
+      renderJobEmpCheckboxes(job.assigned_to || []);
+      document.getElementById('jobModal').classList.add('show');
+    };
+
+    window.calDeleteJob = async function(id) {
+      if (!confirm('Delete this job?')) return;
+      try { await api(`/admin/scheduled-jobs/${id}`, { method: 'DELETE' }); renderCalendar(); }
+      catch(ex) { alert(ex.message); }
+    };
+
+    function renderJobEmpCheckboxes(selected) {
+      const container = document.getElementById('jobEmpCheckboxes');
+      if (!employees || !employees.length) { container.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No employees found</span>'; return; }
+      container.innerHTML = employees.map(e => `
+        <label style="display:flex;align-items:center;gap:4px;font-size:.85rem;cursor:pointer">
+          <input type="checkbox" value="${e.id}" ${(selected||[]).includes(e.id)?'checked':''}>
+          ${escHtml(e.name)}
+        </label>`).join('');
+    }
+
+    document.getElementById('newJobBtn').addEventListener('click', () => {
+      const today = new Date().toISOString().split('T')[0];
+      calOpenDay(today);
+    });
+    document.getElementById('closeJobModal').addEventListener('click', () => document.getElementById('jobModal').classList.remove('show'));
+    document.getElementById('calPrev').addEventListener('click', () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); });
+    document.getElementById('calNext').addEventListener('click', () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); });
+
+    document.getElementById('jobForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('jobError');
+      errEl.classList.remove('show');
+      const btn = document.getElementById('jobSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const assigned = [...document.querySelectorAll('#jobEmpCheckboxes input:checked')].map(el => parseInt(el.value));
+      const body = JSON.stringify({
+        title: document.getElementById('jobTitle').value.trim(),
+        scheduled_date: document.getElementById('jobDate').value,
+        location: document.getElementById('jobLocation').value.trim(),
+        notes: document.getElementById('jobNotes').value.trim(),
+        assigned_to: assigned
+      });
+      try {
+        if (calEditId) { await api(`/admin/scheduled-jobs/${calEditId}`, { method: 'PUT', body }); }
+        else           { await api('/admin/scheduled-jobs', { method: 'POST', body }); }
+        document.getElementById('jobModal').classList.remove('show');
+        renderCalendar();
+      } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.textContent = 'Save'; }
+    });
+
+    function initCalendarTab() {
+      const now = new Date();
+      if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+      renderCalendar();
+    }
+
+    // ── Invoices Tab ─────────────────────────────────────────────
+    let invEditId = null;
+
+    async function loadInvoices() {
+      const tbody = document.getElementById('invoiceBody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+      try {
+        const rows = await api('/admin/invoices');
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No invoices yet.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(inv => `
+          <tr>
+            <td><strong>${escHtml(inv.invoice_number)}</strong></td>
+            <td style="white-space:nowrap">${inv.invoice_date}</td>
+            <td>${escHtml(inv.client_name)}</td>
+            <td style="white-space:nowrap;text-align:right">$${parseFloat(inv.total||0).toFixed(2)}</td>
+            <td>
+              <span style="padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600;background:${inv.status==='paid'?'#dcfce7':'#f3f4f6'};color:${inv.status==='paid'?'#16a34a':'#6b7280'}">
+                ${inv.status==='paid'?'PAID':'PENDING'}
+              </span>
+            </td>
+            <td style="white-space:nowrap">
+              <button class="btn btn-sm btn-outline" onclick="downloadInvPdf(${inv.id},'${escHtml(inv.invoice_number)}')">PDF</button>
+              <button class="btn btn-sm btn-outline" onclick="editInvoice(${inv.id})" style="margin:0 4px">Edit</button>
+              ${inv.status!=='paid' ? `<button class="btn btn-sm btn-outline" style="color:var(--success,#16a34a)" onclick="markInvoicePaid(${inv.id})">Mark Paid</button>` : ''}
+              <button class="btn btn-sm btn-outline" style="color:var(--danger);margin-left:4px" onclick="deleteInvoice(${inv.id})">Delete</button>
+            </td>
+          </tr>`).join('');
+      } catch(ex) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">${ex.message}</td></tr>`;
+      }
+    }
+
+    window.downloadInvPdf = function(id, num) {
+      fetch(`/api/admin/invoices/${id}/pdf`, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.blob()).then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `invoice_${num}.pdf`;
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }).catch(err => alert('PDF error: ' + err.message));
+    };
+
+    window.markInvoicePaid = async function(id) {
+      try { await api(`/admin/invoices/${id}/mark-paid`, { method: 'PATCH', body: '{}' }); loadInvoices(); }
+      catch(ex) { alert(ex.message); }
+    };
+
+    window.deleteInvoice = async function(id) {
+      if (!confirm('Delete this invoice?')) return;
+      try { await api(`/admin/invoices/${id}`, { method: 'DELETE' }); loadInvoices(); }
+      catch(ex) { alert(ex.message); }
+    };
+
+    window.editInvoice = async function(id) {
+      try {
+        const inv = await api(`/admin/invoices/${id}`);
+        invEditId = id;
+        document.getElementById('invModalTitle').textContent = 'Edit Invoice';
+        document.getElementById('invNumber').value        = inv.invoice_number;
+        document.getElementById('invDate').value          = inv.invoice_date;
+        document.getElementById('invClientName').value    = inv.client_name;
+        document.getElementById('invClientAddress').value = inv.client_address || '';
+        document.getElementById('invClientEmail').value   = inv.client_email  || '';
+        document.getElementById('invNotes').value         = inv.notes || '';
+        document.getElementById('invTax').value           = inv.tax || 0;
+        document.getElementById('invFormError').classList.remove('show');
+        renderInvItems(Array.isArray(inv.items) ? inv.items : JSON.parse(inv.items || '[]'));
+        recalcInvoice();
+        document.getElementById('invoiceModal').classList.add('show');
+      } catch(ex) { alert(ex.message); }
+    };
+
+    function renderInvItems(items) {
+      const tbody = document.getElementById('invItemsBody');
+      tbody.innerHTML = '';
+      (items || []).forEach(item => addInvItemRow(item));
+    }
+
+    function addInvItemRow(item = {}) {
+      const tbody = document.getElementById('invItemsBody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="form-control inv-desc" placeholder="Service description" value="${escHtml(item.description||'')}" style="font-size:.85rem"></td>
+        <td><input type="number" class="form-control inv-qty" min="1" step="1" value="${item.quantity||1}" style="font-size:.85rem;padding:6px"></td>
+        <td><input type="number" class="form-control inv-price" min="0" step="0.01" value="${item.unit_price||0}" style="font-size:.85rem;padding:6px"></td>
+        <td class="inv-sub" style="text-align:right;padding:6px;font-size:.85rem">$0.00</td>
+        <td><button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem" onclick="this.closest('tr').remove();recalcInvoice()">✕</button></td>`;
+      tbody.appendChild(tr);
+      tr.querySelectorAll('.inv-qty,.inv-price').forEach(el => el.addEventListener('input', recalcInvoice));
+      recalcInvoice();
+    }
+
+    window.recalcInvoice = function() {
+      let subtotal = 0;
+      document.querySelectorAll('#invItemsBody tr').forEach(tr => {
+        const qty   = parseFloat(tr.querySelector('.inv-qty')?.value  || 0);
+        const price = parseFloat(tr.querySelector('.inv-price')?.value || 0);
+        const sub   = qty * price;
+        subtotal += sub;
+        const subCell = tr.querySelector('.inv-sub');
+        if (subCell) subCell.textContent = '$' + sub.toFixed(2);
+      });
+      const tax   = parseFloat(document.getElementById('invTax').value || 0);
+      const total = subtotal + tax;
+      document.getElementById('invSubtotalDisplay').textContent = '$' + subtotal.toFixed(2);
+      document.getElementById('invTotalDisplay').textContent    = '$' + total.toFixed(2);
+    };
+
+    document.getElementById('invTax').addEventListener('input', recalcInvoice);
+    document.getElementById('addItemBtn').addEventListener('click', () => addInvItemRow());
+
+    document.getElementById('newInvoiceBtn').addEventListener('click', () => {
+      invEditId = null;
+      document.getElementById('invModalTitle').textContent = 'New Invoice';
+      document.getElementById('invoiceForm').reset();
+      document.getElementById('invItemsBody').innerHTML = '';
+      document.getElementById('invFormError').classList.remove('show');
+      document.getElementById('invSubtotalDisplay').textContent = '$0.00';
+      document.getElementById('invTotalDisplay').textContent    = '$0.00';
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('invDate').value = today;
+      addInvItemRow();
+      document.getElementById('invoiceModal').classList.add('show');
+    });
+    document.getElementById('closeInvoiceModal').addEventListener('click', () => document.getElementById('invoiceModal').classList.remove('show'));
+
+    document.getElementById('invoiceForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('invFormError');
+      errEl.classList.remove('show');
+      const btn = document.getElementById('invSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+      const items = [...document.querySelectorAll('#invItemsBody tr')].map(tr => ({
+        description: tr.querySelector('.inv-desc')?.value  || '',
+        quantity:    parseFloat(tr.querySelector('.inv-qty')?.value   || 1),
+        unit_price:  parseFloat(tr.querySelector('.inv-price')?.value || 0),
+        subtotal:    parseFloat(tr.querySelector('.inv-sub')?.textContent.replace('$','') || 0)
+      }));
+      const body = JSON.stringify({
+        invoice_number:  document.getElementById('invNumber').value.trim(),
+        invoice_date:    document.getElementById('invDate').value,
+        client_name:     document.getElementById('invClientName').value.trim(),
+        client_address:  document.getElementById('invClientAddress').value.trim(),
+        client_email:    document.getElementById('invClientEmail').value.trim(),
+        items, tax: parseFloat(document.getElementById('invTax').value || 0),
+        notes: document.getElementById('invNotes').value.trim()
+      });
+      try {
+        if (invEditId) { await api(`/admin/invoices/${invEditId}`, { method: 'PUT', body }); }
+        else           { await api('/admin/invoices', { method: 'POST', body }); }
+        document.getElementById('invoiceModal').classList.remove('show');
+        loadInvoices();
+        const sucEl = document.getElementById('invSuccess');
+        sucEl.textContent = invEditId ? 'Invoice updated.' : 'Invoice created.';
+        sucEl.classList.add('show');
+        setTimeout(() => sucEl.classList.remove('show'), 3000);
+      } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.textContent = 'Save Invoice'; }
+    });
+
+    // ── Rest Days (Admin) ─────────────────────────────────────────
+    async function loadRestDays() {
+      const tbody = document.getElementById('rdBody');
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">Loading...</td></tr>';
+      const month = document.getElementById('rdFilterMonth').value;
+      const emp   = document.getElementById('rdFilterEmployee').value;
+      let url = '/admin/rest-days';
+      const p = [];
+      if (month) p.push('month=' + month);
+      if (emp)   p.push('employee_id=' + emp);
+      if (p.length) url += '?' + p.join('&');
+      try {
+        const rows = await api(url);
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--muted)">No rest days found.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(r => `
+          <tr>
+            <td><strong>${escHtml(r.employee_name)}</strong></td>
+            <td style="white-space:nowrap">${r.date}</td>
+            <td style="font-size:.85rem">${Array.isArray(r.store_names) ? r.store_names.map(n => escHtml(n)).join(', ') : '–'}</td>
+            <td style="color:var(--muted);font-size:.85rem">${escHtml(r.note || '–')}</td>
+          </tr>`).join('');
+      } catch(ex) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">${ex.message}</td></tr>`;
+      }
+    }
+
+    document.getElementById('rdFilterBtn').addEventListener('click', loadRestDays);
+
+    document.getElementById('exportRestDaysBtn').addEventListener('click', () => {
+      const month = document.getElementById('rdFilterMonth').value;
+      const emp   = document.getElementById('rdFilterEmployee').value;
+      const p = [];
+      if (month) p.push('month=' + month);
+      if (emp)   p.push('employee_id=' + emp);
+      const url = '/api/admin/rest-days/export' + (p.length ? '?' + p.join('&') : '');
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.blob()).then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'rest_days.xlsx';
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }).catch(err => alert('Export failed: ' + err.message));
+    });
+
+    // Populate rest-day employee filter when employees tab loads
+    const origLoadEmployees = loadEmployees;
+    loadEmployees = async function() {
+      await origLoadEmployees();
+      const rdSel = document.getElementById('rdFilterEmployee');
+      rdSel.innerHTML = '<option value="">All Employees</option>' +
+        employees.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+      loadRestDays();
+    };
 
     // ── Init ──────────────────────────────────────────────────────
     populateFilters().then(() => loadRecords());

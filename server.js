@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const { initDb } = require('./database');
+const { initCron } = require('./services/cron');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/admin', require('./routes/payroll'));
+app.use('/api/admin', require('./routes/invoices'));
 app.use('/api/employee', require('./routes/employee'));
 
 // SPA fallback
@@ -32,6 +34,7 @@ app.use((err, req, res, next) => {
 
 initDb()
   .then(() => {
+    initCron();
     app.listen(PORT, () => {
       console.log(`ABC Midwest Cleaning App running on port ${PORT}`);
     });

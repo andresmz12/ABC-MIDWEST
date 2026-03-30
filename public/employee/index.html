@@ -27,6 +27,7 @@
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="shift">⏱ Shift</button>
     <button class="tab-btn" data-tab="history">📋 History</button>
+    <button class="tab-btn" data-tab="restdays">🗓 Day Off</button>
   </div>
 
   <!-- ── SHIFT TAB ─────────────────────────────────────────────── -->
@@ -121,6 +122,41 @@
     </div>
   </div>
 
+  <!-- DAY OFF TAB -->
+  <div id="tab-restdays" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <h2 style="margin:0 0 16px">Register Day Off</h2>
+        <div class="alert alert-error"   id="rdEmpError"></div>
+        <div class="alert alert-success" id="rdEmpSuccess"></div>
+        <form id="rdForm">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="rdDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Stores I did NOT work at</label>
+            <div id="rdStoreCheckboxes" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:6px">
+              <span style="color:var(--muted);font-size:.85rem">Loading stores...</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Note (optional)</label>
+            <input type="text" id="rdNote" class="form-control" placeholder="Reason or comment">
+          </div>
+          <button type="submit" class="btn btn-primary" id="rdSubmitBtn">Save Day Off</button>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 12px">My Rest Days</h2>
+        <div id="rdEmpList">
+          <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- MEDIA VIEWER MODAL -->
   <div class="modal-overlay" id="mediaModal">
     <div class="modal">
@@ -162,9 +198,11 @@
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         const tab = btn.dataset.tab;
-        document.getElementById('tab-shift').style.display   = tab === 'shift'   ? '' : 'none';
-        document.getElementById('tab-history').style.display = tab === 'history' ? '' : 'none';
-        if (tab === 'history') loadHistory();
+        document.getElementById('tab-shift').style.display    = tab === 'shift'    ? '' : 'none';
+        document.getElementById('tab-history').style.display  = tab === 'history'  ? '' : 'none';
+        document.getElementById('tab-restdays').style.display = tab === 'restdays' ? '' : 'none';
+        if (tab === 'history')  loadHistory();
+        if (tab === 'restdays') initRestDaysTab();
       });
     });
 
@@ -579,6 +617,91 @@
       if (mins < 60) return mins + 'm';
       return Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
     }
+
+    // ── Day Off Tab ───────────────────────────────────────────────
+    let rdStores = [];
+    let rdTabInit = false;
+
+    async function initRestDaysTab() {
+      if (!rdTabInit) {
+        // Load stores assigned to this employee for checkboxes
+        try {
+          rdStores = await api('/employee/stores');
+        } catch { rdStores = []; }
+        const container = document.getElementById('rdStoreCheckboxes');
+        if (rdStores.length) {
+          container.innerHTML = rdStores.map(s => `
+            <label style="display:flex;align-items:center;gap:6px;font-size:.9rem;cursor:pointer;background:var(--surface,#fff);border:1.5px solid var(--border);border-radius:8px;padding:8px 12px">
+              <input type="checkbox" class="rd-store-cb" value="${s.id}">
+              <span>${s.name}</span>
+            </label>`).join('');
+        } else {
+          container.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No stores assigned.</span>';
+        }
+        // Default date = today
+        document.getElementById('rdDate').value = new Date().toISOString().split('T')[0];
+        rdTabInit = true;
+      }
+      loadMyRestDays();
+    }
+
+    async function loadMyRestDays() {
+      const el = document.getElementById('rdEmpList');
+      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      try {
+        const rows = await api('/employee/rest-days');
+        if (!rows.length) { el.innerHTML = '<div class="empty-state"><span class="empty-icon">🗓</span><p>No rest days registered yet.</p></div>'; return; }
+        el.innerHTML = rows.map(r => `
+          <div class="list-item">
+            <div style="flex:1">
+              <strong>${r.date}</strong>
+              <div style="font-size:.82rem;color:var(--muted);margin-top:2px">
+                ${Array.isArray(r.stores) && r.stores.length ? r.stores.map(s => s.name).join(', ') : '–'}
+              </div>
+              ${r.note ? `<div style="font-size:.82rem;color:var(--muted)">${r.note}</div>` : ''}
+            </div>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteRestDay(${r.id})">Delete</button>
+          </div>`).join('');
+      } catch(ex) {
+        el.innerHTML = `<div class="empty-state"><p style="color:var(--danger)">${ex.message}</p></div>`;
+      }
+    }
+
+    window.deleteRestDay = async function(id) {
+      if (!confirm('Delete this rest day?')) return;
+      try { await api(`/employee/rest-days/${id}`, { method: 'DELETE' }); loadMyRestDays(); }
+      catch(ex) { const e = document.getElementById('rdEmpError'); e.textContent = ex.message; e.classList.add('show'); }
+    };
+
+    document.getElementById('rdForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('rdEmpError');
+      const sucEl = document.getElementById('rdEmpSuccess');
+      errEl.classList.remove('show');
+      sucEl.classList.remove('show');
+      const storeIds = [...document.querySelectorAll('.rd-store-cb:checked')].map(el => parseInt(el.value));
+      if (!storeIds.length) { errEl.textContent = 'Select at least one store.'; errEl.classList.add('show'); return; }
+      const btn = document.getElementById('rdSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Saving...';
+      try {
+        await api('/employee/rest-days', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date:      document.getElementById('rdDate').value,
+            store_ids: storeIds,
+            note:      document.getElementById('rdNote').value.trim()
+          })
+        });
+        sucEl.textContent = 'Day off saved.';
+        sucEl.classList.add('show');
+        document.getElementById('rdNote').value = '';
+        document.querySelectorAll('.rd-store-cb').forEach(cb => cb.checked = false);
+        setTimeout(() => sucEl.classList.remove('show'), 3000);
+        loadMyRestDays();
+      } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.textContent = 'Save Day Off'; }
+    });
 
     // ── Init ──────────────────────────────────────────────────────
     loadStores();

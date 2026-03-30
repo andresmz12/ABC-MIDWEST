@@ -464,4 +464,106 @@ router.get('/records/:id/media/download', async (req, res) => {
   }
 });
 
+// ─── Scheduled Jobs (Calendar) ────────────────────────────────────────────────
+
+router.get('/scheduled-jobs', async (req, res) => {
+  try {
+    const { month } = req.query; // 'YYYY-MM'
+    let sql = 'SELECT * FROM scheduled_jobs';
+    const params = [];
+    if (month) { sql += ' WHERE scheduled_date LIKE $1'; params.push(month + '%'); }
+    sql += ' ORDER BY scheduled_date, id';
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/scheduled-jobs', async (req, res) => {
+  try {
+    const { title, scheduled_date, assigned_to, location, notes } = req.body;
+    if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
+    const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
+    const { rows } = await query(
+      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      [title, scheduled_date, assignedArr, location || null, notes || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/scheduled-jobs/:id', async (req, res) => {
+  try {
+    const { title, scheduled_date, assigned_to, location, notes } = req.body;
+    if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
+    const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
+    await query(
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5 WHERE id=$6',
+      [title, scheduled_date, assignedArr, location || null, notes || null, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/scheduled-jobs/:id', async (req, res) => {
+  try {
+    await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Rest Days ────────────────────────────────────────────────────────────────
+
+router.get('/rest-days', async (req, res) => {
+  try {
+    const { month, employee_id } = req.query;
+    let sql = `SELECT rd.*, u.name as employee_name,
+               COALESCE(
+                 (SELECT json_agg(s.name ORDER BY s.name)
+                  FROM stores s WHERE s.id = ANY(rd.store_ids)), '[]'
+               ) as store_names
+               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
+    const params = [];
+    let i = 1;
+    if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
+    if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
+    sql += ' ORDER BY rd.date DESC, u.name';
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/rest-days/export', async (req, res) => {
+  try {
+    const { month, employee_id } = req.query;
+    let sql = `SELECT rd.date, u.name as employee,
+               COALESCE(
+                 (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+                  FROM stores s WHERE s.id = ANY(rd.store_ids)), ''
+               ) as stores,
+               rd.note
+               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
+    const params = [];
+    let i = 1;
+    if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
+    if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
+    sql += ' ORDER BY rd.date DESC, u.name';
+    const { rows: records } = await query(sql, params);
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Rest Days');
+    ws.columns = [
+      { header: 'Employee',    key: 'employee', width: 24 },
+      { header: 'Date',        key: 'date',     width: 14 },
+      { header: 'Stores',      key: 'stores',   width: 40 },
+      { header: 'Note',        key: 'note',     width: 30 }
+    ];
+    records.forEach(r => ws.addRow({ employee: r.employee, date: r.date, stores: r.stores, note: r.note || '' }));
+    ws.getRow(1).font = { bold: true };
+
+    res.setHeader('Content-Disposition', 'attachment; filename="rest_days.xlsx"');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(await wb.xlsx.writeBuffer());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

@@ -139,4 +139,45 @@ router.get('/my-records', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Rest Days ────────────────────────────────────────────────────────────────
+
+router.get('/rest-days', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT rd.*,
+        COALESCE(
+          (SELECT json_agg(json_build_object('id',s.id,'name',s.name) ORDER BY s.name)
+           FROM stores s WHERE s.id = ANY(rd.store_ids)), '[]'
+        ) as stores
+       FROM rest_days rd WHERE rd.user_id = $1 ORDER BY rd.date DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/rest-days', async (req, res) => {
+  try {
+    const { date, store_ids, note } = req.body;
+    if (!date) return res.status(400).json({ error: 'date required' });
+    const storeArr = Array.isArray(store_ids) ? store_ids : [];
+    if (!storeArr.length) return res.status(400).json({ error: 'At least one store required' });
+    const { rows } = await query(
+      `INSERT INTO rest_days (user_id, date, store_ids, note)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (user_id, date) DO UPDATE SET store_ids=$3, note=$4
+       RETURNING *`,
+      [req.user.id, date, storeArr, note || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/rest-days/:id', async (req, res) => {
+  try {
+    await query('DELETE FROM rest_days WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
