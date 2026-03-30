@@ -156,30 +156,6 @@
         </div>
       </div>
 
-      <!-- Rest Days Section -->
-      <div class="card" style="margin-top:12px">
-        <div class="section-header" style="margin-bottom:12px">
-          <h2>Rest Days</h2>
-          <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Export Excel</button>
-        </div>
-        <div class="filter-row">
-          <input type="month" id="rdFilterMonth" class="form-control" style="width:auto">
-          <select id="rdFilterEmployee" class="form-control">
-            <option value="">All Employees</option>
-          </select>
-          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="rdFilterBtn">🔍 Filter</button>
-        </div>
-        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr><th>Employee</th><th>Date</th><th>Stores</th><th>Note</th></tr>
-              </thead>
-              <tbody id="rdBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -328,6 +304,31 @@
       <div class="card" style="margin-top:12px">
         <h3 style="margin:0 0 12px">All Jobs This Month</h3>
         <div id="calJobList"></div>
+      </div>
+
+      <!-- Rest Days Section -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Rest Days</h2>
+          <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Export Excel</button>
+        </div>
+        <div class="filter-row">
+          <input type="month" id="rdFilterMonth" class="form-control" style="width:auto">
+          <select id="rdFilterEmployee" class="form-control">
+            <option value="">All Employees</option>
+          </select>
+          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="rdFilterBtn">🔍 Filter</button>
+        </div>
+        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Employee</th><th>Date</th><th>Stores</th><th>Note</th></tr>
+              </thead>
+              <tbody id="rdBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1418,7 +1419,7 @@
       document.getElementById('jobNotes').value = '';
       document.getElementById('jobError').classList.remove('show');
       renderJobEmpCheckboxes([]);
-      document.getElementById('jobModal').classList.add('show');
+      document.getElementById('jobModal').classList.add('open');
     };
 
     window.calEditJob = function(id) {
@@ -1432,7 +1433,7 @@
       document.getElementById('jobNotes').value    = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
       renderJobEmpCheckboxes(job.assigned_to || []);
-      document.getElementById('jobModal').classList.add('show');
+      document.getElementById('jobModal').classList.add('open');
     };
 
     window.calDeleteJob = async function(id) {
@@ -1455,7 +1456,8 @@
       const today = new Date().toISOString().split('T')[0];
       calOpenDay(today);
     });
-    document.getElementById('closeJobModal').addEventListener('click', () => document.getElementById('jobModal').classList.remove('show'));
+    document.getElementById('closeJobModal').addEventListener('click', () => document.getElementById('jobModal').classList.remove('open'));
+    document.getElementById('jobModal').addEventListener('click', e => { if (e.target === document.getElementById('jobModal')) document.getElementById('jobModal').classList.remove('open'); });
     document.getElementById('calPrev').addEventListener('click', () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); });
     document.getElementById('calNext').addEventListener('click', () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); });
 
@@ -1476,7 +1478,7 @@
       try {
         if (calEditId) { await api(`/admin/scheduled-jobs/${calEditId}`, { method: 'PUT', body }); }
         else           { await api('/admin/scheduled-jobs', { method: 'POST', body }); }
-        document.getElementById('jobModal').classList.remove('show');
+        document.getElementById('jobModal').classList.remove('open');
         renderCalendar();
       } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
       finally { btn.disabled = false; btn.textContent = 'Save'; }
@@ -1486,6 +1488,7 @@
       const now = new Date();
       if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
       await renderCalendar();
+      loadRestDays();
     }
 
     // ── Invoices Tab ─────────────────────────────────────────────
@@ -1557,7 +1560,7 @@
         document.getElementById('invFormError').classList.remove('show');
         renderInvItems(Array.isArray(inv.items) ? inv.items : JSON.parse(inv.items || '[]'));
         recalcInvoice();
-        document.getElementById('invoiceModal').classList.add('show');
+        document.getElementById('invoiceModal').classList.add('open');
       } catch(ex) { alert(ex.message); }
     };
 
@@ -1611,9 +1614,10 @@
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('invDate').value = today;
       addInvItemRow();
-      document.getElementById('invoiceModal').classList.add('show');
+      document.getElementById('invoiceModal').classList.add('open');
     });
-    document.getElementById('closeInvoiceModal').addEventListener('click', () => document.getElementById('invoiceModal').classList.remove('show'));
+    document.getElementById('closeInvoiceModal').addEventListener('click', () => document.getElementById('invoiceModal').classList.remove('open'));
+    document.getElementById('invoiceModal').addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) document.getElementById('invoiceModal').classList.remove('open'); });
 
     document.getElementById('invoiceForm').addEventListener('submit', async e => {
       e.preventDefault();
@@ -1639,7 +1643,7 @@
       try {
         if (invEditId) { await api(`/admin/invoices/${invEditId}`, { method: 'PUT', body }); }
         else           { await api('/admin/invoices', { method: 'POST', body }); }
-        document.getElementById('invoiceModal').classList.remove('show');
+        document.getElementById('invoiceModal').classList.remove('open');
         loadInvoices();
         const sucEl = document.getElementById('invSuccess');
         sucEl.textContent = invEditId ? 'Invoice updated.' : 'Invoice created.';
