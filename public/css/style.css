@@ -710,8 +710,8 @@ tbody tr:hover { background: #f8f9fa; }
   /* Inputs: comfortable touch */
   .form-control { padding: 15px 14px; font-size: 1rem; border-radius: 10px; }
 
-  /* Tabs: slimmer to fit 5 tabs */
-  .tab-btn { padding: 11px 6px; font-size: 0.72rem; min-width: 60px; }
+  /* Tabs: fixed width so bar scrolls horizontally on small screens */
+  .tab-btn { padding: 11px 6px; font-size: 0.72rem; min-width: 60px; flex: 0 0 auto; }
 
   /* Upload area */
   .upload-area { padding: 24px 12px; }

@@ -165,6 +165,148 @@ router.delete('/invoice-projects/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Export invoices to PDF grouped by company ─────────────────────────────────
+router.get('/invoices/export-pdf', async (req, res) => {
+  try {
+    const { status } = req.query;
+    let sql = `SELECT id, invoice_number, invoice_date, due_date, po_number,
+                      client_name, subtotal, tax, total, status, paid_at
+               FROM invoices`;
+    const params = [];
+    if (status) { sql += ' WHERE status = $1'; params.push(status); }
+    sql += ' ORDER BY client_name, invoice_date';
+    const { rows } = await query(sql, params);
+
+    const doc = new PDFDocument({ margin: 40, size: 'LETTER', compress: true });
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="invoices_report.pdf"');
+    doc.pipe(res);
+
+    const blue = '#1a56db'; const dark = '#111827'; const muted = '#6b7280'; const light = '#f3f4f6';
+    const L = 40; const R = doc.page.width - 40; const W = R - L;
+
+    // Header
+    doc.rect(L, 40, W, 50).fill(blue);
+    const logoPath = path.join(__dirname, '..', 'public', 'images', 'logo.png');
+    let logoEndX = L + 10;
+    if (fs.existsSync(logoPath)) {
+      try { doc.image(logoPath, L + 8, 46, { height: 38, fit: [38, 38] }); logoEndX = L + 54; } catch (_) {}
+    }
+    doc.fillColor('#fff').fontSize(14).font('Helvetica-Bold').text('ABC Midwest Cleaning', logoEndX, 50, { width: 220 });
+    doc.fontSize(9).font('Helvetica').fillColor('rgba(255,255,255,0.8)').text('Invoices Report', logoEndX, 67);
+    const labelRight = status === 'pending' ? 'PENDING ONLY' : status === 'paid' ? 'PAID ONLY' : 'ALL INVOICES';
+    doc.fillColor('#fff').fontSize(9).font('Helvetica-Bold').text(labelRight, L, 55, { align: 'right', width: W });
+
+    let y = 106;
+    // Column widths
+    const cW = { num: 80, date: 60, due: 60, po: 60, total: 65, status: 55 };
+    const cX = {
+      num:    L,
+      date:   L + cW.num,
+      due:    L + cW.num + cW.date,
+      po:     L + cW.num + cW.date + cW.due,
+      total:  R - cW.status - cW.total,
+      status: R - cW.status,
+    };
+    // client column fills remaining space
+    const clientX = cX.po + cW.po;
+    const clientW = cX.total - clientX - 4;
+
+    const drawTblHeader = (yy) => {
+      doc.rect(L, yy, W, 16).fill(dark);
+      doc.fillColor('#fff').fontSize(7.5).font('Helvetica-Bold');
+      doc.text('Invoice #', cX.num + 2, yy + 4, { width: cW.num - 4 });
+      doc.text('Date',      cX.date + 2, yy + 4, { width: cW.date - 4 });
+      doc.text('Due',       cX.due + 2, yy + 4,  { width: cW.due - 4 });
+      doc.text('PO #',      cX.po + 2, yy + 4,   { width: cW.po - 4 });
+      doc.text('Client',    clientX + 2, yy + 4,  { width: clientW });
+      doc.text('Total',     cX.total + 2, yy + 4, { width: cW.total - 4, align: 'right' });
+      doc.text('Status',    cX.status + 2, yy + 4,{ width: cW.status - 2 });
+      return yy + 16;
+    };
+
+    y = drawTblHeader(y);
+    let rowIdx = 0;
+
+    // Group by company
+    const companies = [...new Set(rows.map(r => r.client_name))];
+    const companyTotals = {};
+
+    companies.forEach(company => {
+      const compRows = rows.filter(r => r.client_name === company);
+      // Company header
+      if (y > doc.page.height - 100) { doc.addPage(); y = 40; y = drawTblHeader(y); rowIdx = 0; }
+      doc.rect(L, y, W, 14).fill('#e8edf8');
+      doc.fillColor(blue).fontSize(8.5).font('Helvetica-Bold').text(company, L + 4, y + 3, { width: W - 8 });
+      y += 14;
+
+      let compTotal = 0; let compPending = 0;
+      compRows.forEach(inv => {
+        if (y > doc.page.height - 80) { doc.addPage(); y = 40; y = drawTblHeader(y); rowIdx = 0; }
+        if (rowIdx % 2 === 0) doc.rect(L, y, W, 14).fill(light);
+        doc.fillColor(dark).fontSize(7.5).font('Helvetica');
+        doc.text(inv.invoice_number || '', cX.num + 2, y + 3, { width: cW.num - 4 });
+        doc.text(inv.invoice_date || '',   cX.date + 2, y + 3,{ width: cW.date - 4 });
+        doc.text(inv.due_date || '–',      cX.due + 2, y + 3, { width: cW.due - 4 });
+        doc.text(inv.po_number || '–',     cX.po + 2, y + 3,  { width: cW.po - 4 });
+        doc.text(inv.client_name,          clientX + 2, y + 3, { width: clientW });
+        doc.text(`$${parseFloat(inv.total||0).toFixed(2)}`, cX.total + 2, y + 3, { width: cW.total - 4, align: 'right' });
+        const isPaid = inv.status === 'paid';
+        doc.fillColor(isPaid ? '#16a34a' : '#dc2626').fontSize(7).font('Helvetica-Bold')
+           .text(isPaid ? 'PAID' : 'PENDING', cX.status + 2, y + 3, { width: cW.status - 2 });
+        compTotal += parseFloat(inv.total || 0);
+        if (!isPaid) compPending += parseFloat(inv.total || 0);
+        y += 14; rowIdx++;
+      });
+      companyTotals[company] = { total: compTotal, pending: compPending };
+      // Company subtotal row
+      doc.rect(L, y, W, 14).fill('#dbeafe');
+      doc.fillColor(blue).fontSize(7.5).font('Helvetica-Bold')
+         .text(`Subtotal ${company}: $${compTotal.toFixed(2)}  |  Pending: $${compPending.toFixed(2)}`, L + 4, y + 3, { width: W - 8 });
+      y += 16;
+    });
+
+    // Summary section
+    y += 8;
+    if (y > doc.page.height - 120) { doc.addPage(); y = 40; }
+    doc.rect(L, y, W, 1).fill('#e5e7eb'); y += 12;
+    doc.fillColor(blue).fontSize(11).font('Helvetica-Bold').text('SUMMARY — TOTAL OWED BY COMPANY', L, y); y += 18;
+    doc.rect(L, y, W, 16).fill(dark);
+    doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
+    doc.text('Company', L + 4, y + 4, { width: 240 });
+    doc.text('Total Pending', L + 250, y + 4, { width: 110, align: 'right' });
+    doc.text('Total Invoiced', L + 370, y + 4, { width: 120, align: 'right' });
+    y += 16;
+
+    let grandPending = 0; let grandTotal = 0;
+    Object.entries(companyTotals).sort().forEach(([name, t], idx) => {
+      if (idx % 2 === 0) doc.rect(L, y, W, 14).fill(light);
+      doc.fillColor(dark).fontSize(8).font('Helvetica');
+      doc.text(name, L + 4, y + 3, { width: 240 });
+      doc.fillColor(t.pending > 0 ? '#dc2626' : muted).font(t.pending > 0 ? 'Helvetica-Bold' : 'Helvetica')
+         .text(`$${t.pending.toFixed(2)}`, L + 250, y + 3, { width: 110, align: 'right' });
+      doc.fillColor(dark).font('Helvetica')
+         .text(`$${t.total.toFixed(2)}`, L + 370, y + 3, { width: 120, align: 'right' });
+      grandPending += t.pending; grandTotal += t.total;
+      y += 14;
+    });
+    // Grand total
+    doc.rect(L, y, W, 18).fill('#dbeafe');
+    doc.fillColor(blue).fontSize(9).font('Helvetica-Bold');
+    doc.text('GRAND TOTAL', L + 4, y + 4, { width: 240 });
+    doc.text(`$${grandPending.toFixed(2)}`, L + 250, y + 4, { width: 110, align: 'right' });
+    doc.text(`$${grandTotal.toFixed(2)}`, L + 370, y + 4, { width: 120, align: 'right' });
+
+    // Footer
+    const fY = doc.page.height - 45;
+    doc.rect(L, fY - 4, W, 0.5).fill('#e5e7eb');
+    doc.fillColor(muted).fontSize(8).font('Helvetica')
+       .text('ABC Midwest Cleaning — Invoices Report', L, fY, { align: 'center', width: W });
+
+    doc.end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Get single invoice ────────────────────────────────────────────────────────
 router.get('/invoices/:id', async (req, res) => {
   try {
@@ -417,148 +559,6 @@ router.get('/invoices/:id/pdf', async (req, res) => {
     doc.rect(L, footerY - 4, W, 0.5).fill('#e5e7eb');
     doc.fillColor(muted).fontSize(8).font('Helvetica')
        .text('Thank you for your business! — ABC Midwest Cleaning', L, footerY, { align: 'center', width: W });
-
-    doc.end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── Invoice totals PDF report ─────────────────────────────────────────────────
-router.get('/invoices/export-pdf', async (req, res) => {
-  try {
-    const { status } = req.query;
-    let sql = `SELECT id, invoice_number, invoice_date, due_date, po_number,
-                      client_name, subtotal, tax, total, status, paid_at
-               FROM invoices`;
-    const params = [];
-    if (status) { sql += ' WHERE status = $1'; params.push(status); }
-    sql += ' ORDER BY client_name, invoice_date';
-    const { rows } = await query(sql, params);
-
-    const doc = new PDFDocument({ margin: 40, size: 'LETTER', compress: true });
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'attachment; filename="invoices_report.pdf"');
-    doc.pipe(res);
-
-    const blue = '#1a56db'; const dark = '#111827'; const muted = '#6b7280'; const light = '#f3f4f6';
-    const L = 40; const R = doc.page.width - 40; const W = R - L;
-
-    // Header
-    doc.rect(L, 40, W, 50).fill(blue);
-    const logoPath = path.join(__dirname, '..', 'public', 'images', 'logo.png');
-    let logoEndX = L + 10;
-    if (fs.existsSync(logoPath)) {
-      try { doc.image(logoPath, L + 8, 46, { height: 38, fit: [38, 38] }); logoEndX = L + 54; } catch (_) {}
-    }
-    doc.fillColor('#fff').fontSize(14).font('Helvetica-Bold').text('ABC Midwest Cleaning', logoEndX, 50, { width: 220 });
-    doc.fontSize(9).font('Helvetica').fillColor('rgba(255,255,255,0.8)').text('Invoices Report', logoEndX, 67);
-    const labelRight = status === 'pending' ? 'PENDING ONLY' : status === 'paid' ? 'PAID ONLY' : 'ALL INVOICES';
-    doc.fillColor('#fff').fontSize(9).font('Helvetica-Bold').text(labelRight, L, 55, { align: 'right', width: W });
-
-    let y = 106;
-    // Column widths
-    const cW = { num: 80, date: 60, due: 60, po: 60, total: 65, status: 55 };
-    const cX = {
-      num:    L,
-      date:   L + cW.num,
-      due:    L + cW.num + cW.date,
-      po:     L + cW.num + cW.date + cW.due,
-      total:  R - cW.status - cW.total,
-      status: R - cW.status,
-    };
-    // client column fills remaining space
-    const clientX = cX.po + cW.po;
-    const clientW = cX.total - clientX - 4;
-
-    const drawTblHeader = (yy) => {
-      doc.rect(L, yy, W, 16).fill(dark);
-      doc.fillColor('#fff').fontSize(7.5).font('Helvetica-Bold');
-      doc.text('Invoice #', cX.num + 2, yy + 4, { width: cW.num - 4 });
-      doc.text('Date',      cX.date + 2, yy + 4, { width: cW.date - 4 });
-      doc.text('Due',       cX.due + 2, yy + 4,  { width: cW.due - 4 });
-      doc.text('PO #',      cX.po + 2, yy + 4,   { width: cW.po - 4 });
-      doc.text('Client',    clientX + 2, yy + 4,  { width: clientW });
-      doc.text('Total',     cX.total + 2, yy + 4, { width: cW.total - 4, align: 'right' });
-      doc.text('Status',    cX.status + 2, yy + 4,{ width: cW.status - 2 });
-      return yy + 16;
-    };
-
-    y = drawTblHeader(y);
-    let rowIdx = 0;
-
-    // Group by company
-    const companies = [...new Set(rows.map(r => r.client_name))];
-    const companyTotals = {};
-
-    companies.forEach(company => {
-      const compRows = rows.filter(r => r.client_name === company);
-      // Company header
-      if (y > doc.page.height - 100) { doc.addPage(); y = 40; y = drawTblHeader(y); rowIdx = 0; }
-      doc.rect(L, y, W, 14).fill('#e8edf8');
-      doc.fillColor(blue).fontSize(8.5).font('Helvetica-Bold').text(company, L + 4, y + 3, { width: W - 8 });
-      y += 14;
-
-      let compTotal = 0; let compPending = 0;
-      compRows.forEach(inv => {
-        if (y > doc.page.height - 80) { doc.addPage(); y = 40; y = drawTblHeader(y); rowIdx = 0; }
-        if (rowIdx % 2 === 0) doc.rect(L, y, W, 14).fill(light);
-        doc.fillColor(dark).fontSize(7.5).font('Helvetica');
-        doc.text(inv.invoice_number || '', cX.num + 2, y + 3, { width: cW.num - 4 });
-        doc.text(inv.invoice_date || '',   cX.date + 2, y + 3,{ width: cW.date - 4 });
-        doc.text(inv.due_date || '–',      cX.due + 2, y + 3, { width: cW.due - 4 });
-        doc.text(inv.po_number || '–',     cX.po + 2, y + 3,  { width: cW.po - 4 });
-        doc.text(inv.client_name,          clientX + 2, y + 3, { width: clientW });
-        doc.text(`$${parseFloat(inv.total||0).toFixed(2)}`, cX.total + 2, y + 3, { width: cW.total - 4, align: 'right' });
-        const isPaid = inv.status === 'paid';
-        doc.fillColor(isPaid ? '#16a34a' : '#dc2626').fontSize(7).font('Helvetica-Bold')
-           .text(isPaid ? 'PAID' : 'PENDING', cX.status + 2, y + 3, { width: cW.status - 2 });
-        compTotal += parseFloat(inv.total || 0);
-        if (!isPaid) compPending += parseFloat(inv.total || 0);
-        y += 14; rowIdx++;
-      });
-      companyTotals[company] = { total: compTotal, pending: compPending };
-      // Company subtotal row
-      doc.rect(L, y, W, 14).fill('#dbeafe');
-      doc.fillColor(blue).fontSize(7.5).font('Helvetica-Bold')
-         .text(`Subtotal ${company}: $${compTotal.toFixed(2)}  |  Pending: $${compPending.toFixed(2)}`, L + 4, y + 3, { width: W - 8 });
-      y += 16;
-    });
-
-    // Summary section
-    y += 8;
-    if (y > doc.page.height - 120) { doc.addPage(); y = 40; }
-    doc.rect(L, y, W, 1).fill('#e5e7eb'); y += 12;
-    doc.fillColor(blue).fontSize(11).font('Helvetica-Bold').text('SUMMARY — TOTAL OWED BY COMPANY', L, y); y += 18;
-    doc.rect(L, y, W, 16).fill(dark);
-    doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
-    doc.text('Company', L + 4, y + 4, { width: 240 });
-    doc.text('Total Pending', L + 250, y + 4, { width: 110, align: 'right' });
-    doc.text('Total Invoiced', L + 370, y + 4, { width: 120, align: 'right' });
-    y += 16;
-
-    let grandPending = 0; let grandTotal = 0;
-    Object.entries(companyTotals).sort().forEach(([name, t], idx) => {
-      if (idx % 2 === 0) doc.rect(L, y, W, 14).fill(light);
-      doc.fillColor(dark).fontSize(8).font('Helvetica');
-      doc.text(name, L + 4, y + 3, { width: 240 });
-      doc.fillColor(t.pending > 0 ? '#dc2626' : muted).font(t.pending > 0 ? 'Helvetica-Bold' : 'Helvetica')
-         .text(`$${t.pending.toFixed(2)}`, L + 250, y + 3, { width: 110, align: 'right' });
-      doc.fillColor(dark).font('Helvetica')
-         .text(`$${t.total.toFixed(2)}`, L + 370, y + 3, { width: 120, align: 'right' });
-      grandPending += t.pending; grandTotal += t.total;
-      y += 14;
-    });
-    // Grand total
-    doc.rect(L, y, W, 18).fill('#dbeafe');
-    doc.fillColor(blue).fontSize(9).font('Helvetica-Bold');
-    doc.text('GRAND TOTAL', L + 4, y + 4, { width: 240 });
-    doc.text(`$${grandPending.toFixed(2)}`, L + 250, y + 4, { width: 110, align: 'right' });
-    doc.text(`$${grandTotal.toFixed(2)}`, L + 370, y + 4, { width: 120, align: 'right' });
-
-    // Footer
-    const fY = doc.page.height - 45;
-    doc.rect(L, fY - 4, W, 0.5).fill('#e5e7eb');
-    doc.fillColor(muted).fontSize(8).font('Helvetica')
-       .text('ABC Midwest Cleaning — Invoices Report', L, fY, { align: 'center', width: W });
 
     doc.end();
   } catch (err) { res.status(500).json({ error: err.message }); }
