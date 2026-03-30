@@ -269,6 +269,17 @@
       localStorage.clear(); window.location.href = '/';
     });
 
+    // ── Idle auto-logout after 3 minutes ─────────────────────────
+    (function() {
+      const IDLE_MS = 3 * 60 * 1000;
+      let idleTimer = setTimeout(doIdleLogout, IDLE_MS);
+      function resetIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(doIdleLogout, IDLE_MS); }
+      function doIdleLogout() { localStorage.clear(); window.location.href = '/'; }
+      ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(e => {
+        document.addEventListener(e, resetIdle, { passive: true });
+      });
+    })();
+
     // ── Live clock ───────────────────────────────────────────────
     const clockEl = document.getElementById('liveClock');
     let clockInterval = setInterval(() => {
