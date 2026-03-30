@@ -131,6 +131,8 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       invoice_number TEXT UNIQUE NOT NULL,
       invoice_date TEXT NOT NULL,
+      due_date TEXT,
+      po_number TEXT,
       client_name TEXT NOT NULL,
       client_address TEXT,
       client_email TEXT,
@@ -144,6 +146,32 @@ async function initDb() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS due_date TEXT`);
+  await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS po_number TEXT`);
+
+  // ── Invoice Clients Catalog ────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoice_clients (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      address TEXT,
+      email TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Invoice Projects Catalog ───────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS invoice_projects (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      default_price NUMERIC(10,2) DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Scheduled Jobs image attachments ──────────────────────────────────────
+  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}'`);
 
   const { rows } = await pool.query("SELECT id FROM users WHERE role = 'admin' LIMIT 1");
   if (rows.length === 0) {

@@ -339,7 +339,15 @@
       <div class="card" style="margin-top:16px">
         <div class="section-header">
           <h2>Invoices</h2>
-          <button class="btn btn-primary btn-sm" id="newInvoiceBtn">+ New Invoice</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select id="invFilterStatus" class="form-control" style="width:auto;padding:8px 10px">
+              <option value="">All</option>
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+            </select>
+            <button class="btn btn-sm btn-outline" id="exportInvoicesBtn">⬇ Export Excel</button>
+            <button class="btn btn-primary btn-sm" id="newInvoiceBtn">+ New Invoice</button>
+          </div>
         </div>
         <div class="alert alert-success" id="invSuccess"></div>
         <div class="alert alert-error"   id="invError"></div>
@@ -349,7 +357,9 @@
               <thead>
                 <tr>
                   <th>#</th>
+                  <th>PO #</th>
                   <th>Date</th>
+                  <th>Due</th>
                   <th>Client</th>
                   <th>Total</th>
                   <th>Status</th>
@@ -360,6 +370,24 @@
             </table>
           </div>
         </div>
+      </div>
+
+      <!-- Saved Clients Catalog -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Saved Clients</h2>
+          <button class="btn btn-primary btn-sm" id="addClientBtn">+ Add Client</button>
+        </div>
+        <div id="clientCatalogList" style="font-size:.9rem;color:var(--muted)">Loading...</div>
+      </div>
+
+      <!-- Saved Projects/Services Catalog -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>Saved Services / Projects</h2>
+          <button class="btn btn-primary btn-sm" id="addProjectBtn">+ Add Service</button>
+        </div>
+        <div id="projectCatalogList" style="font-size:.9rem;color:var(--muted)">Loading...</div>
       </div>
     </div>
   </div>
@@ -392,7 +420,16 @@
           </div>
           <div class="form-group">
             <label>Notes</label>
-            <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes"></textarea>
+            <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes or instructions"></textarea>
+          </div>
+          <div class="form-group" id="jobImagesSection" style="display:none">
+            <label>Reference Images</label>
+            <div id="jobImagesList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+            <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block">
+              📎 Add Images
+              <input type="file" id="jobImageUpload" accept="image/*" multiple style="display:none">
+            </label>
+            <div id="jobImgUploadStatus" style="font-size:.82rem;color:var(--muted);margin-top:4px"></div>
           </div>
           <button type="submit" class="btn btn-primary" id="jobSubmitBtn">Save</button>
         </form>
@@ -400,9 +437,13 @@
     </div>
   </div>
 
+  <!-- datalists for autocomplete -->
+  <datalist id="clientsDatalist"></datalist>
+  <datalist id="projectsDatalist"></datalist>
+
   <!-- Invoice Modal -->
   <div class="modal-overlay" id="invoiceModal">
-    <div class="modal" style="max-width:680px">
+    <div class="modal" style="max-width:700px">
       <div class="modal-header">
         <h3 id="invModalTitle">New Invoice</h3>
         <button class="modal-close" id="closeInvoiceModal">&times;</button>
@@ -410,27 +451,43 @@
       <div class="modal-body">
         <div class="alert alert-error" id="invFormError"></div>
         <form id="invoiceForm">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div class="form-group">
               <label>Invoice #</label>
               <input type="text" id="invNumber" class="form-control" placeholder="INV-2024-001" required>
             </div>
             <div class="form-group">
-              <label>Date</label>
+              <label>Invoice Date</label>
               <input type="date" id="invDate" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>PO # <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+              <input type="text" id="invPoNumber" class="form-control" placeholder="PO-12345">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <input type="date" id="invDueDate" class="form-control" style="width:auto;flex:1;min-width:140px">
+              <button type="button" class="btn btn-sm btn-outline" data-days="30">+30 days</button>
+              <button type="button" class="btn btn-sm btn-outline" data-days="45">+45 days</button>
+              <button type="button" class="btn btn-sm btn-outline" data-days="60">+60 days</button>
             </div>
           </div>
           <div class="form-group">
             <label>Client Name</label>
-            <input type="text" id="invClientName" class="form-control" placeholder="Client or company name" required>
+            <input type="text" id="invClientName" class="form-control" placeholder="Client or company name" required
+                   list="clientsDatalist" autocomplete="off">
           </div>
-          <div class="form-group">
-            <label>Client Address</label>
-            <input type="text" id="invClientAddress" class="form-control" placeholder="123 Main St, City, State">
-          </div>
-          <div class="form-group">
-            <label>Client Email</label>
-            <input type="email" id="invClientEmail" class="form-control" placeholder="client@email.com">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label>Client Address</label>
+              <input type="text" id="invClientAddress" class="form-control" placeholder="123 Main St, City, State">
+            </div>
+            <div class="form-group">
+              <label>Client Email</label>
+              <input type="email" id="invClientEmail" class="form-control" placeholder="client@email.com">
+            </div>
           </div>
           <div class="form-group">
             <label>Items</label>
@@ -572,7 +629,7 @@
         if (tab === 'stores')    loadStores();
         if (tab === 'payroll')   initPayrollTab();
         if (tab === 'calendar')  initCalendarTab();
-        if (tab === 'invoices')  loadInvoices();
+        if (tab === 'invoices')  initInvoicesTab();
       });
     });
 
@@ -1418,6 +1475,9 @@
       document.getElementById('jobLocation').value = '';
       document.getElementById('jobNotes').value = '';
       document.getElementById('jobError').classList.remove('show');
+      document.getElementById('jobImagesSection').style.display = 'none';
+      document.getElementById('jobImagesList').innerHTML = '';
+      document.getElementById('jobImgUploadStatus').textContent = '';
       renderJobEmpCheckboxes([]);
       document.getElementById('jobModal').classList.add('open');
     };
@@ -1433,6 +1493,11 @@
       document.getElementById('jobNotes').value    = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
       renderJobEmpCheckboxes(job.assigned_to || []);
+      // Show existing images
+      const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
+      document.getElementById('jobImagesSection').style.display = '';
+      renderJobImages(imageUrls);
+      document.getElementById('jobImgUploadStatus').textContent = '';
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1441,6 +1506,44 @@
       try { await api(`/admin/scheduled-jobs/${id}`, { method: 'DELETE' }); renderCalendar(); }
       catch(ex) { alert(ex.message); }
     };
+
+    function renderJobImages(urls) {
+      const el = document.getElementById('jobImagesList');
+      if (!urls.length) { el.innerHTML = '<span style="color:var(--muted);font-size:.82rem">No images yet.</span>'; return; }
+      el.innerHTML = urls.map(url => `
+        <div style="position:relative;display:inline-block">
+          <img src="${url}" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1.5px solid var(--border)" onerror="this.style.display='none'">
+          <button type="button" onclick="removeJobImage('${url}')"
+            style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.7rem;cursor:pointer;line-height:18px;padding:0">✕</button>
+        </div>`).join('');
+    }
+
+    window.removeJobImage = async function(url) {
+      if (!calEditId) return;
+      try {
+        await api(`/admin/scheduled-jobs/${calEditId}/images`, { method: 'DELETE', body: JSON.stringify({ url }) });
+        const job = calJobs.find(j => j.id === calEditId);
+        if (job) { job.image_urls = (job.image_urls || []).filter(u => u !== url); renderJobImages(job.image_urls); }
+      } catch(ex) { alert(ex.message); }
+    };
+
+    document.getElementById('jobImageUpload').addEventListener('change', async function() {
+      if (!calEditId || !this.files.length) return;
+      const statusEl = document.getElementById('jobImgUploadStatus');
+      statusEl.textContent = 'Uploading...';
+      const fd = new FormData();
+      [...this.files].forEach(f => fd.append('images', f));
+      try {
+        const result = await fetch(`/api/admin/scheduled-jobs/${calEditId}/images`, {
+          method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd
+        }).then(r => r.json());
+        if (result.error) throw new Error(result.error);
+        statusEl.textContent = result.urls.length + ' image(s) uploaded.';
+        const job = calJobs.find(j => j.id === calEditId);
+        if (job) { job.image_urls = [...(job.image_urls||[]), ...result.urls]; renderJobImages(job.image_urls); }
+        this.value = '';
+      } catch(ex) { statusEl.textContent = 'Upload failed: ' + ex.message; }
+    });
 
     function renderJobEmpCheckboxes(selected) {
       const container = document.getElementById('jobEmpCheckboxes');
@@ -1476,12 +1579,26 @@
         assigned_to: assigned
       });
       try {
-        if (calEditId) { await api(`/admin/scheduled-jobs/${calEditId}`, { method: 'PUT', body }); }
-        else           { await api('/admin/scheduled-jobs', { method: 'POST', body }); }
-        document.getElementById('jobModal').classList.remove('open');
+        if (calEditId) {
+          await api(`/admin/scheduled-jobs/${calEditId}`, { method: 'PUT', body });
+          document.getElementById('jobModal').classList.remove('open');
+        } else {
+          const newJob = await api('/admin/scheduled-jobs', { method: 'POST', body });
+          // After creating, switch to edit mode so images can be added
+          calEditId = newJob.id;
+          calJobs.push(newJob);
+          document.getElementById('jobModalTitle').textContent = 'Job Saved — Add Images (optional)';
+          document.getElementById('jobImagesSection').style.display = '';
+          document.getElementById('jobImagesList').innerHTML = '<span style="color:var(--muted);font-size:.82rem">No images yet.</span>';
+          btn.textContent = 'Close';
+          btn.type = 'button';
+          btn.onclick = () => { document.getElementById('jobModal').classList.remove('open'); btn.type='submit'; btn.onclick=null; btn.textContent='Save'; };
+          renderCalendar();
+          return;
+        }
         renderCalendar();
       } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
-      finally { btn.disabled = false; btn.textContent = 'Save'; }
+      finally { btn.disabled = false; if (btn.type === 'submit') btn.textContent = 'Save'; }
     });
 
     async function initCalendarTab() {
@@ -1496,30 +1613,38 @@
 
     async function loadInvoices() {
       const tbody = document.getElementById('invoiceBody');
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
       try {
-        const rows = await api('/admin/invoices');
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">No invoices yet.</td></tr>'; return; }
-        tbody.innerHTML = rows.map(inv => `
-          <tr>
+        const filter = document.getElementById('invFilterStatus').value;
+        let url = '/admin/invoices';
+        // client-side filter for now (all rows loaded, filtered in JS)
+        let rows = await api(url);
+        if (filter) rows = rows.filter(r => r.status === filter);
+        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No invoices found.</td></tr>'; return; }
+        tbody.innerHTML = rows.map(inv => {
+          const overdue = inv.status !== 'paid' && inv.due_date && inv.due_date < new Date().toISOString().split('T')[0];
+          return `<tr>
             <td><strong>${escHtml(inv.invoice_number)}</strong></td>
+            <td style="color:var(--muted);font-size:.85rem">${escHtml(inv.po_number||'–')}</td>
             <td style="white-space:nowrap">${inv.invoice_date}</td>
+            <td style="white-space:nowrap;${overdue?'color:#dc2626;font-weight:600':''}">${inv.due_date||'–'}</td>
             <td>${escHtml(inv.client_name)}</td>
             <td style="white-space:nowrap;text-align:right">$${parseFloat(inv.total||0).toFixed(2)}</td>
             <td>
-              <span style="padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600;background:${inv.status==='paid'?'#dcfce7':'#f3f4f6'};color:${inv.status==='paid'?'#16a34a':'#6b7280'}">
-                ${inv.status==='paid'?'PAID':'PENDING'}
+              <span style="padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600;background:${inv.status==='paid'?'#dcfce7':overdue?'#fee2e2':'#f3f4f6'};color:${inv.status==='paid'?'#16a34a':overdue?'#dc2626':'#6b7280'}">
+                ${inv.status==='paid'?'PAID':overdue?'OVERDUE':'PENDING'}
               </span>
             </td>
             <td style="white-space:nowrap">
               <button class="btn btn-sm btn-outline" onclick="downloadInvPdf(${inv.id},'${escHtml(inv.invoice_number)}')">PDF</button>
               <button class="btn btn-sm btn-outline" onclick="editInvoice(${inv.id})" style="margin:0 4px">Edit</button>
-              ${inv.status!=='paid' ? `<button class="btn btn-sm btn-outline" style="color:var(--success,#16a34a)" onclick="markInvoicePaid(${inv.id})">Mark Paid</button>` : ''}
+              ${inv.status!=='paid' ? `<button class="btn btn-sm btn-outline" style="color:var(--success,#16a34a)" onclick="markInvoicePaid(${inv.id})">✓ Paid</button>` : ''}
               <button class="btn btn-sm btn-outline" style="color:var(--danger);margin-left:4px" onclick="deleteInvoice(${inv.id})">Delete</button>
             </td>
-          </tr>`).join('');
+          </tr>`;
+        }).join('');
       } catch(ex) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--danger)">${ex.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">${ex.message}</td></tr>`;
       }
     }
 
@@ -1552,6 +1677,8 @@
         document.getElementById('invModalTitle').textContent = 'Edit Invoice';
         document.getElementById('invNumber').value        = inv.invoice_number;
         document.getElementById('invDate').value          = inv.invoice_date;
+        document.getElementById('invDueDate').value       = inv.due_date || '';
+        document.getElementById('invPoNumber').value      = inv.po_number || '';
         document.getElementById('invClientName').value    = inv.client_name;
         document.getElementById('invClientAddress').value = inv.client_address || '';
         document.getElementById('invClientEmail').value   = inv.client_email  || '';
@@ -1574,13 +1701,22 @@
       const tbody = document.getElementById('invItemsBody');
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input type="text" class="form-control inv-desc" placeholder="Service description" value="${escHtml(item.description||'')}" style="font-size:.85rem"></td>
+        <td><input type="text" class="form-control inv-desc" placeholder="Service description" value="${escHtml(item.description||'')}" list="projectsDatalist" autocomplete="off" style="font-size:.85rem"></td>
         <td><input type="number" class="form-control inv-qty" min="1" step="1" value="${item.quantity||1}" style="font-size:.85rem;padding:6px"></td>
         <td><input type="number" class="form-control inv-price" min="0" step="0.01" value="${item.unit_price||0}" style="font-size:.85rem;padding:6px"></td>
         <td class="inv-sub" style="text-align:right;padding:6px;font-size:.85rem">$0.00</td>
         <td><button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem" onclick="this.closest('tr').remove();recalcInvoice()">✕</button></td>`;
       tbody.appendChild(tr);
       tr.querySelectorAll('.inv-qty,.inv-price').forEach(el => el.addEventListener('input', recalcInvoice));
+      // When project selected from datalist, auto-fill price
+      const descInput = tr.querySelector('.inv-desc');
+      descInput.addEventListener('change', () => {
+        const proj = (window._invProjects || []).find(p => p.name === descInput.value);
+        if (proj && proj.default_price > 0) {
+          tr.querySelector('.inv-price').value = parseFloat(proj.default_price).toFixed(2);
+          recalcInvoice();
+        }
+      });
       recalcInvoice();
     }
 
@@ -1613,8 +1749,32 @@
       document.getElementById('invTotalDisplay').textContent    = '$0.00';
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('invDate').value = today;
+      // Default due date 30 days out
+      const due = new Date(); due.setDate(due.getDate() + 30);
+      document.getElementById('invDueDate').value = due.toISOString().split('T')[0];
+      document.getElementById('invPoNumber').value = '';
       addInvItemRow();
       document.getElementById('invoiceModal').classList.add('open');
+    });
+
+    // Due date quick-set buttons
+    document.querySelectorAll('[data-days]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const baseDate = document.getElementById('invDate').value;
+        const base = baseDate ? new Date(baseDate + 'T00:00:00') : new Date();
+        base.setDate(base.getDate() + parseInt(btn.dataset.days));
+        document.getElementById('invDueDate').value = base.toISOString().split('T')[0];
+      });
+    });
+
+    // Client autocomplete: fill address/email when client selected
+    document.getElementById('invClientName').addEventListener('change', () => {
+      const name = document.getElementById('invClientName').value;
+      const client = (window._invClients || []).find(c => c.name === name);
+      if (client) {
+        document.getElementById('invClientAddress').value = client.address || '';
+        document.getElementById('invClientEmail').value   = client.email   || '';
+      }
     });
     document.getElementById('closeInvoiceModal').addEventListener('click', () => document.getElementById('invoiceModal').classList.remove('open'));
     document.getElementById('invoiceModal').addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) document.getElementById('invoiceModal').classList.remove('open'); });
@@ -1634,6 +1794,8 @@
       const body = JSON.stringify({
         invoice_number:  document.getElementById('invNumber').value.trim(),
         invoice_date:    document.getElementById('invDate').value,
+        due_date:        document.getElementById('invDueDate').value || null,
+        po_number:       document.getElementById('invPoNumber').value.trim() || null,
         client_name:     document.getElementById('invClientName').value.trim(),
         client_address:  document.getElementById('invClientAddress').value.trim(),
         client_email:    document.getElementById('invClientEmail').value.trim(),
@@ -1652,6 +1814,105 @@
       } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
       finally { btn.disabled = false; btn.textContent = 'Save Invoice'; }
     });
+
+    // ── Invoices Tab Init + Catalogs ────────────────────────────────
+    async function initInvoicesTab() {
+      await Promise.all([loadInvoices(), loadInvCatalogs()]);
+    }
+
+    document.getElementById('invFilterStatus').addEventListener('change', loadInvoices);
+
+    document.getElementById('exportInvoicesBtn').addEventListener('click', () => {
+      const status = document.getElementById('invFilterStatus').value;
+      const url = '/api/admin/invoices/export' + (status ? '?status=' + status : '');
+      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => r.blob()).then(blob => {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'invoices_export.xlsx';
+          link.click();
+          URL.revokeObjectURL(link.href);
+        }).catch(err => alert('Export failed: ' + err.message));
+    });
+
+    async function loadInvCatalogs() {
+      try {
+        const [clients, projects] = await Promise.all([
+          api('/admin/invoice-clients'),
+          api('/admin/invoice-projects')
+        ]);
+        window._invClients  = clients;
+        window._invProjects = projects;
+        // Populate datalists
+        document.getElementById('clientsDatalist').innerHTML =
+          clients.map(c => `<option value="${escHtml(c.name)}">`).join('');
+        document.getElementById('projectsDatalist').innerHTML =
+          projects.map(p => `<option value="${escHtml(p.name)}">`).join('');
+        // Render catalog lists
+        renderClientCatalog(clients);
+        renderProjectCatalog(projects);
+      } catch(ex) {
+        document.getElementById('clientCatalogList').textContent = 'Error loading: ' + ex.message;
+      }
+    }
+
+    function renderClientCatalog(clients) {
+      const el = document.getElementById('clientCatalogList');
+      if (!clients.length) { el.innerHTML = '<span style="color:var(--muted)">No saved clients yet.</span>'; return; }
+      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">` +
+        clients.map(c => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;gap:8px">
+            <div>
+              <strong>${escHtml(c.name)}</strong>
+              ${c.address ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">${escHtml(c.address)}</span>` : ''}
+              ${c.email   ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">${escHtml(c.email)}</span>` : ''}
+            </div>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteInvClient(${c.id})">Remove</button>
+          </div>`).join('') + '</div>';
+    }
+
+    function renderProjectCatalog(projects) {
+      const el = document.getElementById('projectCatalogList');
+      if (!projects.length) { el.innerHTML = '<span style="color:var(--muted)">No saved services yet.</span>'; return; }
+      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">` +
+        projects.map(p => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;gap:8px">
+            <div>
+              <strong>${escHtml(p.name)}</strong>
+              ${parseFloat(p.default_price||0)>0 ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">$${parseFloat(p.default_price).toFixed(2)}</span>` : ''}
+            </div>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteInvProject(${p.id})">Remove</button>
+          </div>`).join('') + '</div>';
+    }
+
+    document.getElementById('addClientBtn').addEventListener('click', () => {
+      const name    = prompt('Client / Company name:');
+      if (!name) return;
+      const address = prompt('Address (optional):') || '';
+      const email   = prompt('Email (optional):')   || '';
+      api('/admin/invoice-clients', { method: 'POST', body: JSON.stringify({ name, address, email }) })
+        .then(() => loadInvCatalogs()).catch(ex => alert(ex.message));
+    });
+
+    document.getElementById('addProjectBtn').addEventListener('click', () => {
+      const name  = prompt('Service / Project name:');
+      if (!name) return;
+      const price = prompt('Default unit price (0 if variable):') || '0';
+      api('/admin/invoice-projects', { method: 'POST', body: JSON.stringify({ name, default_price: parseFloat(price) || 0 }) })
+        .then(() => loadInvCatalogs()).catch(ex => alert(ex.message));
+    });
+
+    window.deleteInvClient = async function(id) {
+      if (!confirm('Remove this client?')) return;
+      try { await api(`/admin/invoice-clients/${id}`, { method: 'DELETE' }); loadInvCatalogs(); }
+      catch(ex) { alert(ex.message); }
+    };
+
+    window.deleteInvProject = async function(id) {
+      if (!confirm('Remove this service?')) return;
+      try { await api(`/admin/invoice-projects/${id}`, { method: 'DELETE' }); loadInvCatalogs(); }
+      catch(ex) { alert(ex.message); }
+    };
 
     // ── Rest Days (Admin) ─────────────────────────────────────────
     async function loadRestDays() {

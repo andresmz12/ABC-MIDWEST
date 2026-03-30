@@ -7,6 +7,7 @@ const archiver = require('archiver');
 const multer = require('multer');
 const { query, withTransaction } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
+const { upload } = require('../middleware/upload');
 
 const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -507,6 +508,31 @@ router.put('/scheduled-jobs/:id', async (req, res) => {
 router.delete('/scheduled-jobs/:id', async (req, res) => {
   try {
     await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Upload images to a scheduled job
+router.post('/scheduled-jobs/:id/images', upload.array('images', 10), async (req, res) => {
+  try {
+    if (!req.files || !req.files.length) return res.status(400).json({ error: 'No images uploaded' });
+    const urls = req.files.map(f => f.path || f.secure_url || f.url || '').filter(Boolean);
+    await query(
+      'UPDATE scheduled_jobs SET image_urls = image_urls || $1 WHERE id=$2',
+      [urls, req.params.id]
+    );
+    res.json({ urls });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Remove a single image from a scheduled job
+router.delete('/scheduled-jobs/:id/images', async (req, res) => {
+  try {
+    const { url } = req.body;
+    await query(
+      `UPDATE scheduled_jobs SET image_urls = array_remove(image_urls, $1) WHERE id=$2`,
+      [url, req.params.id]
+    );
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
