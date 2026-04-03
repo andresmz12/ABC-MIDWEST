@@ -17,7 +17,7 @@ router.get('/invoices', async (req, res) => {
        FROM invoices ORDER BY created_at DESC`
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Export invoices to Excel grouped by company ───────────────────────────────
@@ -108,7 +108,7 @@ router.get('/invoices/export', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="invoices_export.xlsx"');
     await wb.xlsx.write(res);
     res.end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Invoice Clients Catalog ────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ router.get('/invoice-clients', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM invoice_clients ORDER BY name');
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/invoice-clients', async (req, res) => {
@@ -128,14 +128,14 @@ router.post('/invoice-clients', async (req, res) => {
       [name, address || null, email || null]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/invoice-clients/:id', async (req, res) => {
   try {
     await query('DELETE FROM invoice_clients WHERE id=$1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Invoice Projects Catalog ───────────────────────────────────────────────────
@@ -143,7 +143,7 @@ router.get('/invoice-projects', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM invoice_projects ORDER BY name');
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/invoice-projects', async (req, res) => {
@@ -155,14 +155,14 @@ router.post('/invoice-projects', async (req, res) => {
       [name, parseFloat(default_price) || 0]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/invoice-projects/:id', async (req, res) => {
   try {
     await query('DELETE FROM invoice_projects WHERE id=$1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Export invoices to PDF grouped by company ─────────────────────────────────
@@ -304,7 +304,7 @@ router.get('/invoices/export-pdf', async (req, res) => {
        .text('ABC Midwest Cleaning — Invoices Report', L, fY, { align: 'center', width: W });
 
     doc.end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Get single invoice ────────────────────────────────────────────────────────
@@ -313,7 +313,7 @@ router.get('/invoices/:id', async (req, res) => {
     const { rows } = await query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Invoice not found' });
     res.json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Create invoice ────────────────────────────────────────────────────────────
@@ -326,7 +326,13 @@ router.post('/invoices', async (req, res) => {
       return res.status(400).json({ error: 'invoice_number, invoice_date and client_name are required' });
     }
     const parsedItems = Array.isArray(items) ? items : [];
-    const subtotal = parsedItems.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+    const parsedItemsSafe = parsedItems.map(i => ({
+      ...i,
+      quantity:   parseFloat(i.quantity)   || 0,
+      unit_price: parseFloat(i.unit_price) || 0,
+      subtotal:   Math.round((parseFloat(i.quantity)||0) * (parseFloat(i.unit_price)||0) * 100) / 100
+    }));
+    const subtotal = Math.round(parsedItemsSafe.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
     const taxAmt   = parseFloat(tax) || 0;
     const total    = subtotal + taxAmt;
 
@@ -336,12 +342,12 @@ router.post('/invoices', async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
       [invoice_number, invoice_date, due_date || null, po_number || null,
        client_name, client_address || null, client_email || null,
-       JSON.stringify(parsedItems), subtotal, taxAmt, total, notes || null]
+       JSON.stringify(parsedItemsSafe), subtotal, taxAmt, total, notes || null]
     );
     res.status(201).json({ id: rows[0].id });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Invoice number already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -355,7 +361,13 @@ router.put('/invoices/:id', async (req, res) => {
       return res.status(400).json({ error: 'invoice_number, invoice_date and client_name are required' });
     }
     const parsedItems = Array.isArray(items) ? items : [];
-    const subtotal = parsedItems.reduce((s, i) => s + (parseFloat(i.subtotal) || 0), 0);
+    const parsedItemsSafe = parsedItems.map(i => ({
+      ...i,
+      quantity:   parseFloat(i.quantity)   || 0,
+      unit_price: parseFloat(i.unit_price) || 0,
+      subtotal:   Math.round((parseFloat(i.quantity)||0) * (parseFloat(i.unit_price)||0) * 100) / 100
+    }));
+    const subtotal = Math.round(parsedItemsSafe.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
     const taxAmt   = parseFloat(tax) || 0;
     const total    = subtotal + taxAmt;
 
@@ -366,13 +378,13 @@ router.put('/invoices/:id', async (req, res) => {
        WHERE id=$13`,
       [invoice_number, invoice_date, due_date || null, po_number || null,
        client_name, client_address || null, client_email || null,
-       JSON.stringify(parsedItems), subtotal, taxAmt, total,
+       JSON.stringify(parsedItemsSafe), subtotal, taxAmt, total,
        notes || null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Invoice number already exists' });
-    res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -381,7 +393,7 @@ router.patch('/invoices/:id/mark-paid', async (req, res) => {
   try {
     await query(`UPDATE invoices SET status='paid', paid_at=NOW() WHERE id=$1`, [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Delete invoice ────────────────────────────────────────────────────────────
@@ -389,7 +401,7 @@ router.delete('/invoices/:id', async (req, res) => {
   try {
     await query('DELETE FROM invoices WHERE id=$1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Download PDF (Wave-style layout) ─────────────────────────────────────────
@@ -616,7 +628,7 @@ router.get('/invoices/:id/pdf', async (req, res) => {
        .text('Thank you for your business! — ABC Midwest Cleaning Services LLC', L, fY, { align: 'center', width: W });
 
     doc.end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

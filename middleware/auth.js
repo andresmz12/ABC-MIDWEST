@@ -10,7 +10,7 @@ async function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: 'No token provided' });
 
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
     const { rows } = await query('SELECT force_logout FROM users WHERE id = $1', [payload.id]);
     if (!rows.length || rows[0].force_logout) {
       return res.status(401).json({ error: 'Session terminated by administrator. Please log in again.' });

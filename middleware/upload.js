@@ -2,14 +2,14 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-  console.warn('WARNING: Cloudinary credentials not set via environment variables. Using insecure fallback values.');
-}
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'dmxvogxia',
-  api_key:    process.env.CLOUDINARY_API_KEY    || '377228478858355',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'jQ3AratHqEA5VaIftyecPqbyYEE'
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key:    process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.warn('WARNING: Cloudinary env vars not set — file uploads will fail.');
+}
 
 const storage = new CloudinaryStorage({
   cloudinary,
@@ -36,7 +36,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  limits: { fileSize: 25 * 1024 * 1024 } // 25MB
 });
 
 module.exports = { upload, cloudinary };

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const ExcelJS = require('exceljs');
 const multer = require('multer');
+const Tesseract = require('tesseract.js');
 const { query } = require('../database');
 const { requireAdmin } = require('../middleware/auth');
 
@@ -32,7 +33,7 @@ router.post('/payroll', async (req, res) => {
       [employee_id, payment_date, parsed]
     );
     res.status(201).json({ id: rows[0].id });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Payment history (filter by employee_id and/or year) ──────────────────────
@@ -54,7 +55,7 @@ router.get('/payroll', async (req, res) => {
     sql += ' ORDER BY p.payment_date DESC, u.name';
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Annual summary per employee ───────────────────────────────────────────────
@@ -73,7 +74,7 @@ router.get('/payroll/summary', async (req, res) => {
       ORDER BY u.name
     `, [year]);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Export year to Excel ──────────────────────────────────────────────────────
@@ -107,7 +108,7 @@ router.get('/payroll/export', async (req, res) => {
     res.setHeader('Content-Disposition', `attachment; filename="payroll_${year}.xlsx"`);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(await wb.xlsx.writeBuffer());
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Import Payroll from Excel ─────────────────────────────────────────────────
@@ -177,12 +178,71 @@ router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
           [empId, dateStr, parsedAmount]);
         imported++;
       } catch (err) {
-        errors.push(`Row ${rowNum}: ${err.message}`);
+        console.error(err); errors.push(`Row ${rowNum}: import failed`);
       }
     }
 
     res.json({ imported, errors });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Scan Check Image (OCR) ────────────────────────────────────────────────────
+
+function parseCheckText(text) {
+  const amountMatches = text.match(/\$\s*([\d,]+\.?\d{0,2})/g) || [];
+  const amounts = amountMatches.map(m => parseFloat(m.replace(/[$,\s]/g, '')));
+  const amount = amounts.length ? Math.max(...amounts) : null;
+
+  const dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
+  let checkDate = null;
+  if (dateMatch) {
+    const [, m, d, y] = dateMatch;
+    const yr = y.length === 2 ? '20' + y : y;
+    checkDate = `${yr}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  const payeeMatch = text.match(/(?:pay\s+to\s+(?:the\s+order\s+of)?|order\s+of)\s*[:\*]?\s*([A-Za-z ,.'-]+)/i);
+  const payee = payeeMatch ? payeeMatch[1].trim() : null;
+
+  return { amount, checkDate, payee };
+}
+
+function matchEmployee(payeeName, employees) {
+  if (!payeeName) return { employee: null, confidence: 'none' };
+  const payee = payeeName.toLowerCase().trim();
+  let m = employees.find(e =>
+    e.name.toLowerCase().split(' ').every(w => w.length > 1 && payee.includes(w))
+  );
+  if (m) return { employee: m, confidence: 'high' };
+  m = employees.find(e => {
+    const words = payee.split(/\s+/).filter(w => w.length > 3);
+    return words.some(w => e.name.toLowerCase().includes(w));
+  });
+  if (m) return { employee: m, confidence: 'low' };
+  return { employee: null, confidence: 'none' };
+}
+
+router.post('/payroll/scan-check', memUpload.single('check'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    if (!req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'File must be an image' });
+    }
+
+    const { data: { text } } = await Tesseract.recognize(req.file.buffer, 'eng', { logger: () => {} });
+    const { amount, checkDate, payee } = parseCheckText(text);
+
+    const { rows: employees } = await query("SELECT id, name FROM users WHERE role = 'employee' ORDER BY name");
+    const { employee, confidence } = matchEmployee(payee, employees);
+
+    res.json({
+      payee_extracted: payee,
+      amount,
+      check_date: checkDate,
+      matched_employee: employee ? { id: employee.id, name: employee.name } : null,
+      confidence
+    });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

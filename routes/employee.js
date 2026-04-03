@@ -13,7 +13,7 @@ router.get('/stores', async (req, res) => {
       [req.user.id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Get current open record for this employee
@@ -29,7 +29,7 @@ router.get('/current-record', async (req, res) => {
       [req.user.id]
     );
     res.json(rows[0] || null);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Clock In
@@ -67,7 +67,7 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
     }
 
     res.status(201).json({ id: recordId, clock_in: clockIn });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Clock Out
@@ -101,7 +101,7 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
     }
 
     res.json({ success: true, clock_out: clockOut });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Get media for a specific record (employee can only see their own records)
@@ -118,7 +118,7 @@ router.get('/records/:id/media', async (req, res) => {
       [req.params.id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Get own records
@@ -136,7 +136,7 @@ router.get('/my-records', async (req, res) => {
       LIMIT 60
     `, [req.user.id]);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Rest Days ────────────────────────────────────────────────────────────────
@@ -153,7 +153,7 @@ router.get('/rest-days', async (req, res) => {
       [req.user.id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/rest-days', async (req, res) => {
@@ -170,14 +170,14 @@ router.post('/rest-days', async (req, res) => {
       [req.user.id, date, storeArr, note || null]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/rest-days/:id', async (req, res) => {
   try {
     await query('DELETE FROM rest_days WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Employee Calendar (read/write if in calendar_access) ────────────────────
@@ -196,7 +196,7 @@ router.get('/calendar', async (req, res) => {
     sql += ' ORDER BY scheduled_date, id';
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/calendar', async (req, res) => {
@@ -209,7 +209,7 @@ router.post('/calendar', async (req, res) => {
       [title, scheduled_date, [], location || null, notes || null]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.put('/calendar/:id', async (req, res) => {
@@ -222,7 +222,7 @@ router.put('/calendar/:id', async (req, res) => {
       [title, scheduled_date, location || null, notes || null, req.params.id]
     );
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/calendar/:id', async (req, res) => {
@@ -230,7 +230,7 @@ router.delete('/calendar/:id', async (req, res) => {
     if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
     await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 module.exports = router;

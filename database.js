@@ -187,8 +187,16 @@ async function initDb() {
       'INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4)',
       ['Administrator', 'admin', hash, 'admin']
     );
-    console.log('Default admin created: username=admin, password=admin123');
+    console.log('Default admin created: username=admin (change password immediately)');
   }
+
+  // Performance indexes
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_work_records_user_id  ON work_records(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_work_records_store_id ON work_records(store_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_work_records_date     ON work_records(date)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_payroll_user_id       ON payroll(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_rest_days_user_id     ON rest_days(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_date   ON scheduled_jobs(scheduled_date)`);
 }
 
 module.exports = { query, withTransaction, initDb };

@@ -14,6 +14,8 @@ function createTransport() {
   });
 }
 
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 async function sendReminderEmail(subject, jobs) {
   const to = process.env.ADMIN_EMAIL;
   if (!to) {
@@ -24,9 +26,9 @@ async function sendReminderEmail(subject, jobs) {
   if (!transport) return;
 
   const jobLines = jobs.map(j => {
-    const loc = j.location ? ` — ${j.location}` : '';
-    const notes = j.notes ? `<br><em style="color:#666">${j.notes}</em>` : '';
-    return `<li><strong>${j.title}</strong>${loc}${notes}</li>`;
+    const loc   = j.location ? ` — ${esc(j.location)}` : '';
+    const notes = j.notes    ? `<br><em style="color:#666">${esc(j.notes)}</em>` : '';
+    return `<li><strong>${esc(j.title)}</strong>${loc}${notes}</li>`;
   }).join('');
 
   const html = `

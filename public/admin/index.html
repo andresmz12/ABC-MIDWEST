@@ -242,6 +242,21 @@
   <div id="tab-payroll" class="content" style="display:none">
     <div class="container">
 
+      <!-- Scan Check -->
+      <div class="card" style="margin-top:16px" id="checkScanCard">
+        <h3 style="margin:0 0 12px;font-size:.95rem;font-weight:600">📷 Scan Check</h3>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="checkScanInput" accept="image/jpeg,image/png,image/webp" style="display:none">
+          <button type="button" class="btn btn-outline btn-sm" id="checkScanBtn">📷 Upload Check Image</button>
+          <span id="checkScanStatus" style="font-size:.85rem;color:var(--muted)"></span>
+        </div>
+        <div id="checkScanResult" style="display:none;margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;border:1.5px solid #86efac">
+          <div style="font-size:.85rem;color:#15803d;font-weight:600" id="checkScanSummary"></div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:4px" id="checkScanConfidence"></div>
+          <button type="button" class="btn btn-sm btn-primary" id="checkScanApplyBtn" style="margin-top:8px">✓ Use These Values</button>
+        </div>
+      </div>
+
       <!-- Register Payment -->
       <div class="card" style="margin-top:16px">
         <div class="section-header" style="margin-bottom:12px">
@@ -1457,6 +1472,49 @@
           URL.revokeObjectURL(blobUrl);
         })
         .catch(err => alert('Export failed: ' + err.message));
+    });
+
+    // ── Scan Check ───────────────────────────────────────────────
+    document.getElementById('checkScanBtn').addEventListener('click', () => {
+      document.getElementById('checkScanInput').click();
+    });
+
+    document.getElementById('checkScanInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const status = document.getElementById('checkScanStatus');
+      const result = document.getElementById('checkScanResult');
+      result.style.display = 'none';
+      status.textContent = '⏳ Scanning check...';
+      try {
+        const fd = new FormData();
+        fd.append('check', file);
+        const data = await api('/admin/payroll/scan-check', { method: 'POST', body: fd });
+        window._lastCheckScan = data;
+        document.getElementById('checkScanSummary').textContent =
+          `Payee: ${data.payee_extracted || '—'} · Amount: $${(data.amount || 0).toFixed(2)} · Date: ${data.check_date || '—'}`;
+        const empText = data.matched_employee
+          ? `Matched to: ${data.matched_employee.name} (${data.confidence} confidence)`
+          : 'No employee match found — select manually';
+        document.getElementById('checkScanConfidence').textContent = empText;
+        result.style.display = '';
+        status.textContent = '✓ Scan complete';
+      } catch (err) {
+        status.textContent = '✗ Scan failed: ' + err.message;
+      }
+      e.target.value = '';
+    });
+
+    document.getElementById('checkScanApplyBtn').addEventListener('click', () => {
+      const scan = window._lastCheckScan;
+      if (!scan) return;
+      if (scan.matched_employee) {
+        document.getElementById('payrollEmployee').value = scan.matched_employee.id;
+      }
+      if (scan.amount) document.getElementById('payrollAmount').value = scan.amount.toFixed(2);
+      if (scan.check_date) document.getElementById('payrollDate').value = scan.check_date;
+      document.getElementById('checkScanResult').style.display = 'none';
+      document.getElementById('checkScanStatus').textContent = '✓ Values applied to form';
     });
 
     // ── Import Payroll from Excel ─────────────────────────────────

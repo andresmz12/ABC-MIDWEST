@@ -32,7 +32,7 @@ router.get('/employees', async (req, res) => {
       ORDER BY u.name
     `);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/employees', async (req, res) => {
@@ -57,14 +57,14 @@ router.post('/employees', async (req, res) => {
       await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [userId, storeId]);
     }
     res.status(201).json({ id: userId, name, username });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/employees/:id', async (req, res) => {
   try {
     await query("DELETE FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/employees/:id/force-logout', async (req, res) => {
@@ -73,7 +73,7 @@ router.post('/employees/:id/force-logout', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Employee not found' });
     await query('UPDATE users SET force_logout = TRUE WHERE id = $1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.put('/employees/:id', async (req, res) => {
@@ -103,7 +103,7 @@ router.put('/employees/:id', async (req, res) => {
       }
     });
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Stores ───────────────────────────────────────────────────────────────────
@@ -112,7 +112,7 @@ router.get('/stores', async (req, res) => {
   try {
     const { rows } = await query('SELECT * FROM stores ORDER BY name');
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/stores', async (req, res) => {
@@ -124,7 +124,7 @@ router.post('/stores', async (req, res) => {
       [name, address]
     );
     res.status(201).json({ id: rows[0].id, name, address });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Import Employees from Excel ──────────────────────────────────────────────
@@ -160,11 +160,12 @@ router.post('/employees/import', memUpload.single('file'), async (req, res) => {
           [emp.name, emp.username, hash, 'employee']);
         imported++;
       } catch (err) {
-        errors.push(`"${emp.username}": ${err.message}`);
+        console.error(err);
+        errors.push(`"${emp.username}": import failed`);
       }
     }
     res.json({ imported, errors });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Import Stores from Excel ─────────────────────────────────────────────────
@@ -194,11 +195,12 @@ router.post('/stores/import', memUpload.single('file'), async (req, res) => {
         await query('INSERT INTO stores (name, address) VALUES ($1, $2)', [name, '']);
         imported++;
       } catch (err) {
-        errors.push(`"${name}": ${err.message}`);
+        console.error(err);
+        errors.push(`"${name}": import failed`);
       }
     }
     res.json({ imported, errors });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.put('/stores/:id', async (req, res) => {
@@ -207,14 +209,14 @@ router.put('/stores/:id', async (req, res) => {
     if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
     await query('UPDATE stores SET name = $1, address = $2 WHERE id = $3', [name, address, req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/stores/:id', async (req, res) => {
   try {
     await query('DELETE FROM stores WHERE id = $1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Records ──────────────────────────────────────────────────────────────────
@@ -259,7 +261,7 @@ router.get('/records', async (req, res) => {
     const { sql, params } = buildRecordsQuery(req.query);
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Export Records ───────────────────────────────────────────────────────────
@@ -312,7 +314,7 @@ router.get('/records/export', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="records.csv"');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Extra Projects ───────────────────────────────────────────────────────────
@@ -344,7 +346,7 @@ router.get('/projects', async (req, res) => {
     const { sql, params } = buildProjectsQuery(req.query);
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.get('/projects/export', async (req, res) => {
@@ -379,7 +381,7 @@ router.get('/projects/export', async (req, res) => {
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     const buf = await wb.xlsx.writeBuffer();
     res.send(buf);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Media ────────────────────────────────────────────────────────────────────
@@ -397,7 +399,7 @@ router.post('/records/:id/force-clock-out', async (req, res) => {
       [clockOut, req.params.id]
     );
     res.json({ success: true, clock_out: clockOut });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.get('/records/:id/media', async (req, res) => {
@@ -407,23 +409,30 @@ router.get('/records/:id/media', async (req, res) => {
       [req.params.id]
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Download Evidence (zip) ──────────────────────────────────────────────────
 
 function fetchFileBuffer(urlStr) {
+  let parsedUrl;
+  try { parsedUrl = new URL(urlStr); } catch { return Promise.reject(new Error('Invalid URL')); }
+  if (!parsedUrl.hostname.endsWith('cloudinary.com') && !parsedUrl.hostname.endsWith('cloudinary.net')) {
+    return Promise.reject(new Error('URL not allowed'));
+  }
   return new Promise((resolve, reject) => {
-    const lib = urlStr.startsWith('https') ? https : http;
-    lib.get(urlStr, (response) => {
+    const lib = parsedUrl.protocol === 'https:' ? https : http;
+    const req = lib.get(urlStr, (response) => {
       if (response.statusCode !== 200) {
-        return reject(new Error(`HTTP ${response.statusCode} for ${urlStr}`));
+        return reject(new Error(`HTTP ${response.statusCode}`));
       }
       const chunks = [];
       response.on('data', chunk => chunks.push(chunk));
-      response.on('end', () => resolve(Buffer.concat(chunks)));
+      response.on('end',  () => resolve(Buffer.concat(chunks)));
       response.on('error', reject);
-    }).on('error', reject);
+    });
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('Request timeout')); });
+    req.on('error', reject);
   });
 }
 
@@ -464,7 +473,7 @@ router.get('/records/:id/media/download', async (req, res) => {
 
     await archive.finalize();
   } catch (err) {
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+    if (!res.headersSent) { console.error(err); res.status(500).json({ error: 'Server error' }); }
   }
 });
 
@@ -479,7 +488,7 @@ router.get('/scheduled-jobs', async (req, res) => {
     sql += ' ORDER BY scheduled_date, id';
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/scheduled-jobs', async (req, res) => {
@@ -492,7 +501,7 @@ router.post('/scheduled-jobs', async (req, res) => {
       [title, scheduled_date, assignedArr, location || null, notes || null]
     );
     res.status(201).json(rows[0]);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.put('/scheduled-jobs/:id', async (req, res) => {
@@ -505,14 +514,14 @@ router.put('/scheduled-jobs/:id', async (req, res) => {
       [title, scheduled_date, assignedArr, location || null, notes || null, req.params.id]
     );
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/scheduled-jobs/:id', async (req, res) => {
   try {
     await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Upload images to a scheduled job
@@ -525,7 +534,7 @@ router.post('/scheduled-jobs/:id/images', upload.array('images', 10), async (req
       [urls, req.params.id]
     );
     res.json({ urls });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // Remove a single image from a scheduled job
@@ -537,7 +546,7 @@ router.delete('/scheduled-jobs/:id/images', async (req, res) => {
       [url, req.params.id]
     );
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Calendar Access ──────────────────────────────────────────────────────────
@@ -548,7 +557,7 @@ router.get('/calendar-access', async (req, res) => {
       `SELECT ca.user_id, u.name FROM calendar_access ca JOIN users u ON u.id = ca.user_id ORDER BY u.name`
     );
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/calendar-access', async (req, res) => {
@@ -557,14 +566,14 @@ router.post('/calendar-access', async (req, res) => {
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
     await query('INSERT INTO calendar_access (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user_id]);
     res.status(201).json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/calendar-access/:userId', async (req, res) => {
   try {
     await query('DELETE FROM calendar_access WHERE user_id=$1', [req.params.userId]);
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Rest Days ────────────────────────────────────────────────────────────────
@@ -585,7 +594,7 @@ router.get('/rest-days', async (req, res) => {
     sql += ' ORDER BY rd.date DESC, u.name';
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.get('/rest-days/export', async (req, res) => {
@@ -619,7 +628,7 @@ router.get('/rest-days/export', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="rest_days.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.send(await wb.xlsx.writeBuffer());
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Rest Days PDF export ──────────────────────────────────────────────────────
@@ -696,7 +705,7 @@ router.get('/rest-days/export-pdf', async (req, res) => {
     doc.fillColor(muted).fontSize(8).font('Helvetica')
        .text(`Total records: ${rows.length}`, L, y + 12);
     doc.end();
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -757,7 +766,7 @@ router.get('/dashboard', async (req, res) => {
       hoursPerEmployee,
       hoursByStore,
     });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
