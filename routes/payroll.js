@@ -206,12 +206,24 @@ function parseCheckText(rawText) {
     checkDate = `${yr}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
 
-  // Payee: capture text after "PAY TO THE ORDER OF", "ORDER OF", or "PAY TO"
-  // Stop capture at $ sign, numbers, or long whitespace (end of name field)
+  // Payee: REQUIRE "pay to [the] order of" as prefix to avoid matching the
+  // check instruction text "ORDER OF line designates the Payee" which also
+  // contains "ORDER OF". Stop at $ sign (amount follows immediately after name).
+  let payee = null;
   const payeeMatch = text.match(
-    /(?:pay\s+to\s+(?:the\s+)?order\s+of|order\s+of|pay\s+to)\s*[:\*]?\s*([A-Za-z][A-Za-z ,.'-]{1,60}?)(?=\s{2,}|\$|\d{3,}|$)/i
+    /pay\s+to\s+(?:the\s+)?order\s+of\s*[:\*]?\s*([A-Za-z][A-Za-z ,.'-]{2,50}?)(?=\s*\$|$)/i
   );
-  const payee = payeeMatch ? payeeMatch[1].trim().replace(/\s+/g, ' ') : null;
+  if (payeeMatch) {
+    payee = payeeMatch[1].trim().replace(/\s+/g, ' ');
+  }
+
+  // Fallback: scan raw lines for "ORDER OF [NAME] $" on the same line
+  if (!payee) {
+    for (const line of rawText.split(/\r?\n/)) {
+      const m = line.match(/order\s+of\s+([A-Za-z][A-Za-z ,.'-]{2,40})\s*\$/i);
+      if (m) { payee = m[1].trim(); break; }
+    }
+  }
 
   return { amount, checkDate, payee };
 }
