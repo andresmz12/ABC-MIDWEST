@@ -8,8 +8,8 @@ const { initCron } = require('./services/cron');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security headers
-app.use(helmet());
+// Security headers (CSP disabled — app uses inline scripts throughout)
+app.use(helmet({ contentSecurityPolicy: false }));
 
 // Body parsing
 app.use(express.json());
