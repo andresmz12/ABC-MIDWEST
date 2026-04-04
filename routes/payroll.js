@@ -188,11 +188,16 @@ router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
 
 // ─── Scan Check Image (OCR) ────────────────────────────────────────────────────
 
-function parseCheckText(text) {
+function parseCheckText(rawText) {
+  // Normalize newlines → spaces so "PAY TO THE\nORDER OF" becomes one line
+  const text = rawText.replace(/\r?\n/g, ' ').replace(/\s{2,}/g, ' ');
+
+  // Amount: largest $ value found (handles "$ 1,000.00" with space after $)
   const amountMatches = text.match(/\$\s*([\d,]+\.?\d{0,2})/g) || [];
   const amounts = amountMatches.map(m => parseFloat(m.replace(/[$,\s]/g, '')));
   const amount = amounts.length ? Math.max(...amounts) : null;
 
+  // Date: MM/DD/YYYY or MM-DD-YYYY
   const dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})\b/);
   let checkDate = null;
   if (dateMatch) {
@@ -201,8 +206,12 @@ function parseCheckText(text) {
     checkDate = `${yr}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
 
-  const payeeMatch = text.match(/(?:pay\s+to\s+(?:the\s+order\s+of)?|order\s+of)\s*[:\*]?\s*([A-Za-z ,.'-]+)/i);
-  const payee = payeeMatch ? payeeMatch[1].trim() : null;
+  // Payee: capture text after "PAY TO THE ORDER OF", "ORDER OF", or "PAY TO"
+  // Stop capture at $ sign, numbers, or long whitespace (end of name field)
+  const payeeMatch = text.match(
+    /(?:pay\s+to\s+(?:the\s+)?order\s+of|order\s+of|pay\s+to)\s*[:\*]?\s*([A-Za-z][A-Za-z ,.'-]{1,60}?)(?=\s{2,}|\$|\d{3,}|$)/i
+  );
+  const payee = payeeMatch ? payeeMatch[1].trim().replace(/\s+/g, ' ') : null;
 
   return { amount, checkDate, payee };
 }
