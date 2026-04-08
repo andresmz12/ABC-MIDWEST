@@ -40,7 +40,6 @@
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
     <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
-    <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
   </div>
 
   <!-- ── DASHBOARD TAB ───────────────────────────────────────────── -->
@@ -242,21 +241,6 @@
   <div id="tab-payroll" class="content" style="display:none">
     <div class="container">
 
-      <!-- Scan Check -->
-      <div class="card" style="margin-top:16px" id="checkScanCard">
-        <h3 style="margin:0 0 12px;font-size:.95rem;font-weight:600">📷 Scan Check</h3>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input type="file" id="checkScanInput" accept="image/jpeg,image/png,image/webp" style="display:none">
-          <button type="button" class="btn btn-outline btn-sm" id="checkScanBtn">📷 Upload Check Image</button>
-          <span id="checkScanStatus" style="font-size:.85rem;color:var(--muted)"></span>
-        </div>
-        <div id="checkScanResult" style="display:none;margin-top:12px;padding:12px;background:#f0fdf4;border-radius:8px;border:1.5px solid #86efac">
-          <div style="font-size:.85rem;color:#15803d;font-weight:600" id="checkScanSummary"></div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:4px" id="checkScanConfidence"></div>
-          <button type="button" class="btn btn-sm btn-primary" id="checkScanApplyBtn" style="margin-top:8px">✓ Use These Values</button>
-        </div>
-      </div>
-
       <!-- Register Payment -->
       <div class="card" style="margin-top:16px">
         <div class="section-header" style="margin-bottom:12px">
@@ -422,66 +406,6 @@
     </div>
   </div>
 
-  <!-- ── INVOICES TAB ────────────────────────────────────────────── -->
-  <div id="tab-invoices" class="content" style="display:none">
-    <div class="container">
-      <div class="card" style="margin-top:16px">
-        <div class="section-header">
-          <h2>Invoices</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <select id="invFilterStatus" class="form-control" style="width:auto;padding:8px 10px">
-              <option value="">All</option>
-              <option value="pending">Pending</option>
-              <option value="paid">Paid</option>
-            </select>
-            <button class="btn btn-sm btn-outline" id="exportInvoicesBtn">⬇ Excel</button>
-            <button class="btn btn-sm btn-outline" id="exportInvoicesPdfBtn">⬇ PDF Report</button>
-            <button class="btn btn-primary btn-sm" id="newInvoiceBtn">+ New Invoice</button>
-          </div>
-        </div>
-        <div class="alert alert-success" id="invSuccess"></div>
-        <div class="alert alert-error"   id="invError"></div>
-        <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>PO #</th>
-                  <th>Date</th>
-                  <th>Due</th>
-                  <th>Client</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="invoiceBody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- Saved Clients Catalog -->
-      <div class="card" style="margin-top:12px">
-        <div class="section-header" style="margin-bottom:12px">
-          <h2>Saved Clients</h2>
-          <button class="btn btn-primary btn-sm" id="addClientBtn">+ Add Client</button>
-        </div>
-        <div id="clientCatalogList" style="font-size:.9rem;color:var(--muted)">Loading...</div>
-      </div>
-
-      <!-- Saved Projects/Services Catalog -->
-      <div class="card" style="margin-top:12px">
-        <div class="section-header" style="margin-bottom:12px">
-          <h2>Saved Services / Projects</h2>
-          <button class="btn btn-primary btn-sm" id="addProjectBtn">+ Add Service</button>
-        </div>
-        <div id="projectCatalogList" style="font-size:.9rem;color:var(--muted)">Loading...</div>
-      </div>
-    </div>
-  </div>
-
   <!-- Calendar / Job Modal -->
   <div class="modal-overlay" id="jobModal">
     <div class="modal">
@@ -526,90 +450,6 @@
   <!-- datalists for autocomplete -->
   <datalist id="clientsDatalist"></datalist>
   <datalist id="projectsDatalist"></datalist>
-
-  <!-- Invoice Modal -->
-  <div class="modal-overlay" id="invoiceModal">
-    <div class="modal" style="max-width:700px">
-      <div class="modal-header">
-        <h3 id="invModalTitle">New Invoice</h3>
-        <button class="modal-close" id="closeInvoiceModal">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="alert alert-error" id="invFormError"></div>
-        <form id="invoiceForm">
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
-            <div class="form-group">
-              <label>Invoice #</label>
-              <input type="text" id="invNumber" class="form-control" placeholder="INV-2024-001" required>
-            </div>
-            <div class="form-group">
-              <label>Invoice Date</label>
-              <input type="date" id="invDate" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>PO # <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-              <input type="text" id="invPoNumber" class="form-control" placeholder="PO-12345">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Due Date</label>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-              <input type="date" id="invDueDate" class="form-control" style="width:auto;flex:1;min-width:140px">
-              <button type="button" class="btn btn-sm btn-outline" data-days="30">+30 days</button>
-              <button type="button" class="btn btn-sm btn-outline" data-days="45">+45 days</button>
-              <button type="button" class="btn btn-sm btn-outline" data-days="60">+60 days</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Client Name</label>
-            <input type="text" id="invClientName" class="form-control" placeholder="Client or company name" required
-                   list="clientsDatalist" autocomplete="off">
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div class="form-group">
-              <label>Client Address</label>
-              <input type="text" id="invClientAddress" class="form-control" placeholder="123 Main St, City, State">
-            </div>
-            <div class="form-group">
-              <label>Client Email</label>
-              <input type="email" id="invClientEmail" class="form-control" placeholder="client@email.com">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Items</label>
-            <table style="width:100%;border-collapse:collapse;font-size:.85rem" id="invItemsTable">
-              <thead>
-                <tr style="background:var(--surface-alt,#f3f4f6)">
-                  <th style="padding:6px;text-align:left">Description</th>
-                  <th style="padding:6px;width:60px">Qty</th>
-                  <th style="padding:6px;width:90px">Unit Price</th>
-                  <th style="padding:6px;width:90px">Subtotal</th>
-                  <th style="padding:6px;width:36px"></th>
-                </tr>
-              </thead>
-              <tbody id="invItemsBody"></tbody>
-            </table>
-            <button type="button" class="btn btn-sm btn-outline" id="addItemBtn" style="margin-top:8px">+ Add Line</button>
-          </div>
-          <div style="display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:8px">
-            <div class="form-group" style="margin:0;display:flex;align-items:center;gap:8px">
-              <label style="margin:0;white-space:nowrap">Tax ($)</label>
-              <input type="number" id="invTax" class="form-control" style="width:90px" value="0" min="0" step="0.01">
-            </div>
-            <div style="font-size:.95rem">
-              Subtotal: <strong id="invSubtotalDisplay">$0.00</strong> &nbsp;|&nbsp;
-              Total: <strong id="invTotalDisplay" style="color:var(--primary)">$0.00</strong>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Notes</label>
-            <textarea id="invNotes" class="form-control" rows="2" placeholder="Payment terms, thank you note, etc."></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" id="invSubmitBtn">Save Invoice</button>
-        </form>
-      </div>
-    </div>
-  </div>
 
   <!-- Employee Modal -->
   <div class="modal-overlay" id="employeeModal">
@@ -712,7 +552,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -728,7 +568,6 @@
         if (tab === 'payroll')   initPayrollTab();
         if (tab === 'calendar')  initCalendarTab();
         if (tab === 'restdays')  loadRestDays();
-        if (tab === 'invoices')  initInvoicesTab();
       });
     });
 
@@ -1474,49 +1313,6 @@
         .catch(err => alert('Export failed: ' + err.message));
     });
 
-    // ── Scan Check ───────────────────────────────────────────────
-    document.getElementById('checkScanBtn').addEventListener('click', () => {
-      document.getElementById('checkScanInput').click();
-    });
-
-    document.getElementById('checkScanInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const status = document.getElementById('checkScanStatus');
-      const result = document.getElementById('checkScanResult');
-      result.style.display = 'none';
-      status.textContent = '⏳ Scanning check...';
-      try {
-        const fd = new FormData();
-        fd.append('check', file);
-        const data = await api('/admin/payroll/scan-check', { method: 'POST', body: fd });
-        window._lastCheckScan = data;
-        document.getElementById('checkScanSummary').textContent =
-          `Payee: ${data.payee_extracted || '—'} · Amount: $${(data.amount || 0).toFixed(2)} · Date: ${data.check_date || '—'}`;
-        const empText = data.matched_employee
-          ? `Matched to: ${data.matched_employee.name} (${data.confidence} confidence)`
-          : 'No employee match found — select manually';
-        document.getElementById('checkScanConfidence').textContent = empText;
-        result.style.display = '';
-        status.textContent = '✓ Scan complete';
-      } catch (err) {
-        status.textContent = '✗ Scan failed: ' + err.message;
-      }
-      e.target.value = '';
-    });
-
-    document.getElementById('checkScanApplyBtn').addEventListener('click', () => {
-      const scan = window._lastCheckScan;
-      if (!scan) return;
-      if (scan.matched_employee) {
-        document.getElementById('payrollEmployee').value = scan.matched_employee.id;
-      }
-      if (scan.amount) document.getElementById('payrollAmount').value = scan.amount.toFixed(2);
-      if (scan.check_date) document.getElementById('payrollDate').value = scan.check_date;
-      document.getElementById('checkScanResult').style.display = 'none';
-      document.getElementById('checkScanStatus').textContent = '✓ Values applied to form';
-    });
-
     // ── Import Payroll from Excel ─────────────────────────────────
     document.getElementById('importPayrollBtn').addEventListener('click', () => {
       document.getElementById('payrollImportInput').click();
@@ -1738,312 +1534,6 @@
       loadCalendarAccess();
     }
 
-    // ── Invoices Tab ─────────────────────────────────────────────
-    let invEditId = null;
-
-    async function loadInvoices() {
-      const tbody = document.getElementById('invoiceBody');
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">Loading...</td></tr>';
-      try {
-        const filter = document.getElementById('invFilterStatus').value;
-        let url = '/admin/invoices';
-        // client-side filter for now (all rows loaded, filtered in JS)
-        let rows = await api(url);
-        if (filter) rows = rows.filter(r => r.status === filter);
-        if (!rows.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--muted)">No invoices found.</td></tr>'; return; }
-        tbody.innerHTML = rows.map(inv => {
-          const overdue = inv.status !== 'paid' && inv.due_date && inv.due_date < new Date().toISOString().split('T')[0];
-          return `<tr>
-            <td><strong>${escHtml(inv.invoice_number)}</strong></td>
-            <td style="color:var(--muted);font-size:.85rem">${escHtml(inv.po_number||'–')}</td>
-            <td style="white-space:nowrap">${inv.invoice_date}</td>
-            <td style="white-space:nowrap;${overdue?'color:#dc2626;font-weight:600':''}">${inv.due_date||'–'}</td>
-            <td>${escHtml(inv.client_name)}</td>
-            <td style="white-space:nowrap;text-align:right">$${parseFloat(inv.total||0).toFixed(2)}</td>
-            <td>
-              <span style="padding:2px 8px;border-radius:99px;font-size:.78rem;font-weight:600;background:${inv.status==='paid'?'#dcfce7':overdue?'#fee2e2':'#f3f4f6'};color:${inv.status==='paid'?'#16a34a':overdue?'#dc2626':'#6b7280'}">
-                ${inv.status==='paid'?'PAID':overdue?'OVERDUE':'PENDING'}
-              </span>
-            </td>
-            <td style="white-space:nowrap">
-              <button class="btn btn-sm btn-outline" onclick="downloadInvPdf(${inv.id},'${escHtml(inv.invoice_number)}')">PDF</button>
-              <button class="btn btn-sm btn-outline" onclick="editInvoice(${inv.id})" style="margin:0 4px">Edit</button>
-              ${inv.status!=='paid' ? `<button class="btn btn-sm btn-outline" style="color:var(--success,#16a34a)" onclick="markInvoicePaid(${inv.id})">✓ Paid</button>` : ''}
-              <button class="btn btn-sm btn-outline" style="color:var(--danger);margin-left:4px" onclick="deleteInvoice(${inv.id})">Delete</button>
-            </td>
-          </tr>`;
-        }).join('');
-      } catch(ex) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--danger)">${ex.message}</td></tr>`;
-      }
-    }
-
-    window.downloadInvPdf = function(id, num) {
-      fetch(`/api/admin/invoices/${id}/pdf`, { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.blob()).then(blob => {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = `invoice_${num}.pdf`;
-          link.click();
-          URL.revokeObjectURL(link.href);
-        }).catch(err => alert('PDF error: ' + err.message));
-    };
-
-    window.markInvoicePaid = async function(id) {
-      try { await api(`/admin/invoices/${id}/mark-paid`, { method: 'PATCH', body: '{}' }); loadInvoices(); }
-      catch(ex) { alert(ex.message); }
-    };
-
-    window.deleteInvoice = async function(id) {
-      if (!confirm('Delete this invoice?')) return;
-      try { await api(`/admin/invoices/${id}`, { method: 'DELETE' }); loadInvoices(); }
-      catch(ex) { alert(ex.message); }
-    };
-
-    window.editInvoice = async function(id) {
-      try {
-        const inv = await api(`/admin/invoices/${id}`);
-        invEditId = id;
-        document.getElementById('invModalTitle').textContent = 'Edit Invoice';
-        document.getElementById('invNumber').value        = inv.invoice_number;
-        document.getElementById('invDate').value          = inv.invoice_date;
-        document.getElementById('invDueDate').value       = inv.due_date || '';
-        document.getElementById('invPoNumber').value      = inv.po_number || '';
-        document.getElementById('invClientName').value    = inv.client_name;
-        document.getElementById('invClientAddress').value = inv.client_address || '';
-        document.getElementById('invClientEmail').value   = inv.client_email  || '';
-        document.getElementById('invNotes').value         = inv.notes || '';
-        document.getElementById('invTax').value           = inv.tax || 0;
-        document.getElementById('invFormError').classList.remove('show');
-        renderInvItems(Array.isArray(inv.items) ? inv.items : JSON.parse(inv.items || '[]'));
-        recalcInvoice();
-        document.getElementById('invoiceModal').classList.add('open');
-      } catch(ex) { alert(ex.message); }
-    };
-
-    function renderInvItems(items) {
-      const tbody = document.getElementById('invItemsBody');
-      tbody.innerHTML = '';
-      (items || []).forEach(item => addInvItemRow(item));
-    }
-
-    function addInvItemRow(item = {}) {
-      const tbody = document.getElementById('invItemsBody');
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="form-control inv-desc" placeholder="Service description" value="${escHtml(item.description||'')}" list="projectsDatalist" autocomplete="off" style="font-size:.85rem"></td>
-        <td><input type="number" class="form-control inv-qty" min="1" step="1" value="${item.quantity||1}" style="font-size:.85rem;padding:6px"></td>
-        <td><input type="number" class="form-control inv-price" min="0" step="0.01" value="${item.unit_price||0}" style="font-size:.85rem;padding:6px"></td>
-        <td class="inv-sub" style="text-align:right;padding:6px;font-size:.85rem">$0.00</td>
-        <td><button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem" onclick="this.closest('tr').remove();recalcInvoice()">✕</button></td>`;
-      tbody.appendChild(tr);
-      tr.querySelectorAll('.inv-qty,.inv-price').forEach(el => el.addEventListener('input', recalcInvoice));
-      // When project selected from datalist, auto-fill price
-      const descInput = tr.querySelector('.inv-desc');
-      descInput.addEventListener('change', () => {
-        const proj = (window._invProjects || []).find(p => p.name === descInput.value);
-        if (proj && proj.default_price > 0) {
-          tr.querySelector('.inv-price').value = parseFloat(proj.default_price).toFixed(2);
-          recalcInvoice();
-        }
-      });
-      recalcInvoice();
-    }
-
-    window.recalcInvoice = function() {
-      let subtotal = 0;
-      document.querySelectorAll('#invItemsBody tr').forEach(tr => {
-        const qty   = parseFloat(tr.querySelector('.inv-qty')?.value  || 0);
-        const price = parseFloat(tr.querySelector('.inv-price')?.value || 0);
-        const sub   = qty * price;
-        subtotal += sub;
-        const subCell = tr.querySelector('.inv-sub');
-        if (subCell) subCell.textContent = '$' + sub.toFixed(2);
-      });
-      const tax   = parseFloat(document.getElementById('invTax').value || 0);
-      const total = subtotal + tax;
-      document.getElementById('invSubtotalDisplay').textContent = '$' + subtotal.toFixed(2);
-      document.getElementById('invTotalDisplay').textContent    = '$' + total.toFixed(2);
-    };
-
-    document.getElementById('invTax').addEventListener('input', recalcInvoice);
-    document.getElementById('addItemBtn').addEventListener('click', () => addInvItemRow());
-
-    document.getElementById('newInvoiceBtn').addEventListener('click', () => {
-      invEditId = null;
-      document.getElementById('invModalTitle').textContent = 'New Invoice';
-      document.getElementById('invoiceForm').reset();
-      document.getElementById('invItemsBody').innerHTML = '';
-      document.getElementById('invFormError').classList.remove('show');
-      document.getElementById('invSubtotalDisplay').textContent = '$0.00';
-      document.getElementById('invTotalDisplay').textContent    = '$0.00';
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('invDate').value = today;
-      // Default due date 30 days out
-      const due = new Date(); due.setDate(due.getDate() + 30);
-      document.getElementById('invDueDate').value = due.toISOString().split('T')[0];
-      document.getElementById('invPoNumber').value = '';
-      addInvItemRow();
-      document.getElementById('invoiceModal').classList.add('open');
-    });
-
-    // Due date quick-set buttons
-    document.querySelectorAll('[data-days]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const baseDate = document.getElementById('invDate').value;
-        const base = baseDate ? new Date(baseDate + 'T00:00:00') : new Date();
-        base.setDate(base.getDate() + parseInt(btn.dataset.days));
-        document.getElementById('invDueDate').value = base.toISOString().split('T')[0];
-      });
-    });
-
-    // Client autocomplete: fill address/email when client selected
-    document.getElementById('invClientName').addEventListener('change', () => {
-      const name = document.getElementById('invClientName').value;
-      const client = (window._invClients || []).find(c => c.name === name);
-      if (client) {
-        document.getElementById('invClientAddress').value = client.address || '';
-        document.getElementById('invClientEmail').value   = client.email   || '';
-      }
-    });
-    document.getElementById('closeInvoiceModal').addEventListener('click', () => document.getElementById('invoiceModal').classList.remove('open'));
-    document.getElementById('invoiceModal').addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) document.getElementById('invoiceModal').classList.remove('open'); });
-
-    document.getElementById('invoiceForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const errEl = document.getElementById('invFormError');
-      errEl.classList.remove('show');
-      const btn = document.getElementById('invSubmitBtn');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-      const items = [...document.querySelectorAll('#invItemsBody tr')].map(tr => ({
-        description: tr.querySelector('.inv-desc')?.value  || '',
-        quantity:    parseFloat(tr.querySelector('.inv-qty')?.value   || 1),
-        unit_price:  parseFloat(tr.querySelector('.inv-price')?.value || 0),
-        subtotal:    parseFloat(tr.querySelector('.inv-sub')?.textContent.replace('$','') || 0)
-      }));
-      const body = JSON.stringify({
-        invoice_number:  document.getElementById('invNumber').value.trim(),
-        invoice_date:    document.getElementById('invDate').value,
-        due_date:        document.getElementById('invDueDate').value || null,
-        po_number:       document.getElementById('invPoNumber').value.trim() || null,
-        client_name:     document.getElementById('invClientName').value.trim(),
-        client_address:  document.getElementById('invClientAddress').value.trim(),
-        client_email:    document.getElementById('invClientEmail').value.trim(),
-        items, tax: parseFloat(document.getElementById('invTax').value || 0),
-        notes: document.getElementById('invNotes').value.trim()
-      });
-      try {
-        if (invEditId) { await api(`/admin/invoices/${invEditId}`, { method: 'PUT', body }); }
-        else           { await api('/admin/invoices', { method: 'POST', body }); }
-        document.getElementById('invoiceModal').classList.remove('open');
-        loadInvoices();
-        const sucEl = document.getElementById('invSuccess');
-        sucEl.textContent = invEditId ? 'Invoice updated.' : 'Invoice created.';
-        sucEl.classList.add('show');
-        setTimeout(() => sucEl.classList.remove('show'), 3000);
-      } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
-      finally { btn.disabled = false; btn.textContent = 'Save Invoice'; }
-    });
-
-    // ── Invoices Tab Init + Catalogs ────────────────────────────────
-    async function initInvoicesTab() {
-      await Promise.all([loadInvoices(), loadInvCatalogs()]);
-    }
-
-    document.getElementById('invFilterStatus').addEventListener('change', loadInvoices);
-
-    document.getElementById('exportInvoicesBtn').addEventListener('click', () => {
-      const status = document.getElementById('invFilterStatus').value;
-      const url = '/api/admin/invoices/export' + (status ? '?status=' + status : '');
-      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.blob()).then(blob => {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = 'invoices_export.xlsx';
-          link.click();
-          URL.revokeObjectURL(link.href);
-        }).catch(err => alert('Export failed: ' + err.message));
-    });
-
-    async function loadInvCatalogs() {
-      try {
-        const [clients, projects] = await Promise.all([
-          api('/admin/invoice-clients'),
-          api('/admin/invoice-projects')
-        ]);
-        window._invClients  = clients;
-        window._invProjects = projects;
-        // Populate datalists
-        document.getElementById('clientsDatalist').innerHTML =
-          clients.map(c => `<option value="${escHtml(c.name)}">`).join('');
-        document.getElementById('projectsDatalist').innerHTML =
-          projects.map(p => `<option value="${escHtml(p.name)}">`).join('');
-        // Render catalog lists
-        renderClientCatalog(clients);
-        renderProjectCatalog(projects);
-      } catch(ex) {
-        document.getElementById('clientCatalogList').textContent = 'Error loading: ' + ex.message;
-      }
-    }
-
-    function renderClientCatalog(clients) {
-      const el = document.getElementById('clientCatalogList');
-      if (!clients.length) { el.innerHTML = '<span style="color:var(--muted)">No saved clients yet.</span>'; return; }
-      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">` +
-        clients.map(c => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;gap:8px">
-            <div>
-              <strong>${escHtml(c.name)}</strong>
-              ${c.address ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">${escHtml(c.address)}</span>` : ''}
-              ${c.email   ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">${escHtml(c.email)}</span>` : ''}
-            </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteInvClient(${c.id})">Remove</button>
-          </div>`).join('') + '</div>';
-    }
-
-    function renderProjectCatalog(projects) {
-      const el = document.getElementById('projectCatalogList');
-      if (!projects.length) { el.innerHTML = '<span style="color:var(--muted)">No saved services yet.</span>'; return; }
-      el.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">` +
-        projects.map(p => `
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;gap:8px">
-            <div>
-              <strong>${escHtml(p.name)}</strong>
-              ${parseFloat(p.default_price||0)>0 ? `<span style="color:var(--muted);font-size:.82rem;margin-left:8px">$${parseFloat(p.default_price).toFixed(2)}</span>` : ''}
-            </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteInvProject(${p.id})">Remove</button>
-          </div>`).join('') + '</div>';
-    }
-
-    document.getElementById('addClientBtn').addEventListener('click', () => {
-      const name    = prompt('Client / Company name:');
-      if (!name) return;
-      const address = prompt('Address (optional):') || '';
-      const email   = prompt('Email (optional):')   || '';
-      api('/admin/invoice-clients', { method: 'POST', body: JSON.stringify({ name, address, email }) })
-        .then(() => loadInvCatalogs()).catch(ex => alert(ex.message));
-    });
-
-    document.getElementById('addProjectBtn').addEventListener('click', () => {
-      const name  = prompt('Service / Project name:');
-      if (!name) return;
-      const price = prompt('Default unit price (0 if variable):') || '0';
-      api('/admin/invoice-projects', { method: 'POST', body: JSON.stringify({ name, default_price: parseFloat(price) || 0 }) })
-        .then(() => loadInvCatalogs()).catch(ex => alert(ex.message));
-    });
-
-    window.deleteInvClient = async function(id) {
-      if (!confirm('Remove this client?')) return;
-      try { await api(`/admin/invoice-clients/${id}`, { method: 'DELETE' }); loadInvCatalogs(); }
-      catch(ex) { alert(ex.message); }
-    };
-
-    window.deleteInvProject = async function(id) {
-      if (!confirm('Remove this service?')) return;
-      try { await api(`/admin/invoice-projects/${id}`, { method: 'DELETE' }); loadInvCatalogs(); }
-      catch(ex) { alert(ex.message); }
-    };
-
     // ── Rest Days (Admin) ─────────────────────────────────────────
     async function loadRestDays() {
       const tbody = document.getElementById('rdBody');
@@ -2101,19 +1591,6 @@
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
           link.download = 'rest_days.pdf';
-          link.click(); URL.revokeObjectURL(link.href);
-        }).catch(err => alert('Export failed: ' + err.message));
-    });
-
-    // ── Invoice PDF Report button ─────────────────────────────────
-    document.getElementById('exportInvoicesPdfBtn').addEventListener('click', () => {
-      const status = document.getElementById('invFilterStatus').value;
-      const url = '/api/admin/invoices/export-pdf' + (status ? '?status=' + status : '');
-      fetch(url, { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.blob()).then(blob => {
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(blob);
-          link.download = 'invoices_report.pdf';
           link.click(); URL.revokeObjectURL(link.href);
         }).catch(err => alert('Export failed: ' + err.message));
     });
