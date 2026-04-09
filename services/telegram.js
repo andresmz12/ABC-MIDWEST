@@ -10,6 +10,10 @@ function normalize(s) {
     .replace(/[úùûü]/g, 'u').replace(/ñ/g, 'n');
 }
 
+function esc(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function today() {
   return new Date().toISOString().split('T')[0];
 }
@@ -74,12 +78,12 @@ async function handleClockIn(emp) {
     `SELECT clock_in, clock_out FROM work_records WHERE user_id=$1 AND date=$2 ORDER BY clock_in DESC LIMIT 1`,
     [emp.id, today()]
   );
-  if (!rows.length) return `❌ *${emp.name}* no ha marcado entrada hoy.`;
+  if (!rows.length) return `❌ <b>${esc(emp.name)}</b> no ha marcado entrada hoy.`;
   const r = rows[0];
   if (!r.clock_out) {
-    return `✅ *${emp.name}* marcó entrada hoy a las *${fmtTime(r.clock_in)}* y sigue activo.`;
+    return `✅ <b>${esc(emp.name)}</b> marcó entrada hoy a las <b>${esc(fmtTime(r.clock_in))}</b> y sigue activo.`;
   }
-  return `✅ *${emp.name}* trabajó hoy: entrada ${fmtTime(r.clock_in)} — salida ${fmtTime(r.clock_out)}.`;
+  return `✅ <b>${esc(emp.name)}</b> trabajó hoy: entrada ${esc(fmtTime(r.clock_in))} — salida ${esc(fmtTime(r.clock_out))}.`;
 }
 
 async function handleWhoWorking() {
@@ -93,8 +97,10 @@ async function handleWhoWorking() {
   `, [today()]);
 
   if (!rows.length) return '📋 Nadie está trabajando actualmente.';
-  const list = rows.map(r => `• *${r.name}* (entrada: ${fmtTime(r.clock_in)}${r.store ? `, ${r.store}` : ''})`).join('\n');
-  return `👷 *Trabajando ahora (${rows.length}):*\n${list}`;
+  const list = rows.map(r =>
+    `• <b>${esc(r.name)}</b> (entrada: ${esc(fmtTime(r.clock_in))}${r.store ? `, ${esc(r.store)}` : ''})`
+  ).join('\n');
+  return `👷 <b>Trabajando ahora (${rows.length}):</b>\n${list}`;
 }
 
 async function handleHoursToday(emp) {
@@ -102,13 +108,13 @@ async function handleHoursToday(emp) {
     `SELECT clock_in, clock_out FROM work_records WHERE user_id=$1 AND date=$2`,
     [emp.id, today()]
   );
-  if (!rows.length) return `📋 *${emp.name}* no tiene registros de hoy.`;
+  if (!rows.length) return `📋 <b>${esc(emp.name)}</b> no tiene registros de hoy.`;
   let mins = 0;
   for (const r of rows) {
     const out = r.clock_out ? new Date(r.clock_out) : new Date();
     mins += Math.round((out - new Date(r.clock_in)) / 60000);
   }
-  return `⏱ *${emp.name}* lleva *${fmtHours(mins)}* trabajados hoy.`;
+  return `⏱ <b>${esc(emp.name)}</b> lleva <b>${fmtHours(mins)}</b> trabajados hoy.`;
 }
 
 async function handleHoursWeek(emp) {
@@ -117,13 +123,13 @@ async function handleHoursWeek(emp) {
     `SELECT clock_in, clock_out FROM work_records WHERE user_id=$1 AND date BETWEEN $2 AND $3`,
     [emp.id, from, to]
   );
-  if (!rows.length) return `📋 *${emp.name}* no tiene registros esta semana.`;
+  if (!rows.length) return `📋 <b>${esc(emp.name)}</b> no tiene registros esta semana.`;
   let mins = 0;
   for (const r of rows) {
     if (!r.clock_out) continue;
     mins += Math.round((new Date(r.clock_out) - new Date(r.clock_in)) / 60000);
   }
-  return `📊 *${emp.name}* trabajó *${fmtHours(mins)}* esta semana (lun–hoy).`;
+  return `📊 <b>${esc(emp.name)}</b> trabajó <b>${fmtHours(mins)}</b> esta semana (lun–hoy).`;
 }
 
 async function handleRestDay(emp) {
@@ -131,9 +137,9 @@ async function handleRestDay(emp) {
     `SELECT note FROM rest_days WHERE user_id=$1 AND date=$2`,
     [emp.id, today()]
   );
-  if (!rows.length) return `📋 *${emp.name}* no tiene descanso hoy.`;
-  const note = rows[0].note ? ` (${rows[0].note})` : '';
-  return `🏖 *${emp.name}* tiene descanso hoy${note}.`;
+  if (!rows.length) return `📋 <b>${esc(emp.name)}</b> no tiene descanso hoy.`;
+  const note = rows[0].note ? ` (${esc(rows[0].note)})` : '';
+  return `🏖 <b>${esc(emp.name)}</b> tiene descanso hoy${note}.`;
 }
 
 async function handlePayroll(emp) {
@@ -145,17 +151,17 @@ async function handlePayroll(emp) {
   );
   const { payments, total } = rows[0];
   const fmt = Number(total).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-  return `💰 *${emp.name}* — pagos ${year}: *${fmt}* (${payments} pago${payments !== 1 ? 's' : ''}).`;
+  return `💰 <b>${esc(emp.name)}</b> — pagos ${year}: <b>${esc(fmt)}</b> (${payments} pago${payments !== 1 ? 's' : ''}).`;
 }
 
 function helpMessage() {
-  return `🤖 *ABC Midwest Bot* — ejemplos de preguntas:\n\n` +
-    `• _¿Juan hizo la ponchada?_\n` +
-    `• _¿Quién está trabajando ahora?_\n` +
-    `• _¿Cuántas horas trabajó María esta semana?_\n` +
-    `• _¿Cuántas horas lleva Luis hoy?_\n` +
-    `• _¿Carlos tiene descanso hoy?_\n` +
-    `• _¿Cuánto se le ha pagado a Ana este año?_`;
+  return `🤖 <b>ABC Midwest Bot</b> — ejemplos de preguntas:\n\n` +
+    `• <i>¿Juan hizo la ponchada?</i>\n` +
+    `• <i>¿Quién está trabajando ahora?</i>\n` +
+    `• <i>¿Cuántas horas trabajó María esta semana?</i>\n` +
+    `• <i>¿Cuántas horas lleva Luis hoy?</i>\n` +
+    `• <i>¿Carlos tiene descanso hoy?</i>\n` +
+    `• <i>¿Cuánto se le ha pagado a Ana este año?</i>`;
 }
 
 // ── Main message handler ──────────────────────────────────────────────────────
@@ -174,35 +180,31 @@ async function handleMessage(bot, msg) {
   const intent = detectIntent(text);
 
   if (intent === 'help') {
-    return bot.sendMessage(chatId, helpMessage(), { parse_mode: 'Markdown' });
+    return bot.sendMessage(chatId, helpMessage(), { parse_mode: 'HTML' });
   }
 
   if (intent === 'who_working') {
     const reply = await handleWhoWorking();
-    return bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+    return bot.sendMessage(chatId, reply, { parse_mode: 'HTML' });
   }
 
   // All other intents need an employee name
   const emp = await findEmployee(text);
   if (!emp) {
     return bot.sendMessage(chatId,
-      '❓ No encontré ningún empleado en tu mensaje. Escribe el nombre completo o parte del nombre.',
-      { parse_mode: 'Markdown' }
+      '❓ No encontré ningún empleado en tu mensaje. Escribe el nombre completo o parte del nombre.'
     );
   }
 
   let reply;
-  if (intent === 'clock_in')    reply = await handleClockIn(emp);
+  if (intent === 'clock_in')         reply = await handleClockIn(emp);
   else if (intent === 'hours_today') reply = await handleHoursToday(emp);
   else if (intent === 'hours_week')  reply = await handleHoursWeek(emp);
   else if (intent === 'rest_day')    reply = await handleRestDay(emp);
   else if (intent === 'payroll')     reply = await handlePayroll(emp);
-  else {
-    // Unknown intent but employee found — default to clock-in status
-    reply = await handleClockIn(emp);
-  }
+  else                               reply = await handleClockIn(emp);
 
-  bot.sendMessage(chatId, reply, { parse_mode: 'Markdown' });
+  return bot.sendMessage(chatId, reply, { parse_mode: 'HTML' });
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
@@ -215,7 +217,10 @@ function initTelegramBot() {
   }
   const bot = new TelegramBot(token, { polling: true });
   bot.on('message', msg => {
-    handleMessage(bot, msg).catch(err => console.error('Telegram handler error:', err));
+    handleMessage(bot, msg).catch(err => {
+      console.error('Telegram handler error:', err);
+      bot.sendMessage(msg.chat.id, '⚠️ Error interno. Intenta de nuevo.').catch(() => {});
+    });
   });
   console.log('Telegram bot started (polling)');
 }
