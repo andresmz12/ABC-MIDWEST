@@ -3,15 +3,12 @@ const { query } = require('../database');
 const { sendEmployeeReminder, sendAdminSummary } = require('./email');
 
 function toLocalDateString(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return date.toISOString().split('T')[0]; // UTC date YYYY-MM-DD
 }
 
 function currentHHMM() {
   const now = new Date();
-  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  return `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
 }
 
 async function getSettings() {
@@ -106,7 +103,7 @@ function initCron() {
       const settings = await getSettings();
       const now      = new Date();
       const today    = toLocalDateString(now);
-      const tmrw     = new Date(now); tmrw.setDate(now.getDate() + 1);
+      const tmrw     = new Date(now); tmrw.setUTCDate(now.getUTCDate() + 1);
       const tomorrow = toLocalDateString(tmrw);
 
       if (hhmm === settings.time_night) {

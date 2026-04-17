@@ -831,4 +831,22 @@ router.put('/notification-settings', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// ─── Test Email ───────────────────────────────────────────────────────────────
+
+router.post('/test-email', async (req, res) => {
+  try {
+    const { sendAdminSummary } = require('../services/email');
+    const { rows } = await query(`SELECT email FROM admin_recipients WHERE active = TRUE`);
+    const emails = rows.map(r => r.email);
+    if (!emails.length) return res.status(400).json({ error: 'No hay destinatarios configurados' });
+    const todayStr = new Date().toISOString().split('T')[0];
+    await sendAdminSummary(
+      [{ title: 'Trabajo de prueba', location: 'Dirección de prueba', notes: 'Este es un email de prueba del sistema ABC Midwest.', assigned_names: [] }],
+      todayStr,
+      emails
+    );
+    res.json({ ok: true, sent_to: emails });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Server error' }); }
+});
+
 module.exports = router;

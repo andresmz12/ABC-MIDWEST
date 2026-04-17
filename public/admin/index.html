@@ -393,6 +393,7 @@
           </label>
           <button class="btn btn-primary btn-sm" id="saveSmsTimesBtn" style="width:fit-content;margin-top:4px">Guardar horarios</button>
           <span id="smsTimesSaved" style="font-size:.82rem;color:#16a34a;display:none">✓ Guardado</span>
+          <p style="font-size:.8rem;color:var(--muted);margin:8px 0 0">⚠️ Horarios en <strong>UTC</strong>. Chicago CST (UTC−6): suma 6h. Ej: 8am → <strong>14:00</strong></p>
         </div>
       </div>
 
@@ -406,6 +407,8 @@
           <input type="email" id="adminRecipientEmail" placeholder="correo@ejemplo.com" class="form-control" style="width:220px">
           <input type="text" id="adminRecipientLabel" placeholder="Nombre (opcional)" class="form-control" style="width:160px">
           <button class="btn btn-primary btn-sm" id="addAdminRecipientBtn">+ Agregar</button>
+          <button class="btn btn-sm btn-outline" id="testEmailBtn" style="margin-left:4px">📧 Enviar prueba</button>
+          <span id="testEmailResult" style="font-size:.82rem;display:none"></span>
         </div>
         <div id="adminRecipientList" style="font-size:.9rem;color:var(--muted)">Cargando...</div>
       </div>
@@ -470,7 +473,13 @@
             <label>Notes</label>
             <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes or instructions"></textarea>
           </div>
-          <div class="form-group" id="jobImagesSection" style="display:none">
+        <div class="form-group">
+          <label>Asignar Empleados</label>
+          <div id="jobEmpList" style="display:grid;gap:6px;margin-top:6px;max-height:180px;overflow-y:auto;padding-right:4px">
+            <span style="color:var(--muted);font-size:.85rem">Cargando empleados...</span>
+          </div>
+        </div>
+        <div class="form-group" id="jobImagesGroup" style="display:none">
             <label>Reference Images</label>
             <div id="jobImagesList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
             <label class="btn btn-sm btn-outline" style="cursor:pointer;display:inline-block">
@@ -1457,9 +1466,10 @@
       document.getElementById('jobLocation').value = '';
       document.getElementById('jobNotes').value = '';
       document.getElementById('jobError').classList.remove('show');
-      document.getElementById('jobImagesSection').style.display = 'none';
+      document.getElementById('jobImagesGroup').style.display = 'none';
       document.getElementById('jobImagesList').innerHTML = '';
       document.getElementById('jobImgUploadStatus').textContent = '';
+      loadJobEmployees([]);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1475,9 +1485,10 @@
       document.getElementById('jobError').classList.remove('show');
       // Show existing images
       const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
-      document.getElementById('jobImagesSection').style.display = '';
+      document.getElementById('jobImagesGroup').style.display = '';
       renderJobImages(imageUrls);
       document.getElementById('jobImgUploadStatus').textContent = '';
+      loadJobEmployees(job.assigned_to || []);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1546,7 +1557,7 @@
         scheduled_date: document.getElementById('jobDate').value,
         location: document.getElementById('jobLocation').value.trim(),
         notes: document.getElementById('jobNotes').value.trim(),
-        assigned_to: []
+        assigned_to: [...document.querySelectorAll('#jobEmpList input[type=checkbox]:checked')].map(cb => Number(cb.value))
       });
       try {
         if (calEditId) {
@@ -1558,7 +1569,7 @@
           calEditId = newJob.id;
           calJobs.push(newJob);
           document.getElementById('jobModalTitle').textContent = 'Job Saved — Add Images (optional)';
-          document.getElementById('jobImagesSection').style.display = '';
+          document.getElementById('jobImagesGroup').style.display = '';
           document.getElementById('jobImagesList').innerHTML = '<span style="color:var(--muted);font-size:.82rem">No images yet.</span>';
           btn.textContent = 'Close';
           btn.type = 'button';
@@ -1579,6 +1590,41 @@
       loadReminderSettings();
       loadAdminRecipients();
     }
+
+    async function loadJobEmployees(assignedIds) {
+      const el = document.getElementById('jobEmpList');
+      try {
+        const emps = await api('/admin/employees');
+        if (!emps.length) { el.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No hay empleados.</span>'; return; }
+        const assigned = new Set(assignedIds || []);
+        el.innerHTML = emps.map(e =>
+          `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface-alt,#f3f4f6);border-radius:6px;cursor:pointer;font-size:.9rem">
+            <input type="checkbox" value="${e.id}" ${assigned.has(e.id) ? 'checked' : ''} style="width:16px;height:16px">
+            ${escHtml(e.name)}
+            ${e.email ? `<span style="font-size:.78rem;color:var(--muted);margin-left:auto">${escHtml(e.email)}</span>` : '<span style="font-size:.78rem;color:#f59e0b;margin-left:auto">sin email</span>'}
+          </label>`
+        ).join('');
+      } catch(ex) { el.innerHTML = '<span style="color:var(--danger);font-size:.85rem">Error cargando empleados</span>'; }
+    }
+
+    document.getElementById('testEmailBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('testEmailBtn');
+      const res = document.getElementById('testEmailResult');
+      btn.disabled = true;
+      btn.textContent = '⏳ Enviando...';
+      res.style.display = 'none';
+      try {
+        const data = await api('/admin/test-email', { method: 'POST', body: '{}' });
+        res.textContent = `✓ Enviado a: ${data.sent_to.join(', ')}`;
+        res.style.color = '#16a34a';
+      } catch(ex) {
+        res.textContent = '✗ Error: ' + ex.message;
+        res.style.color = 'var(--danger)';
+      }
+      res.style.display = 'inline';
+      btn.disabled = false;
+      btn.textContent = '📧 Enviar prueba';
+    });
 
     // ── Reminder Settings ─────────────────────────────────────────
     async function loadReminderSettings() {

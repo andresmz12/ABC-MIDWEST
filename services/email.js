@@ -53,10 +53,8 @@ async function sendEmployeeReminder(employee, jobs, label, dateStr) {
     ${jobCards}
   `);
 
-  const client2 = getClient();
-  if (!client2) return;
   try {
-    await client2.send({
+    await client.send({
       to:      employee.email,
       from:    FROM,
       subject: `[ABC Midwest] ${label} — ${dateStr}`,
