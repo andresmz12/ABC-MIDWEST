@@ -372,11 +372,11 @@
         <div id="calAccessList" style="color:var(--muted);font-size:.9rem">Loading...</div>
       </div>
 
-      <!-- SMS Reminder Times -->
+      <!-- Email Reminder Times -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>⏰ Horarios de Recordatorio SMS</h2>
-          <span style="font-size:.85rem;color:var(--muted)">A qué hora se envía cada recordatorio</span>
+          <h2>⏰ Horarios de Recordatorio</h2>
+          <span style="font-size:.85rem;color:var(--muted)">A qué hora se envían los emails de recordatorio</span>
         </div>
         <div style="display:grid;gap:12px;max-width:360px">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
@@ -396,18 +396,18 @@
         </div>
       </div>
 
-      <!-- SMS Recipients -->
+      <!-- Admin Email Recipients -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>📱 Destinatarios SMS</h2>
-          <span style="font-size:.85rem;color:var(--muted)">Números que reciben los recordatorios</span>
+          <h2>📧 Destinatarios del Resumen Diario</h2>
+          <span style="font-size:.85rem;color:var(--muted)">Emails que reciben el resumen diario cada mañana</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <input type="tel" id="smsRecipientPhone" placeholder="+15551234567" class="form-control" style="width:170px">
-          <input type="text" id="smsRecipientLabel" placeholder="Nombre (opcional)" class="form-control" style="width:180px">
-          <button class="btn btn-primary btn-sm" id="addSmsRecipientBtn">+ Agregar</button>
+          <input type="email" id="adminRecipientEmail" placeholder="correo@ejemplo.com" class="form-control" style="width:220px">
+          <input type="text" id="adminRecipientLabel" placeholder="Nombre (opcional)" class="form-control" style="width:160px">
+          <button class="btn btn-primary btn-sm" id="addAdminRecipientBtn">+ Agregar</button>
         </div>
-        <div id="smsRecipientList" style="font-size:.9rem;color:var(--muted)">Cargando...</div>
+        <div id="adminRecipientList" style="font-size:.9rem;color:var(--muted)">Cargando...</div>
       </div>
     </div>
   </div>
@@ -513,6 +513,10 @@
             <label for="empPassword">Password</label>
             <input type="password" id="empPassword" class="form-control" placeholder="Set a password">
             <small id="empPasswordHint" style="display:none;color:var(--muted);font-size:.8rem;margin-top:4px">Leave blank to keep current password</small>
+          </div>
+          <div class="form-group">
+            <label for="empEmail">Email <span style="color:var(--muted);font-weight:400;font-size:.85rem">(for shift reminders)</span></label>
+            <input type="email" id="empEmail" class="form-control" placeholder="employee@example.com">
           </div>
           <div class="form-group">
             <label>Assign Stores <span style="color:var(--danger)">*</span></label>
@@ -943,6 +947,7 @@
       document.getElementById('empName').value     = emp ? emp.name     : '';
       document.getElementById('empUsername').value = emp ? emp.username : '';
       document.getElementById('empPassword').value = '';
+      document.getElementById('empEmail').value    = emp ? (emp.email || '') : '';
       document.getElementById('empPasswordHint').style.display = emp ? '' : 'none';
       document.getElementById('empSubmitBtn').textContent = emp ? 'Update Employee' : 'Create Employee';
       document.getElementById('employeeModal').classList.add('open');
@@ -1000,9 +1005,10 @@
         const name     = document.getElementById('empName').value.trim();
         const username = document.getElementById('empUsername').value.trim();
         const password = document.getElementById('empPassword').value;
+        const email    = document.getElementById('empEmail').value.trim() || null;
 
         if (editingEmployeeId) {
-          const payload = { name, username, store_ids: storeIds };
+          const payload = { name, username, email, store_ids: storeIds };
           if (password) payload.password = password;
           await api(`/admin/employees/${editingEmployeeId}`, { method: 'PUT', body: JSON.stringify(payload) });
           sucEl.textContent = `Employee "${name}" updated successfully.`;
@@ -1015,7 +1021,7 @@
           }
           const data = await api('/admin/employees', {
             method: 'POST',
-            body: JSON.stringify({ name, username, password, store_ids: storeIds })
+            body: JSON.stringify({ name, username, password, email, store_ids: storeIds })
           });
           sucEl.textContent = `Employee "${data.name}" created successfully.`;
         }
@@ -1570,18 +1576,18 @@
       if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
       await renderCalendar();
       loadCalendarAccess();
-      loadSmsSettings();
-      loadSmsRecipients();
+      loadReminderSettings();
+      loadAdminRecipients();
     }
 
-    // ── SMS Settings ──────────────────────────────────────────────
-    async function loadSmsSettings() {
+    // ── Reminder Settings ─────────────────────────────────────────
+    async function loadReminderSettings() {
       try {
         const s = await api('/admin/notification-settings');
         document.getElementById('smsTimeNight').value   = s.time_night   || '20:00';
         document.getElementById('smsTimeMorning').value = s.time_morning || '08:00';
         document.getElementById('smsTimeMidday').value  = s.time_midday  || '12:00';
-      } catch(ex) { console.error('loadSmsSettings', ex.message); }
+      } catch(ex) { console.error('loadReminderSettings', ex.message); }
     }
 
     document.getElementById('saveSmsTimesBtn').addEventListener('click', async () => {
@@ -1600,39 +1606,39 @@
       } catch(ex) { alert('Error al guardar: ' + ex.message); }
     });
 
-    // ── SMS Recipients ────────────────────────────────────────────
-    async function loadSmsRecipients() {
-      const el = document.getElementById('smsRecipientList');
+    // ── Admin Email Recipients ────────────────────────────────────
+    async function loadAdminRecipients() {
+      const el = document.getElementById('adminRecipientList');
       try {
-        const rows = await api('/admin/sms-recipients');
+        const rows = await api('/admin/admin-recipients');
         if (!rows.length) { el.innerHTML = '<span style="color:var(--muted)">No hay destinatarios aún.</span>'; return; }
         el.innerHTML = rows.map(r =>
           `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;margin-bottom:6px">
             <div>
-              <strong>${escHtml(r.phone)}</strong>
+              <strong>${escHtml(r.email)}</strong>
               ${r.label ? `<span style="margin-left:8px;font-size:.85rem;color:var(--muted)">${escHtml(r.label)}</span>` : ''}
             </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteSmsRecipient(${r.id})">🗑</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteAdminRecipient(${r.id})">🗑</button>
           </div>`
         ).join('');
       } catch(ex) { el.textContent = 'Error: ' + ex.message; }
     }
 
-    document.getElementById('addSmsRecipientBtn').addEventListener('click', async () => {
-      const phone = document.getElementById('smsRecipientPhone').value.trim();
-      const label = document.getElementById('smsRecipientLabel').value.trim();
-      if (!phone) { alert('Ingresa un número de teléfono.'); return; }
+    document.getElementById('addAdminRecipientBtn').addEventListener('click', async () => {
+      const email = document.getElementById('adminRecipientEmail').value.trim();
+      const label = document.getElementById('adminRecipientLabel').value.trim();
+      if (!email) { alert('Ingresa un correo electrónico.'); return; }
       try {
-        await api('/admin/sms-recipients', { method: 'POST', body: JSON.stringify({ phone, label }) });
-        document.getElementById('smsRecipientPhone').value = '';
-        document.getElementById('smsRecipientLabel').value = '';
-        loadSmsRecipients();
+        await api('/admin/admin-recipients', { method: 'POST', body: JSON.stringify({ email, label }) });
+        document.getElementById('adminRecipientEmail').value = '';
+        document.getElementById('adminRecipientLabel').value = '';
+        loadAdminRecipients();
       } catch(ex) { alert('Error: ' + ex.message); }
     });
 
-    window.deleteSmsRecipient = async function(id) {
-      if (!confirm('¿Eliminar este número?')) return;
-      try { await api(`/admin/sms-recipients/${id}`, { method: 'DELETE' }); loadSmsRecipients(); }
+    window.deleteAdminRecipient = async function(id) {
+      if (!confirm('¿Eliminar este destinatario?')) return;
+      try { await api(`/admin/admin-recipients/${id}`, { method: 'DELETE' }); loadAdminRecipients(); }
       catch(ex) { alert('Error: ' + ex.message); }
     };
 

@@ -22,7 +22,7 @@ router.use(requireAdmin);
 router.get('/employees', async (req, res) => {
   try {
     const { rows } = await query(`
-      SELECT u.id, u.name, u.username, u.created_at,
+      SELECT u.id, u.name, u.username, u.email, u.created_at,
              COALESCE(json_agg(json_build_object('id', s.id, 'name', s.name) ORDER BY s.name) FILTER (WHERE s.id IS NOT NULL), '[]') as stores
       FROM users u
       LEFT JOIN user_stores us ON us.user_id = u.id
@@ -37,7 +37,7 @@ router.get('/employees', async (req, res) => {
 
 router.post('/employees', async (req, res) => {
   try {
-    const { name, username, password, store_ids } = req.body;
+    const { name, username, password, email, store_ids } = req.body;
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'Name, username and password required' });
     }
@@ -49,14 +49,14 @@ router.post('/employees', async (req, res) => {
 
     const hash = bcrypt.hashSync(password, 10);
     const { rows } = await query(
-      'INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4) RETURNING id',
-      [name, username, hash, 'employee']
+      'INSERT INTO users (name, username, password, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [name, username, hash, email || null, 'employee']
     );
     const userId = rows[0].id;
     for (const storeId of store_ids) {
       await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [userId, storeId]);
     }
-    res.status(201).json({ id: userId, name, username });
+    res.status(201).json({ id: userId, name, username, email: email || null });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -78,7 +78,7 @@ router.post('/employees/:id/force-logout', async (req, res) => {
 
 router.put('/employees/:id', async (req, res) => {
   try {
-    const { name, username, password, store_ids } = req.body;
+    const { name, username, password, email, store_ids } = req.body;
     if (!name || !username) return res.status(400).json({ error: 'Name and username required' });
     if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
       return res.status(400).json({ error: 'At least one store must be assigned' });
@@ -91,11 +91,11 @@ router.put('/employees/:id', async (req, res) => {
     await withTransaction(async client => {
       if (password) {
         const hash = bcrypt.hashSync(password, 10);
-        await client.query('UPDATE users SET name = $1, username = $2, password = $3 WHERE id = $4 AND role = $5',
-          [name, username, hash, req.params.id, 'employee']);
+        await client.query('UPDATE users SET name = $1, username = $2, password = $3, email = $4 WHERE id = $5 AND role = $6',
+          [name, username, hash, email || null, req.params.id, 'employee']);
       } else {
-        await client.query('UPDATE users SET name = $1, username = $2 WHERE id = $3 AND role = $4',
-          [name, username, req.params.id, 'employee']);
+        await client.query('UPDATE users SET name = $1, username = $2, email = $3 WHERE id = $4 AND role = $5',
+          [name, username, email || null, req.params.id, 'employee']);
       }
       await client.query('DELETE FROM user_stores WHERE user_id = $1', [req.params.id]);
       for (const storeId of store_ids) {
@@ -773,31 +773,33 @@ function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
 
 // ─── SMS Recipients ────────────────────────────────────────────────────────────
 
-router.get('/sms-recipients', async (req, res) => {
+// ─── Admin Email Recipients ────────────────────────────────────────────────────
+
+router.get('/admin-recipients', async (req, res) => {
   try {
-    const { rows } = await query(`SELECT id, phone, label, active FROM sms_recipients ORDER BY id`);
+    const { rows } = await query(`SELECT id, email, label, active FROM admin_recipients ORDER BY id`);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/sms-recipients', async (req, res) => {
+router.post('/admin-recipients', async (req, res) => {
   try {
-    const { phone, label } = req.body;
-    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const { email, label } = req.body;
+    if (!email) return res.status(400).json({ error: 'email required' });
     const { rows } = await query(
-      `INSERT INTO sms_recipients (phone, label) VALUES ($1, $2) RETURNING *`,
-      [phone.trim(), (label || '').trim() || null]
+      `INSERT INTO admin_recipients (email, label) VALUES ($1, $2) RETURNING *`,
+      [email.trim().toLowerCase(), (label || '').trim() || null]
     );
     res.json(rows[0]);
   } catch (err) {
-    if (err.code === '23505') return res.status(400).json({ error: 'Phone number already exists' });
+    if (err.code === '23505') return res.status(400).json({ error: 'Email already exists' });
     console.error(err); res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.delete('/sms-recipients/:id', async (req, res) => {
+router.delete('/admin-recipients/:id', async (req, res) => {
   try {
-    await query(`DELETE FROM sms_recipients WHERE id = $1`, [req.params.id]);
+    await query(`DELETE FROM admin_recipients WHERE id = $1`, [req.params.id]);
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });

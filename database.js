@@ -94,6 +94,7 @@ async function initDb() {
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS project_name TEXT`);
   await pool.query(`ALTER TABLE work_records ALTER COLUMN store_id DROP NOT NULL`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS force_logout BOOLEAN DEFAULT FALSE`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_address TEXT`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_address TEXT`);
 
@@ -173,15 +174,19 @@ async function initDb() {
   // ── Scheduled Jobs image attachments ──────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}'`);
 
-  // ── SMS recipients ────────────────────────────────────────────────────────
+  // ── Admin email recipients (summary emails) ───────────────────────────────
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS sms_recipients (
+    CREATE TABLE IF NOT EXISTS admin_recipients (
       id SERIAL PRIMARY KEY,
-      phone TEXT NOT NULL UNIQUE,
+      email TEXT NOT NULL UNIQUE,
       label TEXT,
       active BOOLEAN DEFAULT TRUE,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
+  `);
+  await pool.query(`
+    INSERT INTO admin_recipients (email, label) VALUES ('andresmarinzapata@gmail.com', 'Admin')
+    ON CONFLICT (email) DO NOTHING
   `);
 
   // ── Notification settings ─────────────────────────────────────────────────
