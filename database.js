@@ -173,6 +173,35 @@ async function initDb() {
   // ── Scheduled Jobs image attachments ──────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}'`);
 
+  // ── SMS recipients ────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sms_recipients (
+      id SERIAL PRIMARY KEY,
+      phone TEXT NOT NULL UNIQUE,
+      label TEXT,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Notification settings ─────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `);
+  await pool.query(`
+    INSERT INTO notification_settings (key, value) VALUES
+      ('time_night',   '20:00'),
+      ('time_morning', '08:00'),
+      ('time_midday',  '12:00')
+    ON CONFLICT (key) DO NOTHING
+  `);
+
+  // ── Midday reminder flag ──────────────────────────────────────────────────
+  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS reminder_sent_midday BOOLEAN DEFAULT FALSE`);
+
   // ── Calendar Access (employees allowed to view/edit calendar) ─────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS calendar_access (

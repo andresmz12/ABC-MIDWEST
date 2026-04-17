@@ -1,63 +1,107 @@
 const cron = require('node-cron');
 const { query } = require('../database');
 const { sendReminderEmail } = require('./email');
+const { sendSms } = require('./sms');
 
 function toLocalDateString(date) {
-  // Return YYYY-MM-DD in local time
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
 
-async function sendMorningReminder() {
-  // Jobs scheduled for TODAY that haven't had their morning reminder sent
-  const today = toLocalDateString(new Date());
-  const { rows: jobs } = await query(
-    `SELECT * FROM scheduled_jobs WHERE scheduled_date = $1 AND reminder_sent_morning = FALSE`,
-    [today]
-  );
-  if (jobs.length) {
-    await sendReminderEmail(`Jobs scheduled for TODAY (${today})`, jobs);
-    await query(
-      `UPDATE scheduled_jobs SET reminder_sent_morning = TRUE WHERE scheduled_date = $1`,
-      [today]
-    );
-  }
+function currentHHMM() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-async function sendNightReminder() {
-  // Jobs scheduled for TOMORROW that haven't had their night reminder sent
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowStr = toLocalDateString(tomorrow);
+async function getSettings() {
+  const { rows } = await query(`SELECT key, value FROM notification_settings WHERE key IN ('time_night','time_morning','time_midday')`);
+  const s = { time_night: '20:00', time_morning: '08:00', time_midday: '12:00' };
+  for (const r of rows) s[r.key] = r.value;
+  return s;
+}
+
+async function getActiveRecipients() {
+  const { rows } = await query(`SELECT phone FROM sms_recipients WHERE active = TRUE`);
+  return rows.map(r => r.phone);
+}
+
+function buildSmsBody(label, dateStr, jobs) {
+  const lines = jobs.map(j => {
+    let line = `• ${j.title}`;
+    if (j.location) line += ` — ${j.location}`;
+    if (j.notes)    line += `\n  ${j.notes}`;
+    return line;
+  });
+  return `🧹 ABC Midwest\n📅 ${label} (${dateStr})\n\n${lines.join('\n\n')}`;
+}
+
+async function runReminder({ targetDate, flag, emailSubject, smsLabel }) {
   const { rows: jobs } = await query(
-    `SELECT * FROM scheduled_jobs WHERE scheduled_date = $1 AND reminder_sent_night = FALSE`,
-    [tomorrowStr]
+    `SELECT * FROM scheduled_jobs WHERE scheduled_date = $1 AND ${flag} = FALSE`,
+    [targetDate]
   );
-  if (jobs.length) {
-    await sendReminderEmail(`Jobs scheduled for TOMORROW (${tomorrowStr})`, jobs);
-    await query(
-      `UPDATE scheduled_jobs SET reminder_sent_night = TRUE WHERE scheduled_date = $1`,
-      [tomorrowStr]
-    );
+  if (!jobs.length) return;
+
+  // Email
+  await sendReminderEmail(emailSubject, jobs);
+
+  // SMS to all active recipients
+  const phones = await getActiveRecipients();
+  if (phones.length) {
+    const body = buildSmsBody(smsLabel, targetDate, jobs);
+    await Promise.all(phones.map(phone => sendSms(phone, body)));
   }
+
+  // Mark sent
+  await query(`UPDATE scheduled_jobs SET ${flag} = TRUE WHERE scheduled_date = $1`, [targetDate]);
 }
 
 function initCron() {
-  // 8:00 AM daily — morning reminder for today's jobs
-  cron.schedule('0 8 * * *', async () => {
-    try { await sendMorningReminder(); }
-    catch (err) { console.error('Morning reminder cron error:', err.message); }
+  // Run every minute — checks configured times dynamically
+  cron.schedule('* * * * *', async () => {
+    try {
+      const hhmm    = currentHHMM();
+      const settings = await getSettings();
+      const now      = new Date();
+
+      const today    = toLocalDateString(now);
+      const tmrw     = new Date(now); tmrw.setDate(now.getDate() + 1);
+      const tomorrow = toLocalDateString(tmrw);
+
+      if (hhmm === settings.time_night) {
+        await runReminder({
+          targetDate:   tomorrow,
+          flag:         'reminder_sent_night',
+          emailSubject: `Trabajos de mañana (${tomorrow})`,
+          smsLabel:     'Trabajos de mañana'
+        });
+      }
+
+      if (hhmm === settings.time_morning) {
+        await runReminder({
+          targetDate:   today,
+          flag:         'reminder_sent_morning',
+          emailSubject: `Trabajos de hoy (${today})`,
+          smsLabel:     'Trabajos de hoy'
+        });
+      }
+
+      if (hhmm === settings.time_midday) {
+        await runReminder({
+          targetDate:   today,
+          flag:         'reminder_sent_midday',
+          emailSubject: `Recordatorio del mediodía — trabajos de hoy (${today})`,
+          smsLabel:     'Recordatorio del mediodía'
+        });
+      }
+    } catch (err) {
+      console.error('[Cron] Reminder error:', err.message);
+    }
   });
 
-  // 8:00 PM daily — night reminder for tomorrow's jobs
-  cron.schedule('0 20 * * *', async () => {
-    try { await sendNightReminder(); }
-    catch (err) { console.error('Night reminder cron error:', err.message); }
-  });
-
-  console.log('Cron jobs initialized: morning (8am) and night (8pm) reminders active.');
+  console.log('Cron initialized: reminder checks running every minute.');
 }
 
 module.exports = { initCron };

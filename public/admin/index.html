@@ -371,6 +371,44 @@
         </div>
         <div id="calAccessList" style="color:var(--muted);font-size:.9rem">Loading...</div>
       </div>
+
+      <!-- SMS Reminder Times -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>⏰ Horarios de Recordatorio SMS</h2>
+          <span style="font-size:.85rem;color:var(--muted)">A qué hora se envía cada recordatorio</span>
+        </div>
+        <div style="display:grid;gap:12px;max-width:360px">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
+            Noche anterior (mañana hay trabajo)
+            <input type="time" id="smsTimeNight" class="form-control" style="width:140px">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
+            Mañana del mismo día
+            <input type="time" id="smsTimeMorning" class="form-control" style="width:140px">
+          </label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
+            Mediodía del mismo día
+            <input type="time" id="smsTimeMidday" class="form-control" style="width:140px">
+          </label>
+          <button class="btn btn-primary btn-sm" id="saveSmsTimesBtn" style="width:fit-content;margin-top:4px">Guardar horarios</button>
+          <span id="smsTimesSaved" style="font-size:.82rem;color:#16a34a;display:none">✓ Guardado</span>
+        </div>
+      </div>
+
+      <!-- SMS Recipients -->
+      <div class="card" style="margin-top:12px">
+        <div class="section-header" style="margin-bottom:12px">
+          <h2>📱 Destinatarios SMS</h2>
+          <span style="font-size:.85rem;color:var(--muted)">Números que reciben los recordatorios</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+          <input type="tel" id="smsRecipientPhone" placeholder="+15551234567" class="form-control" style="width:170px">
+          <input type="text" id="smsRecipientLabel" placeholder="Nombre (opcional)" class="form-control" style="width:180px">
+          <button class="btn btn-primary btn-sm" id="addSmsRecipientBtn">+ Agregar</button>
+        </div>
+        <div id="smsRecipientList" style="font-size:.9rem;color:var(--muted)">Cargando...</div>
+      </div>
     </div>
   </div>
 
@@ -1532,7 +1570,71 @@
       if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
       await renderCalendar();
       loadCalendarAccess();
+      loadSmsSettings();
+      loadSmsRecipients();
     }
+
+    // ── SMS Settings ──────────────────────────────────────────────
+    async function loadSmsSettings() {
+      try {
+        const s = await api('/admin/notification-settings');
+        document.getElementById('smsTimeNight').value   = s.time_night   || '20:00';
+        document.getElementById('smsTimeMorning').value = s.time_morning || '08:00';
+        document.getElementById('smsTimeMidday').value  = s.time_midday  || '12:00';
+      } catch(ex) { console.error('loadSmsSettings', ex.message); }
+    }
+
+    document.getElementById('saveSmsTimesBtn').addEventListener('click', async () => {
+      try {
+        await api('/admin/notification-settings', {
+          method: 'PUT',
+          body: JSON.stringify({
+            time_night:   document.getElementById('smsTimeNight').value,
+            time_morning: document.getElementById('smsTimeMorning').value,
+            time_midday:  document.getElementById('smsTimeMidday').value
+          })
+        });
+        const saved = document.getElementById('smsTimesSaved');
+        saved.style.display = 'inline';
+        setTimeout(() => { saved.style.display = 'none'; }, 2500);
+      } catch(ex) { alert('Error al guardar: ' + ex.message); }
+    });
+
+    // ── SMS Recipients ────────────────────────────────────────────
+    async function loadSmsRecipients() {
+      const el = document.getElementById('smsRecipientList');
+      try {
+        const rows = await api('/admin/sms-recipients');
+        if (!rows.length) { el.innerHTML = '<span style="color:var(--muted)">No hay destinatarios aún.</span>'; return; }
+        el.innerHTML = rows.map(r =>
+          `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;margin-bottom:6px">
+            <div>
+              <strong>${escHtml(r.phone)}</strong>
+              ${r.label ? `<span style="margin-left:8px;font-size:.85rem;color:var(--muted)">${escHtml(r.label)}</span>` : ''}
+            </div>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="deleteSmsRecipient(${r.id})">🗑</button>
+          </div>`
+        ).join('');
+      } catch(ex) { el.textContent = 'Error: ' + ex.message; }
+    }
+
+    document.getElementById('addSmsRecipientBtn').addEventListener('click', async () => {
+      const phone = document.getElementById('smsRecipientPhone').value.trim();
+      const label = document.getElementById('smsRecipientLabel').value.trim();
+      if (!phone) { alert('Ingresa un número de teléfono.'); return; }
+      try {
+        await api('/admin/sms-recipients', { method: 'POST', body: JSON.stringify({ phone, label }) });
+        document.getElementById('smsRecipientPhone').value = '';
+        document.getElementById('smsRecipientLabel').value = '';
+        loadSmsRecipients();
+      } catch(ex) { alert('Error: ' + ex.message); }
+    });
+
+    window.deleteSmsRecipient = async function(id) {
+      if (!confirm('¿Eliminar este número?')) return;
+      try { await api(`/admin/sms-recipients/${id}`, { method: 'DELETE' }); loadSmsRecipients(); }
+      catch(ex) { alert('Error: ' + ex.message); }
+    };
 
     // ── Rest Days (Admin) ─────────────────────────────────────────
     async function loadRestDays() {

@@ -771,4 +771,62 @@ router.get('/dashboard', async (req, res) => {
 
 function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
 
+// ─── SMS Recipients ────────────────────────────────────────────────────────────
+
+router.get('/sms-recipients', async (req, res) => {
+  try {
+    const { rows } = await query(`SELECT id, phone, label, active FROM sms_recipients ORDER BY id`);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/sms-recipients', async (req, res) => {
+  try {
+    const { phone, label } = req.body;
+    if (!phone) return res.status(400).json({ error: 'phone required' });
+    const { rows } = await query(
+      `INSERT INTO sms_recipients (phone, label) VALUES ($1, $2) RETURNING *`,
+      [phone.trim(), (label || '').trim() || null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: 'Phone number already exists' });
+    console.error(err); res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/sms-recipients/:id', async (req, res) => {
+  try {
+    await query(`DELETE FROM sms_recipients WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Notification Settings ─────────────────────────────────────────────────────
+
+router.get('/notification-settings', async (req, res) => {
+  try {
+    const { rows } = await query(`SELECT key, value FROM notification_settings`);
+    const settings = {};
+    for (const r of rows) settings[r.key] = r.value;
+    res.json(settings);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/notification-settings', async (req, res) => {
+  try {
+    const allowed = ['time_night', 'time_morning', 'time_midday'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) {
+        await query(
+          `INSERT INTO notification_settings (key, value) VALUES ($1, $2)
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+          [key, req.body[key]]
+        );
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 module.exports = router;
