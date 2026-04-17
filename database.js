@@ -172,6 +172,7 @@ async function initDb() {
 
   // ── Scheduled Jobs image attachments ──────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}'`);
+  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS reminder_date TEXT`);
 
   // ── Calendar Access (employees allowed to view/edit calendar) ─────────────
   await pool.query(`

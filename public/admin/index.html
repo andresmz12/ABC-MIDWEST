@@ -421,8 +421,13 @@
             <input type="text" id="jobTitle" class="form-control" placeholder="Job / project title" required>
           </div>
           <div class="form-group">
-            <label>Date</label>
+            <label>Job Date</label>
             <input type="date" id="jobDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Reminder Date <span style="font-size:.8rem;color:var(--muted)">(optional — when to send WhatsApp/email alert)</span></label>
+            <input type="date" id="jobReminderDate" class="form-control">
+            <small style="color:var(--muted)">Leave blank to send reminder on job date</small>
           </div>
           <div class="form-group">
             <label>Location</label>
@@ -1389,6 +1394,7 @@
             <div style="flex:1">
               <strong>${escHtml(j.title)}</strong>
               <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
+              ${j.reminder_date && j.reminder_date !== j.scheduled_date ? `<span style="font-size:.78rem;background:#fef9c3;color:#854d0e;border-radius:4px;padding:1px 6px;margin-left:6px">🔔 Reminder: ${j.reminder_date}</span>` : ''}
               ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.location)}</div>` : ''}
               ${j.notes    ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
             </div>
@@ -1409,6 +1415,7 @@
       calEditId = null;
       document.getElementById('jobModalTitle').textContent = 'Schedule Job';
       document.getElementById('jobDate').value = dateStr;
+      document.getElementById('jobReminderDate').value = '';
       document.getElementById('jobTitle').value = '';
       document.getElementById('jobLocation').value = '';
       document.getElementById('jobNotes').value = '';
@@ -1424,10 +1431,11 @@
       if (!job) return;
       calEditId = id;
       document.getElementById('jobModalTitle').textContent = 'Edit Job';
-      document.getElementById('jobTitle').value    = job.title;
-      document.getElementById('jobDate').value     = job.scheduled_date;
-      document.getElementById('jobLocation').value = job.location || '';
-      document.getElementById('jobNotes').value    = job.notes || '';
+      document.getElementById('jobTitle').value        = job.title;
+      document.getElementById('jobDate').value         = job.scheduled_date;
+      document.getElementById('jobReminderDate').value = job.reminder_date || '';
+      document.getElementById('jobLocation').value     = job.location || '';
+      document.getElementById('jobNotes').value        = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
       // Show existing images
       const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
@@ -1500,6 +1508,7 @@
       const body = JSON.stringify({
         title: document.getElementById('jobTitle').value.trim(),
         scheduled_date: document.getElementById('jobDate').value,
+        reminder_date: document.getElementById('jobReminderDate').value || null,
         location: document.getElementById('jobLocation').value.trim(),
         notes: document.getElementById('jobNotes').value.trim(),
         assigned_to: []

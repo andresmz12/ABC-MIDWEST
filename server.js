@@ -5,7 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { initDb } = require('./database');
 const { initCron } = require('./services/cron');
-const { initTelegramBot } = require('./services/telegram');
+const { initWhatsApp } = require('./services/whatsapp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,7 +45,7 @@ app.use((err, req, res, next) => {
 initDb()
   .then(() => {
     initCron();
-    initTelegramBot();
+    initWhatsApp();
     app.listen(PORT, () => {
       console.log(`ABC Midwest Cleaning App running on port ${PORT}`);
     });
