@@ -36,22 +36,6 @@ async function getAdminEmails() {
   return rows.map(r => r.email);
 }
 
-// Returns employees-by-jobs map for a date: [{ id, name, email, jobs: [...] }]
-async function getEmployeeJobsForDate(dateStr) {
-  const { rows } = await query(`
-    SELECT u.id, u.name, u.email,
-           json_agg(json_build_object(
-             'id', j.id, 'title', j.title, 'scheduled_date', j.scheduled_date,
-             'location', j.location, 'notes', j.notes, 'start_time', j.start_time, 'end_time', j.end_time
-           ) ORDER BY j.start_time NULLS LAST, j.title) AS jobs
-    FROM scheduled_jobs j
-    JOIN users u ON u.id = ANY(j.assigned_to)
-    WHERE j.scheduled_date = $1
-    GROUP BY u.id, u.name, u.email
-  `, [dateStr]);
-  return rows;
-}
-
 // Returns all jobs for a date with assigned employee names (for admin summary)
 async function getJobsWithEmployees(dateStr) {
   const { rows } = await query(`
@@ -69,14 +53,15 @@ async function getJobsWithEmployees(dateStr) {
 }
 
 async function sendEmployeeReminders(dateStr, flag, label) {
-  // Find jobs that haven't had this reminder sent
   const { rows: pendingJobs } = await query(
     `SELECT id FROM scheduled_jobs WHERE scheduled_date = $1 AND ${flag} = FALSE`,
     [dateStr]
   );
-  if (!pendingJobs.length) return;
+  if (!pendingJobs.length) {
+    console.log(`[Cron] ${label}: no pending jobs for ${dateStr}`);
+    return;
+  }
 
-  // Get employee→jobs map
   const { rows: empRows } = await query(`
     SELECT u.id, u.name, u.email,
            json_agg(json_build_object(
@@ -89,50 +74,70 @@ async function sendEmployeeReminders(dateStr, flag, label) {
     GROUP BY u.id, u.name, u.email
   `, [dateStr]);
 
-  // Send individual emails
+  if (empRows.length === 0) {
+    console.log(`[Cron] ${label}: ${pendingJobs.length} job(s) found but no assigned employees with email — skipping flag update`);
+    return;
+  }
+
   await Promise.all(empRows.map(emp => sendEmployeeReminder(emp, emp.jobs, label, dateStr)));
 
-  // Mark all pending jobs as sent
+  // Only mark as sent once emails have actually been attempted
   await query(
     `UPDATE scheduled_jobs SET ${flag} = TRUE WHERE scheduled_date = $1 AND ${flag} = FALSE`,
     [dateStr]
   );
+  console.log(`[Cron] ${label}: marked ${pendingJobs.length} job(s) sent, emailed ${empRows.length} employee(s)`);
 }
 
-async function runMorningAdminSummary(dateStr) {
+// Send admin summary for a given date with a label
+async function runAdminSummary(dateStr, label) {
   const adminEmails = await getAdminEmails();
-  if (!adminEmails.length) return;
+  if (!adminEmails.length) {
+    console.log(`[Cron] Admin summary (${label}): no admin recipients configured`);
+    return;
+  }
   const jobs = await getJobsWithEmployees(dateStr);
-  if (!jobs.length) return;
-  await sendAdminSummary(jobs, dateStr, adminEmails);
+  if (!jobs.length) {
+    console.log(`[Cron] Admin summary (${label}): no jobs for ${dateStr}`);
+    return;
+  }
+  await sendAdminSummary(jobs, dateStr, adminEmails, label);
+  console.log(`[Cron] Admin summary (${label}) sent for ${dateStr} → ${adminEmails.join(', ')}`);
 }
 
 function initCron() {
   cron.schedule('* * * * *', async () => {
     try {
-      const hhmm    = currentHHMM();
+      const hhmm     = currentHHMM();
       const settings = await getSettings();
       const today    = getChicagoDate(0);
       const tomorrow = getChicagoDate(1);
 
+      console.log(`[Cron] tick ${hhmm} | today=${today} tomorrow=${tomorrow} | night=${settings.time_night} morning=${settings.time_morning} midday=${settings.time_midday}`);
+
       if (hhmm === settings.time_night) {
+        console.log('[Cron] → NIGHT reminder firing');
         await sendEmployeeReminders(tomorrow, 'reminder_sent_night', 'Trabajos de mañana');
+        await runAdminSummary(tomorrow, 'Resumen de mañana');
       }
 
       if (hhmm === settings.time_morning) {
+        console.log('[Cron] → MORNING reminder firing');
         await sendEmployeeReminders(today, 'reminder_sent_morning', 'Trabajos de hoy');
-        await runMorningAdminSummary(today);
+        await runAdminSummary(today, 'Resumen del día');
       }
 
       if (hhmm === settings.time_midday) {
+        console.log('[Cron] → MIDDAY reminder firing');
         await sendEmployeeReminders(today, 'reminder_sent_midday', 'Recordatorio del mediodía');
+        await runAdminSummary(today, 'Recordatorio mediodía');
       }
     } catch (err) {
-      console.error('[Cron] Reminder error:', err.message);
+      console.error('[Cron] Reminder error:', err.message, err.stack);
     }
   });
 
-  console.log('Cron initialized: email reminders running every minute.');
+  console.log('Cron initialized: email reminders running every minute (America/Chicago time).');
 }
 
 module.exports = { initCron };

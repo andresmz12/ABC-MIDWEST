@@ -881,14 +881,17 @@ router.post('/test-email', async (req, res) => {
     const { rows } = await query(`SELECT email FROM admin_recipients WHERE active = TRUE`);
     const emails = rows.map(r => r.email);
     if (!emails.length) return res.status(400).json({ error: 'No hay destinatarios configurados' });
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
+    console.log(`[TestEmail] Sending test to: ${emails.join(', ')}`);
     await sendAdminSummary(
-      [{ title: 'Trabajo de prueba', location: 'Dirección de prueba', notes: 'Este es un email de prueba del sistema ABC Midwest.', assigned_names: [] }],
+      [{ title: 'Trabajo de prueba', location: 'Dirección de prueba', start_time: '08:00', end_time: '16:00', notes: 'Este es un email de prueba del sistema ABC Midwest.', assigned_names: [] }],
       todayStr,
-      emails
+      emails,
+      'Email de Prueba'
     );
+    console.log(`[TestEmail] Done`);
     res.json({ ok: true, sent_to: emails });
-  } catch (err) { console.error(err); res.status(500).json({ error: err.message || 'Server error' }); }
+  } catch (err) { console.error('[TestEmail] Error:', err.message, err.response && err.response.body); res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
 module.exports = router;

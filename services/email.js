@@ -71,10 +71,10 @@ async function sendEmployeeReminder(employee, jobs, label, dateStr) {
 
 // ── Send daily admin summary ───────────────────────────────────────────────────
 
-async function sendAdminSummary(jobs, dateStr, adminEmails) {
+async function sendAdminSummary(jobs, dateStr, adminEmails, label) {
   if (!adminEmails.length) return;
   const client = getClient();
-  if (!client) return;
+  if (!client) { console.warn('[Email] sendAdminSummary: no client (SENDGRID_API_KEY not set)'); return; }
 
   const jobCards = jobs.map(j => {
     const assigned = j.assigned_names && j.assigned_names.length
@@ -91,15 +91,18 @@ async function sendAdminSummary(jobs, dateStr, adminEmails) {
     </div>`;
   }).join('');
 
-  const html = baseTemplate(`Resumen diario — ${esc(dateStr)}`, `
+  const title   = label || 'Resumen diario';
+  const subject = `[ABC Midwest] ${title} — ${dateStr}`;
+
+  const html = baseTemplate(`${esc(title)} — ${esc(dateStr)}`, `
     <p style="margin-top:0">Trabajos programados para <strong>${esc(dateStr)}</strong> (${jobs.length} trabajo${jobs.length !== 1 ? 's' : ''}):</p>
     ${jobCards}
   `);
 
   await Promise.all(adminEmails.map(to =>
-    client.send({ to, from: FROM, subject: `[ABC Midwest] Resumen del día — ${dateStr}`, html })
+    client.send({ to, from: FROM, subject, html })
       .then(() => console.log(`[Email] Admin summary → ${to}`))
-      .catch(err => console.error(`[Email] Admin summary failed for ${to}:`, err.message))
+      .catch(err => console.error(`[Email] Admin summary FAILED for ${to}:`, err.message, JSON.stringify(err.response && err.response.body)))
   ));
 }
 
