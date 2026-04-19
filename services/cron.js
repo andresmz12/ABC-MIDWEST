@@ -31,7 +31,7 @@ async function getEmployeeJobsForDate(dateStr) {
     SELECT u.id, u.name, u.email,
            json_agg(json_build_object(
              'id', j.id, 'title', j.title, 'scheduled_date', j.scheduled_date,
-             'location', j.location, 'notes', j.notes, 'start_time', j.start_time
+             'location', j.location, 'notes', j.notes, 'start_time', j.start_time, 'end_time', j.end_time
            ) ORDER BY j.start_time NULLS LAST, j.title) AS jobs
     FROM scheduled_jobs j
     JOIN users u ON u.id = ANY(j.assigned_to)
@@ -44,7 +44,7 @@ async function getEmployeeJobsForDate(dateStr) {
 // Returns all jobs for a date with assigned employee names (for admin summary)
 async function getJobsWithEmployees(dateStr) {
   const { rows } = await query(`
-    SELECT j.id, j.title, j.location, j.notes, j.start_time,
+    SELECT j.id, j.title, j.location, j.notes, j.start_time, j.end_time,
            COALESCE(
              ARRAY(
                SELECT u.name FROM users u WHERE u.id = ANY(j.assigned_to) ORDER BY u.name
@@ -70,7 +70,7 @@ async function sendEmployeeReminders(dateStr, flag, label) {
     SELECT u.id, u.name, u.email,
            json_agg(json_build_object(
              'id', j.id, 'title', j.title, 'scheduled_date', j.scheduled_date,
-             'location', j.location, 'notes', j.notes, 'start_time', j.start_time
+             'location', j.location, 'notes', j.notes, 'start_time', j.start_time, 'end_time', j.end_time
            ) ORDER BY j.start_time NULLS LAST, j.title) AS jobs
     FROM scheduled_jobs j
     JOIN users u ON u.id = ANY(j.assigned_to)

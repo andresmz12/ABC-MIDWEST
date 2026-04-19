@@ -493,12 +493,12 @@ router.get('/scheduled-jobs', async (req, res) => {
 
 router.post('/scheduled-jobs', async (req, res) => {
   try {
-    const { title, scheduled_date, assigned_to, location, notes, start_time } = req.body;
+    const { title, scheduled_date, assigned_to, location, notes, start_time, end_time } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     const { rows } = await query(
-      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes, start_time) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null]
+      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes, start_time, end_time) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -506,12 +506,12 @@ router.post('/scheduled-jobs', async (req, res) => {
 
 router.put('/scheduled-jobs/:id', async (req, res) => {
   try {
-    const { title, scheduled_date, assigned_to, location, notes, start_time } = req.body;
+    const { title, scheduled_date, assigned_to, location, notes, start_time, end_time } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     await query(
-      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5, start_time=$6 WHERE id=$7',
-      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, req.params.id]
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5, start_time=$6, end_time=$7 WHERE id=$8',
+      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -829,6 +829,48 @@ router.put('/notification-settings', async (req, res) => {
     }
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Clear Test Data ──────────────────────────────────────────────────────────
+
+router.delete('/clear/time-records', async (req, res) => {
+  try {
+    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NULL)`);
+    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NULL`);
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clear/projects', async (req, res) => {
+  try {
+    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NOT NULL)`);
+    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NOT NULL`);
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clear/calendar-jobs', async (req, res) => {
+  try {
+    const { rowCount } = await query(`DELETE FROM scheduled_jobs`);
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clear/payroll', async (req, res) => {
+  try {
+    const { rowCount } = await query(`DELETE FROM payroll`);
+    res.json({ ok: true, deleted: rowCount });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clear/all', async (req, res) => {
+  try {
+    await query(`DELETE FROM media`);
+    await query(`DELETE FROM work_records`);
+    await query(`DELETE FROM scheduled_jobs`);
+    await query(`DELETE FROM payroll`);
+    res.json({ ok: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
 // ─── Test Email ───────────────────────────────────────────────────────────────

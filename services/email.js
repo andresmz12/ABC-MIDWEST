@@ -30,11 +30,13 @@ function baseTemplate(title, bodyHtml) {
 
 function jobCard(j) {
   const loc   = j.location   ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">📍 <strong>Lugar:</strong> ${esc(j.location)}</div>` : '';
-  const time  = j.start_time ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Hora:</strong> ${esc(j.start_time)}</div>` : '';
+  const timeRange = (j.start_time || j.end_time)
+    ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Horario:</strong> ${esc(j.start_time || '?')}${j.end_time ? ' — ' + esc(j.end_time) : ''}</div>`
+    : '';
   const notes = j.notes      ? `<div style="color:#6b7280;font-size:.85rem;margin-top:6px;font-style:italic">${esc(j.notes)}</div>` : '';
   return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px">
     <strong style="font-size:1rem">${esc(j.title)}</strong>
-    ${loc}${time}${notes}
+    ${loc}${timeRange}${notes}
   </div>`;
 }
 
@@ -78,12 +80,14 @@ async function sendAdminSummary(jobs, dateStr, adminEmails) {
     const assigned = j.assigned_names && j.assigned_names.length
       ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">👷 <strong>Empleados:</strong> ${j.assigned_names.map(esc).join(', ')}</div>`
       : '';
-    const loc   = j.location   ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">📍 <strong>Lugar:</strong> ${esc(j.location)}</div>` : '';
-    const time  = j.start_time ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Hora:</strong> ${esc(j.start_time)}</div>` : '';
+    const loc       = j.location   ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">📍 <strong>Lugar:</strong> ${esc(j.location)}</div>` : '';
+    const timeRange = (j.start_time || j.end_time)
+      ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Horario:</strong> ${esc(j.start_time || '?')}${j.end_time ? ' — ' + esc(j.end_time) : ''}</div>`
+      : '';
     const notes = j.notes      ? `<div style="color:#6b7280;font-size:.85rem;margin-top:6px;font-style:italic">${esc(j.notes)}</div>` : '';
     return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px">
       <strong style="font-size:1rem">${esc(j.title)}</strong>
-      ${loc}${time}${assigned}${notes}
+      ${loc}${timeRange}${assigned}${notes}
     </div>`;
   }).join('');
 

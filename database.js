@@ -207,8 +207,9 @@ async function initDb() {
   // ── Midday reminder flag ──────────────────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS reminder_sent_midday BOOLEAN DEFAULT FALSE`);
 
-  // ── Shift start time ──────────────────────────────────────────────────────
+  // ── Shift start and end time ─────────────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS start_time TEXT`);
+  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS end_time TEXT`);
 
   // ── Calendar Access (employees allowed to view/edit calendar) ─────────────
   await pool.query(`

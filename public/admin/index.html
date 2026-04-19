@@ -40,6 +40,7 @@
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
     <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
+    <button class="tab-btn" data-tab="cleardata">🗑 Datos</button>
   </div>
 
   <!-- ── DASHBOARD TAB ───────────────────────────────────────────── -->
@@ -447,6 +448,59 @@
     </div>
   </div>
 
+  <!-- ── CLEAR DATA TAB ───────────────────────────────────────────── -->
+  <div id="tab-cleardata" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <h2 style="color:var(--danger);margin-bottom:4px">🗑 Borrar Datos de Prueba</h2>
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:20px">Elimina registros de la base de datos. Esta acción <strong>no se puede deshacer</strong>.</p>
+
+        <div style="display:grid;gap:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff">
+            <div>
+              <strong>Registros de Marcaje</strong>
+              <div style="font-size:.84rem;color:var(--muted);margin-top:2px">Clock in/out punches (time cards sin proyecto)</div>
+            </div>
+            <button class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearTimeRecordsBtn">Eliminar</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff">
+            <div>
+              <strong>Registros de Proyectos Extra</strong>
+              <div style="font-size:.84rem;color:var(--muted);margin-top:2px">Entradas con nombre de proyecto asignado</div>
+            </div>
+            <button class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearProjectsBtn">Eliminar</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff">
+            <div>
+              <strong>Trabajos del Calendario</strong>
+              <div style="font-size:.84rem;color:var(--muted);margin-top:2px">Todos los turnos y jobs programados</div>
+            </div>
+            <button class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearCalendarBtn">Eliminar</button>
+          </div>
+
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--border);border-radius:8px;background:#fff">
+            <div>
+              <strong>Registros de Nómina</strong>
+              <div style="font-size:.84rem;color:var(--muted);margin-top:2px">Todos los pagos registrados</div>
+            </div>
+            <button class="btn btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearPayrollBtn">Eliminar</button>
+          </div>
+
+          <div style="padding:16px;border:2px solid var(--danger);border-radius:8px;background:#fff5f5;margin-top:6px">
+            <div style="margin-bottom:10px">
+              <strong style="color:var(--danger)">Eliminar Todo</strong>
+              <div style="font-size:.84rem;color:var(--muted);margin-top:2px">Borra todos los registros anteriores de una sola vez</div>
+            </div>
+            <button class="btn btn-primary" style="background:var(--danger);border-color:var(--danger);width:100%" id="clearAllBtn">🗑 Eliminar Todo</button>
+          </div>
+        </div>
+        <div id="clearDataResult" style="margin-top:14px;font-size:.9rem;display:none"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Calendar / Job Modal -->
   <div class="modal-overlay" id="jobModal">
     <div class="modal">
@@ -469,20 +523,20 @@
             <label>Location / Store</label>
             <input type="text" id="jobLocation" class="form-control" placeholder="Address or store name">
           </div>
-          <div class="form-group">
-            <label>Start Time</label>
-            <input type="time" id="jobStartTime" class="form-control">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group" style="margin:0">
+              <label>Start Time</label>
+              <input type="time" id="jobStartTime" class="form-control">
+            </div>
+            <div class="form-group" style="margin:0">
+              <label>End Time</label>
+              <input type="time" id="jobEndTime" class="form-control">
+            </div>
           </div>
           <div class="form-group">
             <label>Notes</label>
             <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes or instructions"></textarea>
           </div>
-        <div class="form-group">
-          <label>Asignar Empleados</label>
-          <div id="jobEmpList" style="display:grid;gap:6px;margin-top:6px;max-height:180px;overflow-y:auto;padding-right:4px">
-            <span style="color:var(--muted);font-size:.85rem">Cargando empleados...</span>
-          </div>
-        </div>
         <div class="form-group" id="jobImagesGroup" style="display:none">
             <label>Reference Images</label>
             <div id="jobImagesList" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
@@ -607,7 +661,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', cleardata: 'tab-cleardata' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1433,7 +1487,7 @@
           html += `<div style="min-height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;font-size:.78rem;cursor:pointer;background:${isToday?'#eff6ff':'#fff'}"
                         onclick="calOpenDay('${dateStr}')">
             <div style="font-weight:${isToday?'700':'400'};color:${isToday?'var(--primary)':'inherit'};margin-bottom:2px">${d}</div>
-            ${dayJobs.map(j => `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}${j.start_time ? ' — ' + escHtml(j.start_time) : ''}">${escHtml(j.title)}${j.start_time ? ' ' + escHtml(j.start_time) : ''}</div>`).join('')}
+            ${dayJobs.map(j => { const t = j.start_time ? ` ${escHtml(j.start_time)}${j.end_time ? '-'+escHtml(j.end_time) : ''}` : ''; return `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}${t}">${escHtml(j.title)}${t}</div>`; }).join('')}
           </div>`;
         }
         grid.innerHTML = html;
@@ -1446,9 +1500,9 @@
             <div style="flex:1">
               <strong>${escHtml(j.title)}</strong>
               <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
-              ${j.location   ? `<div style="font-size:.82rem;color:var(--muted)">📍 ${escHtml(j.location)}</div>` : ''}
-              ${j.start_time ? `<div style="font-size:.82rem;color:var(--muted)">🕐 ${escHtml(j.start_time)}</div>` : ''}
-              ${j.notes      ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
+              ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">📍 ${escHtml(j.location)}</div>` : ''}
+              ${(j.start_time || j.end_time) ? `<div style="font-size:.82rem;color:var(--muted)">🕐 ${escHtml(j.start_time||'?')}${j.end_time ? ' — ' + escHtml(j.end_time) : ''}</div>` : ''}
+              ${j.notes ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
               <button class="btn btn-sm btn-outline" onclick="calEditJob(${j.id})">Edit</button>
@@ -1470,12 +1524,12 @@
       document.getElementById('jobTitle').value = '';
       document.getElementById('jobLocation').value = '';
       document.getElementById('jobStartTime').value = '';
+      document.getElementById('jobEndTime').value = '';
       document.getElementById('jobNotes').value = '';
       document.getElementById('jobError').classList.remove('show');
       document.getElementById('jobImagesGroup').style.display = 'none';
       document.getElementById('jobImagesList').innerHTML = '';
       document.getElementById('jobImgUploadStatus').textContent = '';
-      loadJobEmployees([]);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1488,6 +1542,7 @@
       document.getElementById('jobDate').value       = job.scheduled_date;
       document.getElementById('jobLocation').value   = job.location || '';
       document.getElementById('jobStartTime').value  = job.start_time || '';
+      document.getElementById('jobEndTime').value    = job.end_time || '';
       document.getElementById('jobNotes').value      = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
       // Show existing images
@@ -1495,7 +1550,6 @@
       document.getElementById('jobImagesGroup').style.display = '';
       renderJobImages(imageUrls);
       document.getElementById('jobImgUploadStatus').textContent = '';
-      loadJobEmployees(job.assigned_to || []);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1564,8 +1618,9 @@
         scheduled_date: document.getElementById('jobDate').value,
         location: document.getElementById('jobLocation').value.trim(),
         start_time: document.getElementById('jobStartTime').value || null,
+        end_time: document.getElementById('jobEndTime').value || null,
         notes: document.getElementById('jobNotes').value.trim(),
-        assigned_to: [...document.querySelectorAll('#jobEmpList input[type=checkbox]:checked')].map(cb => Number(cb.value))
+        assigned_to: []
       });
       try {
         if (calEditId) {
@@ -1597,22 +1652,6 @@
       loadCalendarAccess();
       loadReminderSettings();
       loadAdminRecipients();
-    }
-
-    async function loadJobEmployees(assignedIds) {
-      const el = document.getElementById('jobEmpList');
-      try {
-        const emps = await api('/admin/employees');
-        if (!emps.length) { el.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No hay empleados.</span>'; return; }
-        const assigned = new Set(assignedIds || []);
-        el.innerHTML = emps.map(e =>
-          `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--surface-alt,#f3f4f6);border-radius:6px;cursor:pointer;font-size:.9rem">
-            <input type="checkbox" value="${e.id}" ${assigned.has(e.id) ? 'checked' : ''} style="width:16px;height:16px">
-            ${escHtml(e.name)}
-            ${e.email ? `<span style="font-size:.78rem;color:var(--muted);margin-left:auto">${escHtml(e.email)}</span>` : '<span style="font-size:.78rem;color:#f59e0b;margin-left:auto">sin email</span>'}
-          </label>`
-        ).join('');
-      } catch(ex) { el.innerHTML = '<span style="color:var(--danger);font-size:.85rem">Error cargando empleados</span>'; }
     }
 
     document.getElementById('testEmailBtn').addEventListener('click', async () => {
@@ -1863,6 +1902,59 @@
 
     // ── Init ──────────────────────────────────────────────────────
     populateFilters().then(() => loadRecords());
+
+    // ── Clear Test Data ───────────────────────────────────────────
+    (function() {
+      const MSG = '¿Estás seguro? Esta acción no se puede deshacer.';
+      const resultEl = document.getElementById('clearDataResult');
+
+      function showResult(msg, ok) {
+        resultEl.textContent = msg;
+        resultEl.style.color = ok ? '#16a34a' : 'var(--danger)';
+        resultEl.style.display = 'block';
+      }
+
+      async function clearData(endpoint, label, btn) {
+        if (!confirm(MSG)) return;
+        btn.disabled = true;
+        const prev = btn.textContent;
+        btn.textContent = '⏳...';
+        try {
+          const data = await api('/admin/clear/' + endpoint, { method: 'DELETE', body: '{}' });
+          showResult(`✓ ${label}: ${data.deleted != null ? data.deleted + ' registros eliminados' : 'completado'}`, true);
+        } catch(ex) {
+          showResult(`✗ Error al eliminar ${label}: ${ex.message}`, false);
+        }
+        btn.disabled = false;
+        btn.textContent = prev;
+      }
+
+      document.getElementById('clearTimeRecordsBtn').addEventListener('click', function() {
+        clearData('time-records', 'Marcajes', this);
+      });
+      document.getElementById('clearProjectsBtn').addEventListener('click', function() {
+        clearData('projects', 'Proyectos extra', this);
+      });
+      document.getElementById('clearCalendarBtn').addEventListener('click', function() {
+        clearData('calendar-jobs', 'Trabajos del calendario', this);
+      });
+      document.getElementById('clearPayrollBtn').addEventListener('click', function() {
+        clearData('payroll', 'Nómina', this);
+      });
+      document.getElementById('clearAllBtn').addEventListener('click', async function() {
+        if (!confirm('⚠️ Esto eliminará TODOS los registros (marcajes, proyectos, calendario, nómina).\n\n' + MSG)) return;
+        this.disabled = true;
+        this.textContent = '⏳ Eliminando...';
+        try {
+          await api('/admin/clear/all', { method: 'DELETE', body: '{}' });
+          showResult('✓ Todos los datos han sido eliminados.', true);
+        } catch(ex) {
+          showResult('✗ Error: ' + ex.message, false);
+        }
+        this.disabled = false;
+        this.textContent = '🗑 Eliminar Todo';
+      });
+    })();
   })();
   </script>
 </body>
