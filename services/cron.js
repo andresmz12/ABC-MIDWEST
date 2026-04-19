@@ -53,40 +53,45 @@ async function getJobsWithEmployees(dateStr) {
 }
 
 async function sendEmployeeReminders(dateStr, flag, label) {
+  // Check if this reminder has already been sent for this date
   const { rows: pendingJobs } = await query(
     `SELECT id FROM scheduled_jobs WHERE scheduled_date = $1 AND ${flag} = FALSE`,
     [dateStr]
   );
   if (!pendingJobs.length) {
-    console.log(`[Cron] ${label}: no pending jobs for ${dateStr}`);
+    console.log(`[Cron] ${label}: already sent or no jobs for ${dateStr}`);
     return;
   }
 
-  const { rows: empRows } = await query(`
-    SELECT u.id, u.name, u.email,
-           json_agg(json_build_object(
-             'id', j.id, 'title', j.title, 'scheduled_date', j.scheduled_date,
-             'location', j.location, 'notes', j.notes, 'start_time', j.start_time, 'end_time', j.end_time
-           ) ORDER BY j.start_time NULLS LAST, j.title) AS jobs
-    FROM scheduled_jobs j
-    JOIN users u ON u.id = ANY(j.assigned_to)
-    WHERE j.scheduled_date = $1 AND j.${flag} = FALSE AND u.email IS NOT NULL AND u.email != ''
-    GROUP BY u.id, u.name, u.email
+  // Get ALL jobs for the date (all employees see the full schedule)
+  const { rows: jobs } = await query(`
+    SELECT id, title, location, notes, start_time, end_time
+    FROM scheduled_jobs
+    WHERE scheduled_date = $1
+    ORDER BY start_time NULLS LAST, title
   `, [dateStr]);
 
-  if (empRows.length === 0) {
-    console.log(`[Cron] ${label}: ${pendingJobs.length} job(s) found but no assigned employees with email — skipping flag update`);
-    return;
+  // Get ALL registered employees who have an email address
+  const { rows: employees } = await query(`
+    SELECT id, name, email FROM users
+    WHERE email IS NOT NULL AND email != '' AND role = 'employee'
+    ORDER BY name
+  `);
+
+  console.log(`[Cron] ${label}: ${jobs.length} job(s), ${employees.length} employee(s) with email`);
+
+  if (!employees.length) {
+    console.log(`[Cron] ${label}: no employees with email — marking sent to avoid retry loop`);
+  } else {
+    await Promise.all(employees.map(emp => sendEmployeeReminder(emp, jobs, label, dateStr)));
   }
 
-  await Promise.all(empRows.map(emp => sendEmployeeReminder(emp, emp.jobs, label, dateStr)));
-
-  // Only mark as sent once emails have actually been attempted
+  // Mark jobs as sent so we don't re-send next minute
   await query(
     `UPDATE scheduled_jobs SET ${flag} = TRUE WHERE scheduled_date = $1 AND ${flag} = FALSE`,
     [dateStr]
   );
-  console.log(`[Cron] ${label}: marked ${pendingJobs.length} job(s) sent, emailed ${empRows.length} employee(s)`);
+  console.log(`[Cron] ${label}: done`);
 }
 
 // Send admin summary for a given date with a label
