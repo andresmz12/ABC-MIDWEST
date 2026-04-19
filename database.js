@@ -198,9 +198,9 @@ async function initDb() {
   `);
   await pool.query(`
     INSERT INTO notification_settings (key, value) VALUES
-      ('time_night',   '02:00'),
-      ('time_morning', '14:00'),
-      ('time_midday',  '18:00')
+      ('time_night',   '20:00'),
+      ('time_morning', '08:00'),
+      ('time_midday',  '12:00')
     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `);
 

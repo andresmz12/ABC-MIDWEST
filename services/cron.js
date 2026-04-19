@@ -2,13 +2,24 @@ const cron = require('node-cron');
 const { query } = require('../database');
 const { sendEmployeeReminder, sendAdminSummary } = require('./email');
 
-function toLocalDateString(date) {
-  return date.toISOString().split('T')[0]; // UTC date YYYY-MM-DD
+// Current time in Chicago as HH:MM (24h). Handles CST/CDT automatically.
+function currentHHMM() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).formatToParts(new Date());
+  const h = parts.find(p => p.type === 'hour').value;
+  const m = parts.find(p => p.type === 'minute').value;
+  return `${h === '24' ? '00' : h}:${m}`;
 }
 
-function currentHHMM() {
-  const now = new Date();
-  return `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}`;
+// Calendar date in Chicago timezone (YYYY-MM-DD). offsetDays=1 → tomorrow Chicago time.
+// Critical: at 8pm CST the UTC date is already the next day, so we must use Chicago date.
+function getChicagoDate(offsetDays = 0) {
+  const d = new Date(Date.now() + offsetDays * 864e5);
+  return d.toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
 }
 
 async function getSettings() {
@@ -101,10 +112,8 @@ function initCron() {
     try {
       const hhmm    = currentHHMM();
       const settings = await getSettings();
-      const now      = new Date();
-      const today    = toLocalDateString(now);
-      const tmrw     = new Date(now); tmrw.setUTCDate(now.getUTCDate() + 1);
-      const tomorrow = toLocalDateString(tmrw);
+      const today    = getChicagoDate(0);
+      const tomorrow = getChicagoDate(1);
 
       if (hhmm === settings.time_night) {
         await sendEmployeeReminders(tomorrow, 'reminder_sent_night', 'Trabajos de mañana');
