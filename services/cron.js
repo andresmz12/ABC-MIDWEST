@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { query } = require('../database');
-const { sendEmployeeReminder, sendAdminSummary } = require('./email');
+const { sendAdminSummary } = require('./email');
 
 // Current time in Chicago as HH:MM (24h). Handles CST/CDT automatically.
 function currentHHMM() {
@@ -52,48 +52,6 @@ async function getJobsWithEmployees(dateStr) {
   return rows;
 }
 
-async function sendEmployeeReminders(dateStr, flag, label) {
-  // Check if this reminder has already been sent for this date
-  const { rows: pendingJobs } = await query(
-    `SELECT id FROM scheduled_jobs WHERE scheduled_date = $1 AND ${flag} = FALSE`,
-    [dateStr]
-  );
-  if (!pendingJobs.length) {
-    console.log(`[Cron] ${label}: already sent or no jobs for ${dateStr}`);
-    return;
-  }
-
-  // Get ALL jobs for the date (all employees see the full schedule)
-  const { rows: jobs } = await query(`
-    SELECT id, title, location, notes, start_time, end_time
-    FROM scheduled_jobs
-    WHERE scheduled_date = $1
-    ORDER BY start_time NULLS LAST, title
-  `, [dateStr]);
-
-  // Get ALL registered employees who have an email address
-  const { rows: employees } = await query(`
-    SELECT id, name, email FROM users
-    WHERE email IS NOT NULL AND email != '' AND role = 'employee'
-    ORDER BY name
-  `);
-
-  console.log(`[Cron] ${label}: ${jobs.length} job(s), ${employees.length} employee(s) with email`);
-
-  if (!employees.length) {
-    console.log(`[Cron] ${label}: no employees with email — marking sent to avoid retry loop`);
-  } else {
-    await Promise.all(employees.map(emp => sendEmployeeReminder(emp, jobs, label, dateStr)));
-  }
-
-  // Mark jobs as sent so we don't re-send next minute
-  await query(
-    `UPDATE scheduled_jobs SET ${flag} = TRUE WHERE scheduled_date = $1 AND ${flag} = FALSE`,
-    [dateStr]
-  );
-  console.log(`[Cron] ${label}: done`);
-}
-
 // Send admin summary for a given date with a label
 async function runAdminSummary(dateStr, label) {
   const adminEmails = await getAdminEmails();
@@ -122,20 +80,17 @@ function initCron() {
 
       if (hhmm === settings.time_night) {
         console.log('[Cron] → NIGHT reminder firing');
-        await sendEmployeeReminders(tomorrow, 'reminder_sent_night', 'Trabajos de mañana');
-        await runAdminSummary(tomorrow, 'Resumen de mañana');
+        await runAdminSummary(tomorrow, 'Trabajos de mañana');
       }
 
       if (hhmm === settings.time_morning) {
         console.log('[Cron] → MORNING reminder firing');
-        await sendEmployeeReminders(today, 'reminder_sent_morning', 'Trabajos de hoy');
-        await runAdminSummary(today, 'Resumen del día');
+        await runAdminSummary(today, 'Trabajos de hoy');
       }
 
       if (hhmm === settings.time_midday) {
         console.log('[Cron] → MIDDAY reminder firing');
-        await sendEmployeeReminders(today, 'reminder_sent_midday', 'Recordatorio del mediodía');
-        await runAdminSummary(today, 'Recordatorio mediodía');
+        await runAdminSummary(today, 'Recordatorio del mediodía');
       }
     } catch (err) {
       console.error('[Cron] Reminder error:', err.message, err.stack);
