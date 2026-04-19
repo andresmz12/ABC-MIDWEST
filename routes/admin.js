@@ -493,12 +493,12 @@ router.get('/scheduled-jobs', async (req, res) => {
 
 router.post('/scheduled-jobs', async (req, res) => {
   try {
-    const { title, scheduled_date, assigned_to, location, notes } = req.body;
+    const { title, scheduled_date, assigned_to, location, notes, start_time } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     const { rows } = await query(
-      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [title, scheduled_date, assignedArr, location || null, notes || null]
+      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes, start_time) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -506,12 +506,12 @@ router.post('/scheduled-jobs', async (req, res) => {
 
 router.put('/scheduled-jobs/:id', async (req, res) => {
   try {
-    const { title, scheduled_date, assigned_to, location, notes } = req.body;
+    const { title, scheduled_date, assigned_to, location, notes, start_time } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     await query(
-      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5 WHERE id=$6',
-      [title, scheduled_date, assignedArr, location || null, notes || null, req.params.id]
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5, start_time=$6 WHERE id=$7',
+      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, req.params.id]
     );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }

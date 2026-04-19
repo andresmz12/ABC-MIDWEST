@@ -198,14 +198,17 @@ async function initDb() {
   `);
   await pool.query(`
     INSERT INTO notification_settings (key, value) VALUES
-      ('time_night',   '20:00'),
-      ('time_morning', '08:00'),
-      ('time_midday',  '12:00')
-    ON CONFLICT (key) DO NOTHING
+      ('time_night',   '02:00'),
+      ('time_morning', '14:00'),
+      ('time_midday',  '18:00')
+    ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
   `);
 
   // ── Midday reminder flag ──────────────────────────────────────────────────
   await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS reminder_sent_midday BOOLEAN DEFAULT FALSE`);
+
+  // ── Shift start time ──────────────────────────────────────────────────────
+  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS start_time TEXT`);
 
   // ── Calendar Access (employees allowed to view/edit calendar) ─────────────
   await pool.query(`

@@ -466,8 +466,12 @@
             <input type="date" id="jobDate" class="form-control" required>
           </div>
           <div class="form-group">
-            <label>Location</label>
-            <input type="text" id="jobLocation" class="form-control" placeholder="Address or description">
+            <label>Location / Store</label>
+            <input type="text" id="jobLocation" class="form-control" placeholder="Address or store name">
+          </div>
+          <div class="form-group">
+            <label>Start Time</label>
+            <input type="time" id="jobStartTime" class="form-control">
           </div>
           <div class="form-group">
             <label>Notes</label>
@@ -1429,7 +1433,7 @@
           html += `<div style="min-height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;font-size:.78rem;cursor:pointer;background:${isToday?'#eff6ff':'#fff'}"
                         onclick="calOpenDay('${dateStr}')">
             <div style="font-weight:${isToday?'700':'400'};color:${isToday?'var(--primary)':'inherit'};margin-bottom:2px">${d}</div>
-            ${dayJobs.map(j => `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}">${escHtml(j.title)}</div>`).join('')}
+            ${dayJobs.map(j => `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}${j.start_time ? ' — ' + escHtml(j.start_time) : ''}">${escHtml(j.title)}${j.start_time ? ' ' + escHtml(j.start_time) : ''}</div>`).join('')}
           </div>`;
         }
         grid.innerHTML = html;
@@ -1442,8 +1446,9 @@
             <div style="flex:1">
               <strong>${escHtml(j.title)}</strong>
               <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
-              ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.location)}</div>` : ''}
-              ${j.notes    ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
+              ${j.location   ? `<div style="font-size:.82rem;color:var(--muted)">📍 ${escHtml(j.location)}</div>` : ''}
+              ${j.start_time ? `<div style="font-size:.82rem;color:var(--muted)">🕐 ${escHtml(j.start_time)}</div>` : ''}
+              ${j.notes      ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
               <button class="btn btn-sm btn-outline" onclick="calEditJob(${j.id})">Edit</button>
@@ -1464,6 +1469,7 @@
       document.getElementById('jobDate').value = dateStr;
       document.getElementById('jobTitle').value = '';
       document.getElementById('jobLocation').value = '';
+      document.getElementById('jobStartTime').value = '';
       document.getElementById('jobNotes').value = '';
       document.getElementById('jobError').classList.remove('show');
       document.getElementById('jobImagesGroup').style.display = 'none';
@@ -1478,10 +1484,11 @@
       if (!job) return;
       calEditId = id;
       document.getElementById('jobModalTitle').textContent = 'Edit Job';
-      document.getElementById('jobTitle').value    = job.title;
-      document.getElementById('jobDate').value     = job.scheduled_date;
-      document.getElementById('jobLocation').value = job.location || '';
-      document.getElementById('jobNotes').value    = job.notes || '';
+      document.getElementById('jobTitle').value      = job.title;
+      document.getElementById('jobDate').value       = job.scheduled_date;
+      document.getElementById('jobLocation').value   = job.location || '';
+      document.getElementById('jobStartTime').value  = job.start_time || '';
+      document.getElementById('jobNotes').value      = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
       // Show existing images
       const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
@@ -1556,6 +1563,7 @@
         title: document.getElementById('jobTitle').value.trim(),
         scheduled_date: document.getElementById('jobDate').value,
         location: document.getElementById('jobLocation').value.trim(),
+        start_time: document.getElementById('jobStartTime').value || null,
         notes: document.getElementById('jobNotes').value.trim(),
         assigned_to: [...document.querySelectorAll('#jobEmpList input[type=checkbox]:checked')].map(cb => Number(cb.value))
       });

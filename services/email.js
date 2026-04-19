@@ -7,7 +7,7 @@ function getClient() {
   return sgMail;
 }
 
-const FROM = process.env.SENDGRID_FROM_EMAIL || 'andresmarinzapata@gmail.com';
+const FROM = process.env.SENDGRID_FROM_EMAIL || 'info@abcmcleaning.com';
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -29,11 +29,12 @@ function baseTemplate(title, bodyHtml) {
 }
 
 function jobCard(j) {
-  const loc   = j.location ? `<div style="color:#6b7280;font-size:.88rem;margin-top:2px">📍 ${esc(j.location)}</div>` : '';
-  const notes = j.notes    ? `<div style="color:#6b7280;font-size:.85rem;margin-top:4px;font-style:italic">${esc(j.notes)}</div>` : '';
-  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:10px">
-    <strong style="font-size:.95rem">${esc(j.title)}</strong>
-    ${loc}${notes}
+  const loc   = j.location   ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">📍 <strong>Lugar:</strong> ${esc(j.location)}</div>` : '';
+  const time  = j.start_time ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Hora:</strong> ${esc(j.start_time)}</div>` : '';
+  const notes = j.notes      ? `<div style="color:#6b7280;font-size:.85rem;margin-top:6px;font-style:italic">${esc(j.notes)}</div>` : '';
+  return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <strong style="font-size:1rem">${esc(j.title)}</strong>
+    ${loc}${time}${notes}
   </div>`;
 }
 
@@ -43,13 +44,13 @@ async function sendEmployeeReminder(employee, jobs, label, dateStr) {
   const client = getClient();
   if (!client || !employee.email) return;
 
-  const isToday    = !label.toLowerCase().includes('mañana');
-  const greeting   = isToday ? 'Tienes trabajos programados para hoy' : 'Tienes trabajos programados para mañana';
-  const jobCards   = jobs.map(jobCard).join('');
+  const isToday  = !label.toLowerCase().includes('mañana');
+  const dayLabel = isToday ? 'hoy' : 'mañana';
+  const jobCards = jobs.map(jobCard).join('');
 
   const html = baseTemplate(`Recordatorio — ${esc(label)} (${esc(dateStr)})`, `
     <p style="margin-top:0">Hola <strong>${esc(employee.name)}</strong>,</p>
-    <p>${greeting} (<strong>${esc(dateStr)}</strong>):</p>
+    <p>Tienes <strong>${jobs.length} trabajo${jobs.length !== 1 ? 's' : ''}</strong> programado${jobs.length !== 1 ? 's' : ''} para <strong>${dayLabel}</strong> (<strong>${esc(dateStr)}</strong>):</p>
     ${jobCards}
   `);
 
@@ -75,13 +76,14 @@ async function sendAdminSummary(jobs, dateStr, adminEmails) {
 
   const jobCards = jobs.map(j => {
     const assigned = j.assigned_names && j.assigned_names.length
-      ? `<div style="color:#6b7280;font-size:.85rem;margin-top:4px">👷 ${j.assigned_names.map(esc).join(', ')}</div>`
+      ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">👷 <strong>Empleados:</strong> ${j.assigned_names.map(esc).join(', ')}</div>`
       : '';
-    const loc   = j.location ? `<div style="color:#6b7280;font-size:.88rem;margin-top:2px">📍 ${esc(j.location)}</div>` : '';
-    const notes = j.notes    ? `<div style="color:#6b7280;font-size:.85rem;margin-top:4px;font-style:italic">${esc(j.notes)}</div>` : '';
-    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-bottom:10px">
-      <strong style="font-size:.95rem">${esc(j.title)}</strong>
-      ${loc}${assigned}${notes}
+    const loc   = j.location   ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">📍 <strong>Lugar:</strong> ${esc(j.location)}</div>` : '';
+    const time  = j.start_time ? `<div style="color:#374151;font-size:.9rem;margin-top:4px">🕐 <strong>Hora:</strong> ${esc(j.start_time)}</div>` : '';
+    const notes = j.notes      ? `<div style="color:#6b7280;font-size:.85rem;margin-top:6px;font-style:italic">${esc(j.notes)}</div>` : '';
+    return `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+      <strong style="font-size:1rem">${esc(j.title)}</strong>
+      ${loc}${time}${assigned}${notes}
     </div>`;
   }).join('');
 
