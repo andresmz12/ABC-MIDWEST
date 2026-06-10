@@ -145,12 +145,14 @@
   });
 
   // Inline slug verification with debounce
+  let slugReqId = 0;
   document.getElementById('companySlug').addEventListener('input', e => {
     const raw = e.target.value;
     const slug = raw.toLowerCase().replace(/\s/g, '-');
     if (raw !== slug) e.target.value = slug;
 
     clearTimeout(slugDebounce);
+    resolvedSlug = null; // always invalidate while typing
     const msg   = document.getElementById('slugMsg');
     const input = document.getElementById('companySlug');
 
@@ -158,16 +160,18 @@
       msg.textContent = '';
       msg.className = 'auth-inline-msg info';
       input.className = 'auth-input';
-      resolvedSlug = null;
       return;
     }
 
+    input.className = 'auth-input';
     msg.className = 'auth-inline-msg info';
     msg.textContent = 'Checking…';
 
+    const reqId = ++slugReqId;
     slugDebounce = setTimeout(async () => {
       try {
         const res  = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
+        if (reqId !== slugReqId) return; // stale response — a newer request is in flight
         if (res.ok) {
           const data = await res.json();
           resolvedSlug = slug;
@@ -181,6 +185,7 @@
           msg.textContent = '✗ Company not found';
         }
       } catch {
+        if (reqId !== slugReqId) return;
         msg.className   = 'auth-inline-msg err';
         msg.textContent = 'Network error';
       }

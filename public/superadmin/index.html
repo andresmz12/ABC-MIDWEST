@@ -202,7 +202,7 @@
             <td style="font-size:.8rem;color:#9ca3af">${new Date(c.created_at).toLocaleDateString()}</td>
             <td>
               <button class="btn-download" onclick="editCompany(${c.id})">Edit</button>
-              <button class="btn-download" style="color:#dc2626;border-color:#dc2626" onclick="deactivateCompany(${c.id}, '${esc(c.name)}', ${c.active})">
+              <button class="btn-download" style="color:#dc2626;border-color:#dc2626" onclick="deactivateCompany(${c.id}, ${JSON.stringify(c.name)}, ${c.active})">
                 ${c.active ? 'Deactivate' : 'Activate'}
               </button>
             </td>

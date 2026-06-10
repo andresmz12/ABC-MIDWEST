@@ -211,6 +211,7 @@
     triggerSlugCheck(slug);
   });
 
+  let slugReqId = 0;
   function triggerSlugCheck(slug) {
     clearTimeout(slugDebounce);
     slugOk = false;
@@ -225,12 +226,15 @@
     }
 
     preview.textContent = `Your team will sign in with slug: ${slug}`;
+    input.className = 'auth-input';
     msg.className = 'auth-inline-msg info';
     msg.textContent = 'Checking availability…';
 
+    const reqId = ++slugReqId;
     slugDebounce = setTimeout(async () => {
       try {
         const res = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
+        if (reqId !== slugReqId) return; // stale response
         if (res.ok) {
           slugOk = false;
           input.className = 'auth-input is-invalid';
@@ -243,6 +247,7 @@
           msg.textContent = '✓ Available';
         }
       } catch {
+        if (reqId !== slugReqId) return;
         msg.className = 'auth-inline-msg err';
         msg.textContent = 'Could not verify slug';
       }

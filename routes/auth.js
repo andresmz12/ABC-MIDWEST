@@ -4,6 +4,9 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../database');
 const { JWT_SECRET } = require('../middleware/auth');
 
+// Computed once at startup — keeps response time constant when user not found (prevents username enumeration)
+const DUMMY_HASH = bcrypt.hashSync('__worktrack_dummy_sentinel__', 10);
+
 // ── Login ──────────────────────────────────────────────────────────────────────
 
 router.post('/login', async (req, res) => {
@@ -36,7 +39,9 @@ router.post('/login', async (req, res) => {
     );
     user = rows[0];
 
-    if (!user || !bcrypt.compareSync(password, user.password)) {
+    // Always run bcrypt to prevent username enumeration via timing
+    const hashToCheck = user ? user.password : DUMMY_HASH;
+    if (!bcrypt.compareSync(password, hashToCheck) || !user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -77,6 +82,10 @@ router.post('/register', async (req, res) => {
 
     if (!company_name || !company_slug || !admin_name || !admin_username || !admin_password) {
       return res.status(400).json({ error: 'company_name, company_slug, admin_name, admin_username and admin_password are required' });
+    }
+
+    if (admin_password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
     }
 
     const slug = company_slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
@@ -142,7 +151,9 @@ router.post('/superadmin-login', async (req, res) => {
     );
     const user = rows[0];
 
-    if (!user || !bcrypt.compareSync(password, user.password)) {
+    // Always run bcrypt to prevent username enumeration via timing
+    const saHashToCheck = user ? user.password : DUMMY_HASH;
+    if (!bcrypt.compareSync(password, saHashToCheck) || !user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
