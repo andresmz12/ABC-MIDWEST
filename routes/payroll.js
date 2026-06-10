@@ -21,21 +21,22 @@ router.post('/payroll', async (req, res) => {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
 
+    // Verify employee belongs to this company
     const { rows: emp } = await query(
-      "SELECT id FROM users WHERE id = $1 AND role = 'employee'",
-      [employee_id]
+      "SELECT id FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
+      [employee_id, req.companyId]
     );
     if (!emp.length) return res.status(400).json({ error: 'Employee not found' });
 
     const { rows } = await query(
-      'INSERT INTO payroll (user_id, payment_date, amount) VALUES ($1, $2, $3) RETURNING id',
-      [employee_id, payment_date, parsed]
+      'INSERT INTO payroll (company_id, user_id, payment_date, amount) VALUES ($1, $2, $3, $4) RETURNING id',
+      [req.companyId, employee_id, payment_date, parsed]
     );
     res.status(201).json({ id: rows[0].id });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── Payment history (filter by employee_id and/or year) ──────────────────────
+// ─── Payment history ───────────────────────────────────────────────────────────
 
 router.get('/payroll', async (req, res) => {
   try {
@@ -45,12 +46,12 @@ router.get('/payroll', async (req, res) => {
              p.payment_date, p.amount
       FROM payroll p
       JOIN users u ON u.id = p.user_id
-      WHERE 1=1
+      WHERE p.company_id = $1
     `;
-    const params = [];
-    let i = 1;
-    if (employee_id) { sql += ` AND p.user_id = $${i++}`;                           params.push(employee_id); }
-    if (year)        { sql += ` AND LEFT(p.payment_date, 4) = $${i++}`;              params.push(String(year)); }
+    const params = [req.companyId];
+    let i = 2;
+    if (employee_id) { sql += ` AND p.user_id = $${i++}`;              params.push(employee_id); }
+    if (year)        { sql += ` AND LEFT(p.payment_date, 4) = $${i++}`; params.push(String(year)); }
     sql += ' ORDER BY p.payment_date DESC, u.name';
     const { rows } = await query(sql, params);
     res.json(rows);
@@ -64,14 +65,16 @@ router.get('/payroll/summary', async (req, res) => {
     const year = String(req.query.year || new Date().getFullYear());
     const { rows } = await query(`
       SELECT u.id AS employee_id, u.name AS employee,
-             COUNT(p.id)::int    AS payment_count,
+             COUNT(p.id)::int AS payment_count,
              COALESCE(SUM(p.amount), 0) AS total
       FROM users u
-      LEFT JOIN payroll p ON p.user_id = u.id AND LEFT(p.payment_date, 4) = $1
-      WHERE u.role = 'employee'
+      LEFT JOIN payroll p ON p.user_id = u.id
+        AND LEFT(p.payment_date, 4) = $2
+        AND p.company_id = $1
+      WHERE u.role = 'employee' AND u.company_id = $1
       GROUP BY u.id, u.name
       ORDER BY u.name
-    `, [year]);
+    `, [req.companyId, year]);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -85,9 +88,9 @@ router.get('/payroll/export', async (req, res) => {
       SELECT u.name AS employee, p.payment_date, p.amount
       FROM payroll p
       JOIN users u ON u.id = p.user_id
-      WHERE LEFT(p.payment_date, 4) = $1
+      WHERE p.company_id = $1 AND LEFT(p.payment_date, 4) = $2
       ORDER BY u.name, p.payment_date
-    `, [year]);
+    `, [req.companyId, year]);
 
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet(`Payroll ${year}`);
@@ -111,7 +114,7 @@ router.get('/payroll/export', async (req, res) => {
 });
 
 // ─── Import Payroll from Excel ─────────────────────────────────────────────────
-// Excel format: columns Employee | Payment Date | Amount
+
 router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -121,18 +124,21 @@ router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
     const ws = wb.worksheets[0];
     if (!ws) return res.status(400).json({ error: 'Empty or invalid Excel file' });
 
-    // Build employee name → id map (case-insensitive)
-    const { rows: employees } = await query("SELECT id, name FROM users WHERE role = 'employee'");
+    // Build employee name → id map for this company only
+    const { rows: employees } = await query(
+      "SELECT id, name FROM users WHERE role = 'employee' AND company_id = $1",
+      [req.companyId]
+    );
     const empMap = {};
     employees.forEach(e => { empMap[e.name.toLowerCase()] = e.id; });
 
     const dataRows = [];
     ws.eachRow((row, rowNum) => {
-      if (rowNum === 1) return; // skip header
+      if (rowNum === 1) return;
       const empName   = String(row.getCell(1).value ?? '').trim();
       const dateVal   = row.getCell(2).value;
       const amountVal = row.getCell(3).value;
-      if (!empName && !dateVal && !amountVal) return; // skip blank rows
+      if (!empName && !dateVal && !amountVal) return;
       dataRows.push({ rowNum, empName, dateVal, amountVal });
     });
 
@@ -147,13 +153,11 @@ router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
       const empId = empMap[empName.toLowerCase()];
       if (!empId) { errors.push(`Row ${rowNum}: Employee "${empName}" not found`); continue; }
 
-      // Normalise date to YYYY-MM-DD
       let dateStr;
       try {
         if (dateVal instanceof Date) {
           dateStr = dateVal.toISOString().split('T')[0];
         } else if (typeof dateVal === 'number') {
-          // Excel serial date
           const d = new Date(Math.round((dateVal - 25569) * 86400000));
           dateStr = d.toISOString().split('T')[0];
         } else {
@@ -173,11 +177,14 @@ router.post('/payroll/import', memUpload.single('file'), async (req, res) => {
       }
 
       try {
-        await query('INSERT INTO payroll (user_id, payment_date, amount) VALUES ($1, $2, $3)',
-          [empId, dateStr, parsedAmount]);
+        await query(
+          'INSERT INTO payroll (company_id, user_id, payment_date, amount) VALUES ($1, $2, $3, $4)',
+          [req.companyId, empId, dateStr, parsedAmount]
+        );
         imported++;
       } catch (err) {
-        console.error(err); errors.push(`Row ${rowNum}: import failed`);
+        console.error(err);
+        errors.push(`Row ${rowNum}: import failed`);
       }
     }
 

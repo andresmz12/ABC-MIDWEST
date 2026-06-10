@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>ABC Midwest - Admin</title>
+  <title>Admin Panel — WorkTrack</title>
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
@@ -23,7 +23,7 @@
   <header class="app-header">
     <div class="container" style="max-width:100%">
       <div>
-        <h1><img src="/images/WhatsApp%20Image%202026-03-15%20at%2015.01.42.jpeg" alt="ABC Midwest logo" class="logo-img"> ABC Midwest</h1>
+        <h1><img id="companyLogo" src="/images/WhatsApp%20Image%202026-03-15%20at%2015.01.42.jpeg" alt="Company logo" class="logo-img" style="display:none"> <span id="companyName">WorkTrack</span></h1>
         <div class="header-sub">Admin Panel</div>
       </div>
       <button class="btn-logout" id="logoutBtn">Log Out</button>
@@ -627,6 +627,21 @@
       window.location.href = '/';
       throw '';
     }
+
+    // Load company branding
+    fetch('/api/admin/company', { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => r.ok ? r.json() : null)
+      .then(co => {
+        if (!co) return;
+        document.getElementById('companyName').textContent = co.name;
+        document.title = co.name + ' — Admin';
+        if (co.logo_url) {
+          const img = document.getElementById('companyLogo');
+          img.src = co.logo_url;
+          img.style.display = 'inline';
+        }
+      })
+      .catch(() => {});
 
     const api = async (path, opts = {}) => {
       const res = await fetch('/api' + path, {

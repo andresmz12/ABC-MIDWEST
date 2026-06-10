@@ -25,10 +25,11 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { e
 app.use('/api/auth/login', loginLimiter);
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/admin', require('./routes/admin'));
-app.use('/api/admin', require('./routes/payroll'));
-app.use('/api/employee', require('./routes/employee'));
+app.use('/api/auth',       require('./routes/auth'));
+app.use('/api/admin',      require('./routes/admin'));
+app.use('/api/admin',      require('./routes/payroll'));
+app.use('/api/employee',   require('./routes/employee'));
+app.use('/api/superadmin', require('./routes/superadmin'));
 
 // SPA fallback
 app.get('*', (req, res) => {
@@ -45,7 +46,7 @@ initDb()
   .then(() => {
     initCron();
     app.listen(PORT, () => {
-      console.log(`ABC Midwest Cleaning App running on port ${PORT}`);
+      console.log(`WorkTrack running on port ${PORT}`);
     });
   })
   .catch(err => {

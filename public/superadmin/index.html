@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Super Admin — WorkTrack</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .sa-header { background: #111827; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .sa-header h1 { margin: 0; font-size: 1.2rem; }
+    .sa-header .sub { color: #9ca3af; font-size: .85rem; margin-top: 2px; }
+    .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0 16px; }
+    .stat-card { background: #fff; border-radius: 12px; padding: 18px 22px; flex: 1; min-width: 150px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e5e7eb; }
+    .stat-card .val { font-size: 2rem; font-weight: 700; color: #1a56db; }
+    .stat-card .lbl { font-size: .85rem; color: #6b7280; margin-top: 2px; }
+    .company-list { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e5e7eb; overflow: hidden; }
+    .company-list table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    .company-list th { background: #f9fafb; padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; }
+    .company-list td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    .company-list tr:last-child td { border-bottom: none; }
+    .badge-active { background: #d1fae5; color: #065f46; border-radius: 20px; padding: 2px 10px; font-size: .78rem; font-weight: 600; }
+    .badge-inactive { background: #fee2e2; color: #991b1b; border-radius: 20px; padding: 2px 10px; font-size: .78rem; font-weight: 600; }
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal { background:#fff; border-radius:16px; padding:28px 28px 24px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
+    .modal h3 { margin:0 0 20px; font-size:1.1rem; }
+    .section-label { font-size:.8rem; font-weight:700; color:#1a56db; text-transform:uppercase; letter-spacing:.05em; margin:16px 0 8px; border-bottom:2px solid #e5e7eb; padding-bottom:4px; }
+    .btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+    .btn-danger { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:.85rem; }
+    .btn-danger:hover { background:#b91c1c; }
+  </style>
+</head>
+<body>
+  <div class="sa-header">
+    <div>
+      <h1>WorkTrack Super Admin</h1>
+      <div class="sub" id="saUserName">Loading...</div>
+    </div>
+    <button class="btn-logout" id="logoutBtn">Log Out</button>
+  </div>
+
+  <div class="container" style="padding:24px 16px;max-width:1100px">
+    <div class="alert alert-error" id="pageError"></div>
+
+    <!-- Stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card"><div class="val" id="statCompanies">—</div><div class="lbl">Total Companies</div></div>
+      <div class="stat-card"><div class="val" id="statActive">—</div><div class="lbl">Active Companies</div></div>
+      <div class="stat-card"><div class="val" id="statAdmins">—</div><div class="lbl">Admins</div></div>
+      <div class="stat-card"><div class="val" id="statEmployees">—</div><div class="lbl">Employees</div></div>
+      <div class="stat-card"><div class="val" id="statRecords">—</div><div class="lbl">Work Records</div></div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h2 style="margin:0;font-size:1.1rem">Companies</h2>
+      <button class="btn btn-primary" id="newCompanyBtn" style="padding:10px 18px;font-size:.9rem">+ New Company</button>
+    </div>
+
+    <div class="company-list">
+      <table id="companiesTable">
+        <thead>
+          <tr>
+            <th>Company</th>
+            <th>Slug</th>
+            <th>Timezone</th>
+            <th>Admins</th>
+            <th>Employees</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="companiesTbody">
+          <tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- New / Edit Company Modal -->
+  <div class="modal-overlay" id="companyModal">
+    <div class="modal">
+      <h3 id="modalTitle">New Company</h3>
+      <div class="alert alert-error" id="modalError"></div>
+
+      <input type="hidden" id="editCompanyId">
+
+      <div class="section-label">Company Info</div>
+      <div class="form-group">
+        <label>Company Name *</label>
+        <input type="text" id="mName" class="form-control" placeholder="Acme Corp">
+      </div>
+      <div class="form-group">
+        <label>Slug *</label>
+        <input type="text" id="mSlug" class="form-control" placeholder="acme-corp" autocapitalize="none" autocorrect="off">
+      </div>
+      <div class="form-group">
+        <label>Timezone</label>
+        <select id="mTimezone" class="form-control">
+          <option value="America/Chicago">America/Chicago</option>
+          <option value="America/New_York">America/New_York</option>
+          <option value="America/Los_Angeles">America/Los_Angeles</option>
+          <option value="America/Denver">America/Denver</option>
+          <option value="America/Bogota">America/Bogota</option>
+          <option value="America/Mexico_City">America/Mexico_City</option>
+          <option value="America/Sao_Paulo">America/Sao_Paulo</option>
+          <option value="Europe/London">Europe/London</option>
+          <option value="Europe/Madrid">Europe/Madrid</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="mActive" checked style="width:16px;height:16px">
+          <span>Active</span>
+        </label>
+      </div>
+
+      <div id="adminSection">
+        <div class="section-label">Initial Admin Account</div>
+        <div class="form-group">
+          <label>Admin Full Name *</label>
+          <input type="text" id="mAdminName" class="form-control" placeholder="John Smith">
+        </div>
+        <div class="form-group">
+          <label>Admin Username *</label>
+          <input type="text" id="mAdminUsername" class="form-control" placeholder="admin" autocapitalize="none">
+        </div>
+        <div class="form-group">
+          <label>Admin Email</label>
+          <input type="email" id="mAdminEmail" class="form-control" placeholder="admin@company.com">
+        </div>
+        <div class="form-group">
+          <label>Admin Password *</label>
+          <input type="password" id="mAdminPassword" class="form-control" placeholder="At least 8 characters">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="modalCancelBtn" style="padding:10px 18px">Cancel</button>
+        <button class="btn btn-primary" id="modalSaveBtn" style="padding:10px 22px">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+
+    if (!token || !user || user.role !== 'super_admin') {
+      localStorage.clear();
+      window.location.href = '/';
+    }
+
+    document.getElementById('saUserName').textContent = 'Logged in as ' + (user?.name || 'Super Admin');
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.clear();
+      window.location.href = '/';
+    });
+
+    async function api(method, path, body) {
+      const res = await fetch('/api/superadmin' + path, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    async function loadStats() {
+      try {
+        const s = await api('GET', '/stats');
+        document.getElementById('statCompanies').textContent = s.companies.total;
+        document.getElementById('statActive').textContent    = s.companies.active;
+        document.getElementById('statAdmins').textContent    = s.users.admins;
+        document.getElementById('statEmployees').textContent = s.users.employees;
+        document.getElementById('statRecords').textContent   = s.work_records;
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    async function loadCompanies() {
+      const tbody = document.getElementById('companiesTbody');
+      try {
+        const companies = await api('GET', '/companies');
+        if (!companies.length) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">No companies yet</td></tr>';
+          return;
+        }
+        tbody.innerHTML = companies.map(c => `
+          <tr>
+            <td><strong>${esc(c.name)}</strong></td>
+            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.85rem">${esc(c.slug)}</code></td>
+            <td style="font-size:.85rem;color:#6b7280">${esc(c.timezone)}</td>
+            <td>${c.admin_count}</td>
+            <td>${c.employee_count}</td>
+            <td><span class="${c.active ? 'badge-active' : 'badge-inactive'}">${c.active ? 'Active' : 'Inactive'}</span></td>
+            <td style="font-size:.8rem;color:#9ca3af">${new Date(c.created_at).toLocaleDateString()}</td>
+            <td>
+              <button class="btn-download" onclick="editCompany(${c.id})">Edit</button>
+              <button class="btn-download" style="color:#dc2626;border-color:#dc2626" onclick="deactivateCompany(${c.id}, '${esc(c.name)}', ${c.active})">
+                ${c.active ? 'Deactivate' : 'Activate'}
+              </button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" style="color:#dc2626;padding:16px">${esc(err.message)}</td></tr>`;
+      }
+    }
+
+    function esc(s) {
+      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function deactivateCompany(id, name, currentActive) {
+      if (!confirm(`${currentActive ? 'Deactivate' : 'Activate'} company "${name}"?`)) return;
+      try {
+        const companies = await api('GET', '/companies/' + id);
+        await api('PUT', '/companies/' + id, { ...companies, active: !currentActive });
+        loadCompanies();
+        loadStats();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    let editingId = null;
+
+    document.getElementById('newCompanyBtn').addEventListener('click', () => {
+      editingId = null;
+      document.getElementById('modalTitle').textContent = 'New Company';
+      document.getElementById('editCompanyId').value = '';
+      document.getElementById('mName').value = '';
+      document.getElementById('mSlug').value = '';
+      document.getElementById('mTimezone').value = 'America/Chicago';
+      document.getElementById('mActive').checked = true;
+      document.getElementById('mAdminName').value = '';
+      document.getElementById('mAdminUsername').value = '';
+      document.getElementById('mAdminEmail').value = '';
+      document.getElementById('mAdminPassword').value = '';
+      document.getElementById('adminSection').style.display = 'block';
+      document.getElementById('modalError').classList.remove('show');
+      document.getElementById('companyModal').classList.add('show');
+    });
+
+    async function editCompany(id) {
+      try {
+        const c = await api('GET', '/companies/' + id);
+        editingId = id;
+        document.getElementById('modalTitle').textContent = 'Edit Company';
+        document.getElementById('editCompanyId').value = id;
+        document.getElementById('mName').value = c.name;
+        document.getElementById('mSlug').value = c.slug;
+        document.getElementById('mTimezone').value = c.timezone;
+        document.getElementById('mActive').checked = c.active;
+        document.getElementById('adminSection').style.display = 'none';
+        document.getElementById('modalError').classList.remove('show');
+        document.getElementById('companyModal').classList.add('show');
+      } catch (err) { alert(err.message); }
+    }
+
+    document.getElementById('modalCancelBtn').addEventListener('click', () => {
+      document.getElementById('companyModal').classList.remove('show');
+    });
+
+    document.getElementById('mName').addEventListener('input', () => {
+      if (editingId) return;
+      const name = document.getElementById('mName').value;
+      document.getElementById('mSlug').value = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+    });
+
+    document.getElementById('modalSaveBtn').addEventListener('click', async () => {
+      const err = document.getElementById('modalError');
+      err.classList.remove('show');
+      const btn = document.getElementById('modalSaveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      try {
+        const id = document.getElementById('editCompanyId').value;
+        const body = {
+          name:     document.getElementById('mName').value.trim(),
+          slug:     document.getElementById('mSlug').value.trim().toLowerCase(),
+          timezone: document.getElementById('mTimezone').value,
+          active:   document.getElementById('mActive').checked
+        };
+
+        if (!body.name || !body.slug) throw new Error('Name and slug are required');
+
+        if (id) {
+          await api('PUT', '/companies/' + id, body);
+        } else {
+          const adminPass = document.getElementById('mAdminPassword').value;
+          if (!adminPass || adminPass.length < 8) throw new Error('Admin password must be at least 8 characters');
+          await api('POST', '/companies', {
+            ...body,
+            admin_name:     document.getElementById('mAdminName').value.trim(),
+            admin_username: document.getElementById('mAdminUsername').value.trim(),
+            admin_email:    document.getElementById('mAdminEmail').value.trim(),
+            admin_password: adminPass
+          });
+        }
+
+        document.getElementById('companyModal').classList.remove('show');
+        loadCompanies();
+        loadStats();
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+      }
+    });
+
+    loadStats();
+    loadCompanies();
+  </script>
+</body>
+</html>

@@ -5,12 +5,24 @@ const { upload } = require('../middleware/upload');
 
 router.use(requireAuth);
 
-// Get stores assigned to this employee
+// Get company info for branding
+router.get('/company', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT id, name, logo_url FROM companies WHERE id = $1', [req.companyId]);
+    if (!rows.length) return res.status(404).json({ error: 'Company not found' });
+    res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// Get stores assigned to this employee (filtered by company)
 router.get('/stores', async (req, res) => {
   try {
     const { rows } = await query(
-      'SELECT s.* FROM stores s INNER JOIN user_stores us ON us.store_id = s.id WHERE us.user_id = $1 ORDER BY s.name',
-      [req.user.id]
+      `SELECT s.* FROM stores s
+       INNER JOIN user_stores us ON us.store_id = s.id
+       WHERE us.user_id = $1 AND s.company_id = $2
+       ORDER BY s.name`,
+      [req.user.id, req.companyId]
     );
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -42,6 +54,17 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
       return res.status(400).json({ error: 'At least one photo or video is required' });
     }
 
+    // If store_id provided, verify it belongs to this employee's company
+    if (store_id) {
+      const { rows: storeCheck } = await query(
+        `SELECT s.id FROM stores s
+         JOIN user_stores us ON us.store_id = s.id
+         WHERE s.id = $1 AND us.user_id = $2 AND s.company_id = $3`,
+        [store_id, req.user.id, req.companyId]
+      );
+      if (!storeCheck.length) return res.status(400).json({ error: 'Store not found or not assigned to you' });
+    }
+
     // Check no open record
     const { rows: open } = await query(
       'SELECT id FROM work_records WHERE user_id = $1 AND clock_out IS NULL',
@@ -54,8 +77,8 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
     const clockIn = now.toISOString();
 
     const { rows } = await query(
-      'INSERT INTO work_records (user_id, store_id, project_name, clock_in, date, clock_in_lat, clock_in_lng, clock_in_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [req.user.id, store_id || null, project_name || null, clockIn, date, lat || null, lng || null, address || null]
+      'INSERT INTO work_records (company_id, user_id, store_id, project_name, clock_in, date, clock_in_lat, clock_in_lng, clock_in_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id',
+      [req.companyId, req.user.id, store_id || null, project_name || null, clockIn, date, lat || null, lng || null, address || null]
     );
     const recordId = rows[0].id;
 
@@ -104,7 +127,7 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Get media for a specific record (employee can only see their own records)
+// Get media for own record
 router.get('/records/:id/media', async (req, res) => {
   try {
     const { rows: owned } = await query(
@@ -145,12 +168,12 @@ router.get('/rest-days', async (req, res) => {
   try {
     const { rows } = await query(
       `SELECT rd.*,
-        COALESCE(
-          (SELECT json_agg(json_build_object('id',s.id,'name',s.name) ORDER BY s.name)
-           FROM stores s WHERE s.id = ANY(rd.store_ids)), '[]'
-        ) as stores
+         COALESCE(
+           (SELECT json_agg(json_build_object('id',s.id,'name',s.name) ORDER BY s.name)
+            FROM stores s WHERE s.id = ANY(rd.store_ids) AND s.company_id = $2), '[]'
+         ) as stores
        FROM rest_days rd WHERE rd.user_id = $1 ORDER BY rd.date DESC`,
-      [req.user.id]
+      [req.user.id, req.companyId]
     );
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -162,12 +185,13 @@ router.post('/rest-days', async (req, res) => {
     if (!date) return res.status(400).json({ error: 'date required' });
     const storeArr = Array.isArray(store_ids) ? store_ids : [];
     if (!storeArr.length) return res.status(400).json({ error: 'At least one store required' });
+
     const { rows } = await query(
-      `INSERT INTO rest_days (user_id, date, store_ids, note)
-       VALUES ($1,$2,$3,$4)
-       ON CONFLICT (user_id, date) DO UPDATE SET store_ids=$3, note=$4
+      `INSERT INTO rest_days (company_id, user_id, date, store_ids, note)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (user_id, date) DO UPDATE SET store_ids=$4, note=$5
        RETURNING *`,
-      [req.user.id, date, storeArr, note || null]
+      [req.companyId, req.user.id, date, storeArr, note || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -181,6 +205,7 @@ router.delete('/rest-days/:id', async (req, res) => {
 });
 
 // ─── Employee Calendar (read/write if in calendar_access) ────────────────────
+
 async function checkCalendarAccess(userId) {
   const { rows } = await query('SELECT 1 FROM calendar_access WHERE user_id=$1', [userId]);
   return rows.length > 0;
@@ -190,9 +215,9 @@ router.get('/calendar', async (req, res) => {
   try {
     if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
     const { month } = req.query;
-    let sql = 'SELECT * FROM scheduled_jobs';
-    const params = [];
-    if (month) { sql += ' WHERE scheduled_date LIKE $1'; params.push(month + '%'); }
+    let sql = 'SELECT * FROM scheduled_jobs WHERE company_id = $1';
+    const params = [req.companyId];
+    if (month) { sql += ' AND scheduled_date LIKE $2'; params.push(month + '%'); }
     sql += ' ORDER BY scheduled_date, id';
     const { rows } = await query(sql, params);
     res.json(rows);
@@ -205,8 +230,8 @@ router.post('/calendar', async (req, res) => {
     const { title, scheduled_date, location, notes } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const { rows } = await query(
-      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [title, scheduled_date, [], location || null, notes || null]
+      'INSERT INTO scheduled_jobs (company_id, title, scheduled_date, assigned_to, location, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [req.companyId, title, scheduled_date, [], location || null, notes || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -218,8 +243,8 @@ router.put('/calendar/:id', async (req, res) => {
     const { title, scheduled_date, location, notes } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     await query(
-      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, location=$3, notes=$4 WHERE id=$5',
-      [title, scheduled_date, location || null, notes || null, req.params.id]
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, location=$3, notes=$4 WHERE id=$5 AND company_id=$6',
+      [title, scheduled_date, location || null, notes || null, req.params.id, req.companyId]
     );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -228,7 +253,7 @@ router.put('/calendar/:id', async (req, res) => {
 router.delete('/calendar/:id', async (req, res) => {
   try {
     if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
-    await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
+    await query('DELETE FROM scheduled_jobs WHERE id=$1 AND company_id=$2', [req.params.id, req.companyId]);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });

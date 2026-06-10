@@ -15,8 +15,10 @@ const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     const isVideo = file.mimetype.startsWith('video/');
+    // Use company_id from the authenticated request for folder isolation
+    const folder = req.companyId ? `companies/${req.companyId}` : 'companies/shared';
     return {
-      folder: 'abc-midwest',
+      folder,
       resource_type: isVideo ? 'video' : 'image',
       public_id: `${Date.now()}-${Math.round(Math.random() * 1e6)}`
     };

@@ -17,6 +17,16 @@ const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 
 // All admin routes require admin role
 router.use(requireAdmin);
 
+// ── Company info (for frontend branding) ──────────────────────────────────────
+
+router.get('/company', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT id, name, slug, logo_url, timezone FROM companies WHERE id = $1', [req.companyId]);
+    if (!rows.length) return res.status(404).json({ error: 'Company not found' });
+    res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 // ─── Employees ────────────────────────────────────────────────────────────────
 
 router.get('/employees', async (req, res) => {
@@ -27,10 +37,10 @@ router.get('/employees', async (req, res) => {
       FROM users u
       LEFT JOIN user_stores us ON us.user_id = u.id
       LEFT JOIN stores s ON s.id = us.store_id
-      WHERE u.role = 'employee'
+      WHERE u.role = 'employee' AND u.company_id = $1
       GROUP BY u.id
       ORDER BY u.name
-    `);
+    `, [req.companyId]);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -44,13 +54,26 @@ router.post('/employees', async (req, res) => {
     if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
       return res.status(400).json({ error: 'At least one store must be assigned' });
     }
-    const { rows: existing } = await query('SELECT id FROM users WHERE username = $1', [username]);
+
+    const { rows: existing } = await query(
+      'SELECT id FROM users WHERE username = $1 AND company_id = $2',
+      [username, req.companyId]
+    );
     if (existing.length) return res.status(400).json({ error: 'Username already taken' });
+
+    // Verify all stores belong to this company
+    const { rows: validStores } = await query(
+      `SELECT id FROM stores WHERE id = ANY($1) AND company_id = $2`,
+      [store_ids, req.companyId]
+    );
+    if (validStores.length !== store_ids.length) {
+      return res.status(400).json({ error: 'One or more stores not found' });
+    }
 
     const hash = bcrypt.hashSync(password, 10);
     const { rows } = await query(
-      'INSERT INTO users (name, username, password, email, role) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [name, username, hash, email || null, 'employee']
+      'INSERT INTO users (company_id, name, username, password, email, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+      [req.companyId, name, username, hash, email || null, 'employee']
     );
     const userId = rows[0].id;
     for (const storeId of store_ids) {
@@ -62,14 +85,20 @@ router.post('/employees', async (req, res) => {
 
 router.delete('/employees/:id', async (req, res) => {
   try {
-    await query("DELETE FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
+    await query(
+      "DELETE FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
+      [req.params.id, req.companyId]
+    );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.post('/employees/:id/force-logout', async (req, res) => {
   try {
-    const { rows } = await query("SELECT id FROM users WHERE id = $1 AND role = 'employee'", [req.params.id]);
+    const { rows } = await query(
+      "SELECT id FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
+      [req.params.id, req.companyId]
+    );
     if (!rows.length) return res.status(404).json({ error: 'Employee not found' });
     await query('UPDATE users SET force_logout = TRUE WHERE id = $1', [req.params.id]);
     res.json({ success: true });
@@ -83,19 +112,41 @@ router.put('/employees/:id', async (req, res) => {
     if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
       return res.status(400).json({ error: 'At least one store must be assigned' });
     }
+
     const { rows: existing } = await query(
-      'SELECT id FROM users WHERE username = $1 AND id != $2', [username, req.params.id]
+      'SELECT id FROM users WHERE username = $1 AND company_id = $2 AND id != $3',
+      [username, req.companyId, req.params.id]
     );
     if (existing.length) return res.status(400).json({ error: 'Username already taken' });
+
+    // Verify employee belongs to this company
+    const { rows: empCheck } = await query(
+      "SELECT id FROM users WHERE id = $1 AND company_id = $2 AND role = 'employee'",
+      [req.params.id, req.companyId]
+    );
+    if (!empCheck.length) return res.status(404).json({ error: 'Employee not found' });
+
+    // Verify stores belong to this company
+    const { rows: validStores } = await query(
+      `SELECT id FROM stores WHERE id = ANY($1) AND company_id = $2`,
+      [store_ids, req.companyId]
+    );
+    if (validStores.length !== store_ids.length) {
+      return res.status(400).json({ error: 'One or more stores not found' });
+    }
 
     await withTransaction(async client => {
       if (password) {
         const hash = bcrypt.hashSync(password, 10);
-        await client.query('UPDATE users SET name = $1, username = $2, password = $3, email = $4 WHERE id = $5 AND role = $6',
-          [name, username, hash, email || null, req.params.id, 'employee']);
+        await client.query(
+          "UPDATE users SET name = $1, username = $2, password = $3, email = $4 WHERE id = $5 AND role = 'employee' AND company_id = $6",
+          [name, username, hash, email || null, req.params.id, req.companyId]
+        );
       } else {
-        await client.query('UPDATE users SET name = $1, username = $2, email = $3 WHERE id = $4 AND role = $5',
-          [name, username, email || null, req.params.id, 'employee']);
+        await client.query(
+          "UPDATE users SET name = $1, username = $2, email = $3 WHERE id = $4 AND role = 'employee' AND company_id = $5",
+          [name, username, email || null, req.params.id, req.companyId]
+        );
       }
       await client.query('DELETE FROM user_stores WHERE user_id = $1', [req.params.id]);
       for (const storeId of store_ids) {
@@ -106,29 +157,8 @@ router.put('/employees/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── Stores ───────────────────────────────────────────────────────────────────
-
-router.get('/stores', async (req, res) => {
-  try {
-    const { rows } = await query('SELECT * FROM stores ORDER BY name');
-    res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
-router.post('/stores', async (req, res) => {
-  try {
-    const { name, address } = req.body;
-    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
-    const { rows } = await query(
-      'INSERT INTO stores (name, address) VALUES ($1, $2) RETURNING id',
-      [name, address]
-    );
-    res.status(201).json({ id: rows[0].id, name, address });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
 // ─── Import Employees from Excel ──────────────────────────────────────────────
-// Excel format: columns Name, Username, Password
+
 router.post('/employees/import', memUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -140,7 +170,7 @@ router.post('/employees/import', memUpload.single('file'), async (req, res) => {
 
     const rows = [];
     ws.eachRow((row, rowNum) => {
-      if (rowNum === 1) return; // skip header
+      if (rowNum === 1) return;
       const name     = String(row.getCell(1).value ?? '').trim();
       const username = String(row.getCell(2).value ?? '').trim();
       const password = String(row.getCell(3).value ?? '').trim();
@@ -153,11 +183,16 @@ router.post('/employees/import', memUpload.single('file'), async (req, res) => {
     const errors = [];
     for (const emp of rows) {
       try {
-        const { rows: existing } = await query('SELECT id FROM users WHERE username = $1', [emp.username]);
+        const { rows: existing } = await query(
+          'SELECT id FROM users WHERE username = $1 AND company_id = $2',
+          [emp.username, req.companyId]
+        );
         if (existing.length) { errors.push(`"${emp.username}": username already taken`); continue; }
         const hash = bcrypt.hashSync(emp.password, 10);
-        await query('INSERT INTO users (name, username, password, role) VALUES ($1, $2, $3, $4)',
-          [emp.name, emp.username, hash, 'employee']);
+        await query(
+          'INSERT INTO users (company_id, name, username, password, role) VALUES ($1, $2, $3, $4, $5)',
+          [req.companyId, emp.name, emp.username, hash, 'employee']
+        );
         imported++;
       } catch (err) {
         console.error(err);
@@ -168,8 +203,48 @@ router.post('/employees/import', memUpload.single('file'), async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// ─── Stores ───────────────────────────────────────────────────────────────────
+
+router.get('/stores', async (req, res) => {
+  try {
+    const { rows } = await query('SELECT * FROM stores WHERE company_id = $1 ORDER BY name', [req.companyId]);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/stores', async (req, res) => {
+  try {
+    const { name, address } = req.body;
+    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
+    const { rows } = await query(
+      'INSERT INTO stores (company_id, name, address) VALUES ($1, $2, $3) RETURNING id',
+      [req.companyId, name, address]
+    );
+    res.status(201).json({ id: rows[0].id, name, address });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/stores/:id', async (req, res) => {
+  try {
+    const { name, address } = req.body;
+    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
+    await query(
+      'UPDATE stores SET name = $1, address = $2 WHERE id = $3 AND company_id = $4',
+      [name, address, req.params.id, req.companyId]
+    );
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.delete('/stores/:id', async (req, res) => {
+  try {
+    await query('DELETE FROM stores WHERE id = $1 AND company_id = $2', [req.params.id, req.companyId]);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 // ─── Import Stores from Excel ─────────────────────────────────────────────────
-// Excel format: single column with header "Store Number"
+
 router.post('/stores/import', memUpload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
@@ -181,7 +256,7 @@ router.post('/stores/import', memUpload.single('file'), async (req, res) => {
 
     const names = [];
     ws.eachRow((row, rowNum) => {
-      if (rowNum === 1) return; // skip header row
+      if (rowNum === 1) return;
       const val = String(row.getCell(1).value ?? '').trim();
       if (val) names.push(val);
     });
@@ -192,7 +267,7 @@ router.post('/stores/import', memUpload.single('file'), async (req, res) => {
     const errors = [];
     for (const name of names) {
       try {
-        await query('INSERT INTO stores (name, address) VALUES ($1, $2)', [name, '']);
+        await query('INSERT INTO stores (company_id, name, address) VALUES ($1, $2, $3)', [req.companyId, name, '']);
         imported++;
       } catch (err) {
         console.error(err);
@@ -203,25 +278,9 @@ router.post('/stores/import', memUpload.single('file'), async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/stores/:id', async (req, res) => {
-  try {
-    const { name, address } = req.body;
-    if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
-    await query('UPDATE stores SET name = $1, address = $2 WHERE id = $3', [name, address, req.params.id]);
-    res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
-router.delete('/stores/:id', async (req, res) => {
-  try {
-    await query('DELETE FROM stores WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
-});
-
 // ─── Records ──────────────────────────────────────────────────────────────────
 
-function buildRecordsQuery(reqQuery) {
+function buildRecordsQuery(companyId, reqQuery) {
   const { date_from, date_to, employee_id, store_id } = reqQuery;
   let sql = `
     SELECT wr.id, u.name as employee, s.name as store, s.address,
@@ -233,10 +292,10 @@ function buildRecordsQuery(reqQuery) {
     JOIN users u ON u.id = wr.user_id
     JOIN stores s ON s.id = wr.store_id
     LEFT JOIN media m ON m.record_id = wr.id
-    WHERE 1=1
+    WHERE wr.company_id = $1
   `;
-  const params = [];
-  let i = 1;
+  const params = [companyId];
+  let i = 2;
   if (date_from)   { sql += ` AND wr.date >= $${i++}`;    params.push(date_from); }
   if (date_to)     { sql += ` AND wr.date <= $${i++}`;    params.push(date_to); }
   if (employee_id) { sql += ` AND wr.user_id = $${i++}`;  params.push(employee_id); }
@@ -258,7 +317,7 @@ function formatDuration(mins) {
 
 router.get('/records', async (req, res) => {
   try {
-    const { sql, params } = buildRecordsQuery(req.query);
+    const { sql, params } = buildRecordsQuery(req.companyId, req.query);
     const { rows } = await query(sql, params);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -269,22 +328,22 @@ router.get('/records', async (req, res) => {
 router.get('/records/export', async (req, res) => {
   try {
     const { format = 'csv' } = req.query;
-    const { sql, params } = buildRecordsQuery(req.query);
+    const { sql, params } = buildRecordsQuery(req.companyId, req.query);
     const { rows: records } = await query(sql, params);
 
     const rows = records.map(r => {
       const mins = calcDurationMins(r.clock_in, r.clock_out);
       return {
-        Employee: r.employee,
-        Store:    r.store,
-        Address:  r.address,
-        Date:     r.date,
+        Employee:            r.employee,
+        Store:               r.store,
+        Address:             r.address,
+        Date:                r.date,
         'Clock In':          r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
         'Clock-In Address':  r.clock_in_address  || '',
         'Clock Out':         r.clock_out ? new Date(r.clock_out).toLocaleString() : 'In progress',
         'Clock-Out Address': r.clock_out_address || '',
-        'Duration':          formatDuration(mins),
-        'Notes':             r.notes || '',
+        Duration:            formatDuration(mins),
+        Notes:               r.notes || '',
         'Media Files':       r.media_count
       };
     });
@@ -303,7 +362,6 @@ router.get('/records/export', async (req, res) => {
       return res.send(buf);
     }
 
-    // Default: CSV
     const cols = Object.keys(rows[0] || {});
     const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
     const csv = [
@@ -313,13 +371,13 @@ router.get('/records/export', async (req, res) => {
 
     res.setHeader('Content-Disposition', 'attachment; filename="records.csv"');
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.send('\uFEFF' + csv); // BOM for Excel UTF-8 compatibility
+    res.send('﻿' + csv);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ─── Extra Projects ───────────────────────────────────────────────────────────
 
-function buildProjectsQuery(reqQuery) {
+function buildProjectsQuery(companyId, reqQuery) {
   const { date_from, date_to, employee_id } = reqQuery;
   let sql = `
     SELECT wr.id, u.name as employee, wr.project_name,
@@ -330,10 +388,10 @@ function buildProjectsQuery(reqQuery) {
     FROM work_records wr
     JOIN users u ON u.id = wr.user_id
     LEFT JOIN media m ON m.record_id = wr.id
-    WHERE wr.project_name IS NOT NULL
+    WHERE wr.project_name IS NOT NULL AND wr.company_id = $1
   `;
-  const params = [];
-  let i = 1;
+  const params = [companyId];
+  let i = 2;
   if (date_from)   { sql += ` AND wr.date >= $${i++}`;   params.push(date_from); }
   if (date_to)     { sql += ` AND wr.date <= $${i++}`;   params.push(date_to); }
   if (employee_id) { sql += ` AND wr.user_id = $${i++}`; params.push(employee_id); }
@@ -343,7 +401,7 @@ function buildProjectsQuery(reqQuery) {
 
 router.get('/projects', async (req, res) => {
   try {
-    const { sql, params } = buildProjectsQuery(req.query);
+    const { sql, params } = buildProjectsQuery(req.companyId, req.query);
     const { rows } = await query(sql, params);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -351,7 +409,7 @@ router.get('/projects', async (req, res) => {
 
 router.get('/projects/export', async (req, res) => {
   try {
-    const { sql, params } = buildProjectsQuery(req.query);
+    const { sql, params } = buildProjectsQuery(req.companyId, req.query);
     const { rows: records } = await query(sql, params);
 
     const rows = records.map(r => {
@@ -379,8 +437,7 @@ router.get('/projects/export', async (req, res) => {
     }
     res.setHeader('Content-Disposition', 'attachment; filename="extra_projects.xlsx"');
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    const buf = await wb.xlsx.writeBuffer();
-    res.send(buf);
+    res.send(await wb.xlsx.writeBuffer());
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -389,8 +446,8 @@ router.get('/projects/export', async (req, res) => {
 router.post('/records/:id/force-clock-out', async (req, res) => {
   try {
     const { rows } = await query(
-      'SELECT id FROM work_records WHERE id = $1 AND clock_out IS NULL',
-      [req.params.id]
+      'SELECT id FROM work_records WHERE id = $1 AND clock_out IS NULL AND company_id = $2',
+      [req.params.id, req.companyId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Active record not found' });
     const clockOut = new Date().toISOString();
@@ -404,6 +461,13 @@ router.post('/records/:id/force-clock-out', async (req, res) => {
 
 router.get('/records/:id/media', async (req, res) => {
   try {
+    // Verify record belongs to this company
+    const { rows: rec } = await query(
+      'SELECT id FROM work_records WHERE id = $1 AND company_id = $2',
+      [req.params.id, req.companyId]
+    );
+    if (!rec.length) return res.status(404).json({ error: 'Record not found' });
+
     const { rows } = await query(
       'SELECT * FROM media WHERE record_id = $1 ORDER BY type, uploaded_at',
       [req.params.id]
@@ -439,8 +503,8 @@ function fetchFileBuffer(urlStr) {
 router.get('/records/:id/media/download', async (req, res) => {
   try {
     const { rows: recs } = await query(
-      'SELECT wr.id, u.name as employee, wr.date FROM work_records wr JOIN users u ON u.id = wr.user_id WHERE wr.id = $1',
-      [req.params.id]
+      'SELECT wr.id, u.name as employee, wr.date FROM work_records wr JOIN users u ON u.id = wr.user_id WHERE wr.id = $1 AND wr.company_id = $2',
+      [req.params.id, req.companyId]
     );
     const record = recs[0];
     if (!record) return res.status(404).json({ error: 'Record not found' });
@@ -481,10 +545,10 @@ router.get('/records/:id/media/download', async (req, res) => {
 
 router.get('/scheduled-jobs', async (req, res) => {
   try {
-    const { month } = req.query; // 'YYYY-MM'
-    let sql = 'SELECT * FROM scheduled_jobs';
-    const params = [];
-    if (month) { sql += ' WHERE scheduled_date LIKE $1'; params.push(month + '%'); }
+    const { month } = req.query;
+    let sql = 'SELECT * FROM scheduled_jobs WHERE company_id = $1';
+    const params = [req.companyId];
+    if (month) { sql += ' AND scheduled_date LIKE $2'; params.push(month + '%'); }
     sql += ' ORDER BY scheduled_date, id';
     const { rows } = await query(sql, params);
     res.json(rows);
@@ -497,8 +561,8 @@ router.post('/scheduled-jobs', async (req, res) => {
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     const { rows } = await query(
-      'INSERT INTO scheduled_jobs (title, scheduled_date, assigned_to, location, notes, start_time, end_time) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null]
+      'INSERT INTO scheduled_jobs (company_id, title, scheduled_date, assigned_to, location, notes, start_time, end_time) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',
+      [req.companyId, title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -510,8 +574,8 @@ router.put('/scheduled-jobs/:id', async (req, res) => {
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
     const assignedArr = Array.isArray(assigned_to) ? assigned_to : [];
     await query(
-      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5, start_time=$6, end_time=$7 WHERE id=$8',
-      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null, req.params.id]
+      'UPDATE scheduled_jobs SET title=$1, scheduled_date=$2, assigned_to=$3, location=$4, notes=$5, start_time=$6, end_time=$7 WHERE id=$8 AND company_id=$9',
+      [title, scheduled_date, assignedArr, location || null, notes || null, start_time || null, end_time || null, req.params.id, req.companyId]
     );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -519,15 +583,18 @@ router.put('/scheduled-jobs/:id', async (req, res) => {
 
 router.delete('/scheduled-jobs/:id', async (req, res) => {
   try {
-    await query('DELETE FROM scheduled_jobs WHERE id=$1', [req.params.id]);
+    await query('DELETE FROM scheduled_jobs WHERE id=$1 AND company_id=$2', [req.params.id, req.companyId]);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Upload images to a scheduled job
 router.post('/scheduled-jobs/:id/images', upload.array('images', 10), async (req, res) => {
   try {
     if (!req.files || !req.files.length) return res.status(400).json({ error: 'No images uploaded' });
+    // Verify job belongs to this company
+    const { rows: jobCheck } = await query('SELECT id FROM scheduled_jobs WHERE id=$1 AND company_id=$2', [req.params.id, req.companyId]);
+    if (!jobCheck.length) return res.status(404).json({ error: 'Job not found' });
+
     const urls = req.files.map(f => f.path || f.secure_url || f.url || '').filter(Boolean);
     await query(
       'UPDATE scheduled_jobs SET image_urls = image_urls || $1 WHERE id=$2',
@@ -537,13 +604,12 @@ router.post('/scheduled-jobs/:id/images', upload.array('images', 10), async (req
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// Remove a single image from a scheduled job
 router.delete('/scheduled-jobs/:id/images', async (req, res) => {
   try {
     const { url } = req.body;
     await query(
-      `UPDATE scheduled_jobs SET image_urls = array_remove(image_urls, $1) WHERE id=$2`,
-      [url, req.params.id]
+      `UPDATE scheduled_jobs SET image_urls = array_remove(image_urls, $1) WHERE id=$2 AND company_id=$3`,
+      [url, req.params.id, req.companyId]
     );
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -554,7 +620,11 @@ router.delete('/scheduled-jobs/:id/images', async (req, res) => {
 router.get('/calendar-access', async (req, res) => {
   try {
     const { rows } = await query(
-      `SELECT ca.user_id, u.name FROM calendar_access ca JOIN users u ON u.id = ca.user_id ORDER BY u.name`
+      `SELECT ca.user_id, u.name FROM calendar_access ca
+       JOIN users u ON u.id = ca.user_id
+       WHERE u.company_id = $1
+       ORDER BY u.name`,
+      [req.companyId]
     );
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -564,6 +634,10 @@ router.post('/calendar-access', async (req, res) => {
   try {
     const { user_id } = req.body;
     if (!user_id) return res.status(400).json({ error: 'user_id required' });
+    // Verify user belongs to this company
+    const { rows } = await query('SELECT id FROM users WHERE id=$1 AND company_id=$2', [user_id, req.companyId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+
     await query('INSERT INTO calendar_access (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [user_id]);
     res.status(201).json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -571,6 +645,10 @@ router.post('/calendar-access', async (req, res) => {
 
 router.delete('/calendar-access/:userId', async (req, res) => {
   try {
+    // Verify user belongs to this company before revoking
+    const { rows } = await query('SELECT id FROM users WHERE id=$1 AND company_id=$2', [req.params.userId, req.companyId]);
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+
     await query('DELETE FROM calendar_access WHERE user_id=$1', [req.params.userId]);
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -581,14 +659,18 @@ router.delete('/calendar-access/:userId', async (req, res) => {
 router.get('/rest-days', async (req, res) => {
   try {
     const { month, employee_id } = req.query;
-    let sql = `SELECT rd.*, u.name as employee_name,
-               COALESCE(
-                 (SELECT json_agg(s.name ORDER BY s.name)
-                  FROM stores s WHERE s.id = ANY(rd.store_ids)), '[]'
-               ) as store_names
-               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
-    const params = [];
-    let i = 1;
+    let sql = `
+      SELECT rd.*, u.name as employee_name,
+             COALESCE(
+               (SELECT json_agg(s.name ORDER BY s.name)
+                FROM stores s WHERE s.id = ANY(rd.store_ids) AND s.company_id = $1), '[]'
+             ) as store_names
+      FROM rest_days rd
+      JOIN users u ON u.id = rd.user_id
+      WHERE rd.company_id = $1
+    `;
+    const params = [req.companyId];
+    let i = 2;
     if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
     if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
     sql += ' ORDER BY rd.date DESC, u.name';
@@ -600,15 +682,19 @@ router.get('/rest-days', async (req, res) => {
 router.get('/rest-days/export', async (req, res) => {
   try {
     const { month, employee_id } = req.query;
-    let sql = `SELECT rd.date, u.name as employee,
-               COALESCE(
-                 (SELECT string_agg(s.name, ', ' ORDER BY s.name)
-                  FROM stores s WHERE s.id = ANY(rd.store_ids)), ''
-               ) as stores,
-               rd.note
-               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
-    const params = [];
-    let i = 1;
+    let sql = `
+      SELECT rd.date, u.name as employee,
+             COALESCE(
+               (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+                FROM stores s WHERE s.id = ANY(rd.store_ids) AND s.company_id = $1), ''
+             ) as stores,
+             rd.note
+      FROM rest_days rd
+      JOIN users u ON u.id = rd.user_id
+      WHERE rd.company_id = $1
+    `;
+    const params = [req.companyId];
+    let i = 2;
     if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
     if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
     sql += ' ORDER BY rd.date DESC, u.name';
@@ -617,10 +703,10 @@ router.get('/rest-days/export', async (req, res) => {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Rest Days');
     ws.columns = [
-      { header: 'Employee',    key: 'employee', width: 24 },
-      { header: 'Date',        key: 'date',     width: 14 },
-      { header: 'Stores',      key: 'stores',   width: 40 },
-      { header: 'Note',        key: 'note',     width: 30 }
+      { header: 'Employee', key: 'employee', width: 24 },
+      { header: 'Date',     key: 'date',     width: 14 },
+      { header: 'Stores',   key: 'stores',   width: 40 },
+      { header: 'Note',     key: 'note',     width: 30 }
     ];
     records.forEach(r => ws.addRow({ employee: r.employee, date: r.date, stores: r.stores, note: r.note || '' }));
     ws.getRow(1).font = { bold: true };
@@ -631,17 +717,28 @@ router.get('/rest-days/export', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// ── Rest Days PDF export ──────────────────────────────────────────────────────
+// ── Rest Days PDF export ───────────────────────────────────────────────────────
+
 router.get('/rest-days/export-pdf', async (req, res) => {
   try {
     const { month, employee_id } = req.query;
-    let sql = `SELECT u.name as employee, rd.date, rd.note,
-               COALESCE(
-                 (SELECT string_agg(s.name, ', ' ORDER BY s.name)
-                  FROM stores s WHERE s.id = ANY(rd.store_ids)), ''
-               ) as stores
-               FROM rest_days rd JOIN users u ON u.id = rd.user_id WHERE 1=1`;
-    const params = []; let i = 1;
+
+    // Get company name for PDF header
+    const { rows: coRows } = await query('SELECT name FROM companies WHERE id = $1', [req.companyId]);
+    const companyName = coRows[0]?.name || 'Company';
+
+    let sql = `
+      SELECT u.name as employee, rd.date, rd.note,
+             COALESCE(
+               (SELECT string_agg(s.name, ', ' ORDER BY s.name)
+                FROM stores s WHERE s.id = ANY(rd.store_ids) AND s.company_id = $1), ''
+             ) as stores
+      FROM rest_days rd
+      JOIN users u ON u.id = rd.user_id
+      WHERE rd.company_id = $1
+    `;
+    const params = [req.companyId];
+    let i = 2;
     if (month)       { sql += ` AND rd.date LIKE $${i++}`; params.push(month + '%'); }
     if (employee_id) { sql += ` AND rd.user_id = $${i++}`; params.push(employee_id); }
     sql += ' ORDER BY u.name, rd.date';
@@ -649,7 +746,7 @@ router.get('/rest-days/export-pdf', async (req, res) => {
 
     const doc = new PDFDocument({ margin: 40, size: 'LETTER', compress: true });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="rest_days${month?'_'+month:''}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="rest_days${month ? '_' + month : ''}.pdf"`);
     doc.pipe(res);
 
     const blue = '#1a56db'; const dark = '#111827'; const muted = '#6b7280';
@@ -662,21 +759,19 @@ router.get('/rest-days/export-pdf', async (req, res) => {
     if (fs.existsSync(logoPath)) {
       try { doc.image(logoPath, L + 8, 46, { height: 38, fit: [38, 38] }); logoEndX = L + 54; } catch (_) {}
     }
-    doc.fillColor('#fff').fontSize(14).font('Helvetica-Bold').text('ABC Midwest Cleaning', logoEndX, 50, { width: 200 });
+    doc.fillColor('#fff').fontSize(14).font('Helvetica-Bold').text(escTxt(companyName), logoEndX, 50, { width: 200 });
     doc.fontSize(9).font('Helvetica').fillColor('rgba(255,255,255,0.8)').text('Employee Rest Days Report', logoEndX, 67);
     if (month) {
       doc.fillColor('#fff').fontSize(9).font('Helvetica').text('Period: ' + month, L, 52, { align: 'right', width: W });
     }
 
     let y = 108;
-    // Group by employee
     const byEmp = {};
     rows.forEach(r => { if (!byEmp[r.employee]) byEmp[r.employee] = []; byEmp[r.employee].push(r); });
 
     const colW = [W * 0.2, W * 0.18, W * 0.37, W * 0.25];
     const colX = [L, L + colW[0], L + colW[0] + colW[1], L + colW[0] + colW[1] + colW[2]];
 
-    // Table header
     const drawHeader = (yy) => {
       doc.rect(L, yy, W, 18).fill(dark);
       doc.fillColor('#fff').fontSize(8).font('Helvetica-Bold');
@@ -688,7 +783,7 @@ router.get('/rest-days/export-pdf', async (req, res) => {
 
     y = drawHeader(y);
     let rowIdx = 0;
-    Object.entries(byEmp).forEach(([emp, records]) => {
+    Object.entries(byEmp).forEach(([, records]) => {
       records.forEach(r => {
         if (y > doc.page.height - 80) { doc.addPage(); y = 40; y = drawHeader(y); rowIdx = 0; }
         if (rowIdx % 2 === 0) doc.rect(L, y, W, 16).fill('#f3f4f6');
@@ -701,9 +796,7 @@ router.get('/rest-days/export-pdf', async (req, res) => {
       });
     });
 
-    // Footer
-    doc.fillColor(muted).fontSize(8).font('Helvetica')
-       .text(`Total records: ${rows.length}`, L, y + 12);
+    doc.fillColor(muted).fontSize(8).font('Helvetica').text(`Total records: ${rows.length}`, L, y + 12);
     doc.end();
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -728,8 +821,9 @@ router.get('/dashboard', async (req, res) => {
           COUNT(DISTINCT wr.user_id) AS active_employees
         FROM work_records wr
         WHERE wr.clock_out IS NOT NULL
-          AND wr.date >= $1 AND wr.date <= $2
-      `, [dateFrom, dateTo]),
+          AND wr.company_id = $1
+          AND wr.date >= $2 AND wr.date <= $3
+      `, [req.companyId, dateFrom, dateTo]),
 
       query(`
         SELECT u.name,
@@ -737,10 +831,11 @@ router.get('/dashboard', async (req, res) => {
         FROM work_records wr
         JOIN users u ON u.id = wr.user_id
         WHERE wr.clock_out IS NOT NULL
-          AND wr.date >= $1 AND wr.date <= $2
+          AND wr.company_id = $1
+          AND wr.date >= $2 AND wr.date <= $3
         GROUP BY u.name
         ORDER BY hours DESC
-      `, [dateFrom, dateTo]),
+      `, [req.companyId, dateFrom, dateTo]),
 
       query(`
         SELECT COALESCE(s.name, 'No Store') AS name,
@@ -748,36 +843,35 @@ router.get('/dashboard', async (req, res) => {
         FROM work_records wr
         LEFT JOIN stores s ON s.id = wr.store_id
         WHERE wr.clock_out IS NOT NULL
-          AND wr.date >= $1 AND wr.date <= $2
+          AND wr.company_id = $1
+          AND wr.date >= $2 AND wr.date <= $3
         GROUP BY s.name
         ORDER BY hours DESC
-      `, [dateFrom, dateTo]),
+      `, [req.companyId, dateFrom, dateTo])
     ]);
 
     const summary = summaryRes.rows[0];
-    const hoursPerEmployee = empRes.rows;
-    const hoursByStore = storeRes.rows;
-
     res.json({
       totalHours:      parseFloat(summary.total_hours),
       activeEmployees: parseInt(summary.active_employees, 10),
-      topEmployee:     hoursPerEmployee[0] || null,
-      topStore:        hoursByStore[0] || null,
-      hoursPerEmployee,
-      hoursByStore,
+      topEmployee:     empRes.rows[0] || null,
+      topStore:        storeRes.rows[0] || null,
+      hoursPerEmployee: empRes.rows,
+      hoursByStore:     storeRes.rows
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 function escTxt(s) { return (s || '').replace(/[^\x20-\x7E]/g, '?'); }
 
-// ─── SMS Recipients ────────────────────────────────────────────────────────────
-
 // ─── Admin Email Recipients ────────────────────────────────────────────────────
 
 router.get('/admin-recipients', async (req, res) => {
   try {
-    const { rows } = await query(`SELECT id, email, label, active FROM admin_recipients ORDER BY id`);
+    const { rows } = await query(
+      `SELECT id, email, label, active FROM admin_recipients WHERE company_id = $1 ORDER BY id`,
+      [req.companyId]
+    );
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -787,8 +881,8 @@ router.post('/admin-recipients', async (req, res) => {
     const { email, label } = req.body;
     if (!email) return res.status(400).json({ error: 'email required' });
     const { rows } = await query(
-      `INSERT INTO admin_recipients (email, label) VALUES ($1, $2) RETURNING *`,
-      [email.trim().toLowerCase(), (label || '').trim() || null]
+      `INSERT INTO admin_recipients (company_id, email, label) VALUES ($1, $2, $3) RETURNING *`,
+      [req.companyId, email.trim().toLowerCase(), (label || '').trim() || null]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -799,7 +893,7 @@ router.post('/admin-recipients', async (req, res) => {
 
 router.delete('/admin-recipients/:id', async (req, res) => {
   try {
-    await query(`DELETE FROM admin_recipients WHERE id = $1`, [req.params.id]);
+    await query(`DELETE FROM admin_recipients WHERE id = $1 AND company_id = $2`, [req.params.id, req.companyId]);
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -808,7 +902,10 @@ router.delete('/admin-recipients/:id', async (req, res) => {
 
 router.get('/notification-settings', async (req, res) => {
   try {
-    const { rows } = await query(`SELECT key, value FROM notification_settings`);
+    const { rows } = await query(
+      `SELECT key, value FROM notification_settings WHERE company_id = $1`,
+      [req.companyId]
+    );
     const settings = {};
     for (const r of rows) settings[r.key] = r.value;
     res.json(settings);
@@ -821,9 +918,9 @@ router.put('/notification-settings', async (req, res) => {
     for (const key of allowed) {
       if (req.body[key] !== undefined) {
         await query(
-          `INSERT INTO notification_settings (key, value) VALUES ($1, $2)
-           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-          [key, req.body[key]]
+          `INSERT INTO notification_settings (company_id, key, value) VALUES ($1, $2, $3)
+           ON CONFLICT (company_id, key) DO UPDATE SET value = EXCLUDED.value`,
+          [req.companyId, key, req.body[key]]
         );
       }
     }
@@ -831,44 +928,44 @@ router.put('/notification-settings', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// ─── Clear Test Data ──────────────────────────────────────────────────────────
+// ─── Clear Data ────────────────────────────────────────────────────────────────
 
 router.delete('/clear/time-records', async (req, res) => {
   try {
-    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NULL)`);
-    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NULL`);
+    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NULL AND company_id = $1)`, [req.companyId]);
+    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NULL AND company_id = $1`, [req.companyId]);
     res.json({ ok: true, deleted: rowCount });
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/clear/projects', async (req, res) => {
   try {
-    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NOT NULL)`);
-    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NOT NULL`);
+    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE project_name IS NOT NULL AND company_id = $1)`, [req.companyId]);
+    const { rowCount } = await query(`DELETE FROM work_records WHERE project_name IS NOT NULL AND company_id = $1`, [req.companyId]);
     res.json({ ok: true, deleted: rowCount });
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/clear/calendar-jobs', async (req, res) => {
   try {
-    const { rowCount } = await query(`DELETE FROM scheduled_jobs`);
+    const { rowCount } = await query(`DELETE FROM scheduled_jobs WHERE company_id = $1`, [req.companyId]);
     res.json({ ok: true, deleted: rowCount });
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/clear/payroll', async (req, res) => {
   try {
-    const { rowCount } = await query(`DELETE FROM payroll`);
+    const { rowCount } = await query(`DELETE FROM payroll WHERE company_id = $1`, [req.companyId]);
     res.json({ ok: true, deleted: rowCount });
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/clear/all', async (req, res) => {
   try {
-    await query(`DELETE FROM media`);
-    await query(`DELETE FROM work_records`);
-    await query(`DELETE FROM scheduled_jobs`);
-    await query(`DELETE FROM payroll`);
+    await query(`DELETE FROM media WHERE record_id IN (SELECT id FROM work_records WHERE company_id = $1)`, [req.companyId]);
+    await query(`DELETE FROM work_records WHERE company_id = $1`, [req.companyId]);
+    await query(`DELETE FROM scheduled_jobs WHERE company_id = $1`, [req.companyId]);
+    await query(`DELETE FROM payroll WHERE company_id = $1`, [req.companyId]);
     res.json({ ok: true });
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
 });
@@ -878,20 +975,23 @@ router.delete('/clear/all', async (req, res) => {
 router.post('/test-email', async (req, res) => {
   try {
     const { sendAdminSummary } = require('../services/email');
-    const { rows } = await query(`SELECT email FROM admin_recipients WHERE active = TRUE`);
+    const { rows: coRows } = await query('SELECT name FROM companies WHERE id = $1', [req.companyId]);
+    const companyName = coRows[0]?.name || 'Company';
+
+    const { rows } = await query(`SELECT email FROM admin_recipients WHERE company_id = $1 AND active = TRUE`, [req.companyId]);
     const emails = rows.map(r => r.email);
-    if (!emails.length) return res.status(400).json({ error: 'No hay destinatarios configurados' });
+    if (!emails.length) return res.status(400).json({ error: 'No recipients configured' });
+
     const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Chicago' });
-    console.log(`[TestEmail] Sending test to: ${emails.join(', ')}`);
     await sendAdminSummary(
-      [{ title: 'Trabajo de prueba', location: 'Dirección de prueba', start_time: '08:00', end_time: '16:00', notes: 'Este es un email de prueba del sistema ABC Midwest.', assigned_names: [] }],
+      [{ title: 'Test Job', location: 'Test Address', start_time: '08:00', end_time: '16:00', notes: 'This is a test email from the system.', assigned_names: [] }],
       todayStr,
       emails,
-      'Email de Prueba'
+      'Test Email',
+      companyName
     );
-    console.log(`[TestEmail] Done`);
     res.json({ ok: true, sent_to: emails });
-  } catch (err) { console.error('[TestEmail] Error:', err.message, err.response && err.response.body); res.status(500).json({ error: err.message || 'Server error' }); }
+  } catch (err) { console.error('[TestEmail] Error:', err.message); res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
 module.exports = router;

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Register Company — WorkTrack</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%); min-height: 100vh; padding: 40px 16px; }
+    .register-card { background: #fff; border-radius: 16px; padding: 32px 28px; max-width: 480px; margin: 0 auto; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+    .register-card h1 { margin: 0 0 4px; font-size: 1.5rem; color: #111827; }
+    .register-card p.sub { color: #6b7280; margin: 0 0 24px; font-size: .9rem; }
+    .section-title { font-size: .85rem; font-weight: 700; color: #1a56db; text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
+    .back-link { display: block; text-align: center; margin-top: 20px; color: rgba(255,255,255,.85); font-size: .9rem; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .slug-hint { font-size: .8rem; color: #6b7280; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="register-card">
+    <h1>Register Your Company</h1>
+    <p class="sub">Create your workspace and first admin account.</p>
+
+    <div class="alert alert-error" id="regError"></div>
+    <div class="alert alert-success" id="regSuccess" style="display:none;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:14px;"></div>
+
+    <form id="registerForm">
+      <div class="section-title">Company Info</div>
+
+      <div class="form-group">
+        <label for="companyName">Company Name *</label>
+        <input type="text" id="companyName" class="form-control" placeholder="Acme Corp" required>
+      </div>
+
+      <div class="form-group">
+        <label for="companySlug">Company Slug *</label>
+        <input type="text" id="companySlug" class="form-control" placeholder="acme-corp"
+               autocapitalize="none" autocorrect="off" required>
+        <div class="slug-hint">Lowercase letters, numbers, hyphens only. Used to log in. Example: <strong>acme-corp</strong></div>
+      </div>
+
+      <div class="form-group">
+        <label for="timezone">Timezone</label>
+        <select id="timezone" class="form-control">
+          <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+          <option value="America/New_York">America/New_York (EST/EDT)</option>
+          <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+          <option value="America/Denver">America/Denver (MST/MDT)</option>
+          <option value="America/Phoenix">America/Phoenix (MST)</option>
+          <option value="America/Anchorage">America/Anchorage (AKST)</option>
+          <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
+          <option value="America/Bogota">America/Bogota (COT)</option>
+          <option value="America/Mexico_City">America/Mexico_City (CST)</option>
+          <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+          <option value="Europe/London">Europe/London (GMT/BST)</option>
+          <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+
+      <div class="section-title">Admin Account</div>
+
+      <div class="form-group">
+        <label for="adminName">Full Name *</label>
+        <input type="text" id="adminName" class="form-control" placeholder="John Smith" required>
+      </div>
+
+      <div class="form-group">
+        <label for="adminUsername">Username *</label>
+        <input type="text" id="adminUsername" class="form-control" placeholder="admin"
+               autocapitalize="none" autocorrect="off" required>
+      </div>
+
+      <div class="form-group">
+        <label for="adminEmail">Email</label>
+        <input type="email" id="adminEmail" class="form-control" placeholder="admin@yourcompany.com">
+      </div>
+
+      <div class="form-group">
+        <label for="adminPassword">Password *</label>
+        <input type="password" id="adminPassword" class="form-control"
+               placeholder="At least 8 characters" minlength="8" required>
+      </div>
+
+      <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;margin-top:8px">
+        Create Company
+      </button>
+    </form>
+  </div>
+  <a href="/" class="back-link">&larr; Back to Sign In</a>
+
+  <script>
+    // Auto-generate slug from company name
+    document.getElementById('companyName').addEventListener('input', () => {
+      const name = document.getElementById('companyName').value;
+      const slug = name.toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+      document.getElementById('companySlug').value = slug;
+    });
+
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitBtn');
+      const err = document.getElementById('regError');
+      const ok  = document.getElementById('regSuccess');
+      err.classList.remove('show');
+      ok.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            company_name:    document.getElementById('companyName').value.trim(),
+            company_slug:    document.getElementById('companySlug').value.trim().toLowerCase(),
+            timezone:        document.getElementById('timezone').value,
+            admin_name:      document.getElementById('adminName').value.trim(),
+            admin_username:  document.getElementById('adminUsername').value.trim(),
+            admin_email:     document.getElementById('adminEmail').value.trim(),
+            admin_password:  document.getElementById('adminPassword').value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+        ok.innerHTML = `
+          <strong>Company created successfully!</strong><br>
+          Your slug is <strong>${data.company_slug}</strong>.<br>
+          <a href="/" style="color:#065f46;font-weight:600">Go to Sign In &rarr;</a>
+        `;
+        ok.style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+      } catch (ex) {
+        err.textContent = ex.message;
+        err.classList.add('show');
+        btn.disabled = false;
+        btn.textContent = 'Create Company';
+      }
+    });
+  </script>
+</body>
+</html>
