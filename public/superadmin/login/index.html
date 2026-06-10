@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>WorkTrack — System Administration</title>
+  <link rel="stylesheet" href="/css/auth.css">
+</head>
+<body>
+
+<div class="auth-split">
+
+  <!-- ── Left: Brand ────────────────────────────────────────────────────── -->
+  <div class="auth-brand">
+    <h1>WorkTrack</h1>
+    <p class="auth-brand-tagline">Workforce Management</p>
+    <div class="auth-brand-badge">System Administration</div>
+
+    <div class="auth-clock" id="authClock" aria-hidden="true">
+      <div class="hand hand-hour"  id="clockHour"></div>
+      <div class="hand hand-min"   id="clockMin"></div>
+      <div class="hand hand-sec"   id="clockSec"></div>
+      <div class="auth-clock-center"></div>
+    </div>
+  </div>
+
+  <!-- ── Right: Form ────────────────────────────────────────────────────── -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+      <h2>Admin Sign In</h2>
+      <p class="auth-card-sub">Restricted access — authorized personnel only.</p>
+
+      <div class="auth-error" id="loginError"></div>
+
+      <form id="loginForm">
+        <div class="auth-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" class="auth-input"
+                 placeholder="Enter your username"
+                 autocomplete="username" autocapitalize="none" autocorrect="off" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <div class="auth-input-wrap">
+            <input type="password" id="password" class="auth-input"
+                   placeholder="Enter your password"
+                   autocomplete="current-password" required>
+            <button type="button" class="auth-input-icon" id="pwToggle" aria-label="Show password">
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="auth-btn" id="loginBtn">Sign In</button>
+      </form>
+
+      <div class="auth-footer">© 2026 WorkTrack</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Redirect if already logged in as super_admin ──────────────────────────
+  const _tok  = localStorage.getItem('token');
+  const _user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (_tok && _user && _user.role === 'super_admin') {
+    location.href = '/superadmin/';
+  }
+
+  // ── Analog clock ──────────────────────────────────────────────────────────
+  function tickClock() {
+    const now = new Date();
+    const s = now.getSeconds();
+    const m = now.getMinutes() + s / 60;
+    const h = (now.getHours() % 12) + m / 60;
+    document.getElementById('clockHour').style.transform = `rotate(${h * 30}deg)`;
+    document.getElementById('clockMin').style.transform  = `rotate(${m * 6}deg)`;
+    document.getElementById('clockSec').style.transform  = `rotate(${s * 6}deg)`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ── Password toggle ───────────────────────────────────────────────────────
+  document.getElementById('pwToggle').addEventListener('click', () => {
+    const pw  = document.getElementById('password');
+    const ico = document.getElementById('eyeIcon');
+    if (pw.type === 'password') {
+      pw.type = 'text';
+      ico.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+    } else {
+      pw.type = 'password';
+      ico.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    }
+  });
+
+  // ── Login form ────────────────────────────────────────────────────────────
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('loginError');
+    err.classList.remove('show');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="auth-spinner"></div> Signing in…';
+
+    try {
+      const res = await fetch('/api/auth/superadmin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: document.getElementById('username').value.trim(),
+          password: document.getElementById('password').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user',  JSON.stringify(data.user));
+      location.href = '/superadmin/';
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.add('show');
+      btn.disabled  = false;
+      btn.textContent = 'Sign In';
+    }
+  });
+</script>
+</body>
+</html>

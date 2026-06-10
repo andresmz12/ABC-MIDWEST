@@ -13,32 +13,28 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
+    // Company slug is required for regular login; super admins use /superadmin-login
+    if (!company_slug) {
+      return res.status(401).json({ error: 'Company slug required' });
+    }
+
     let user;
 
-    if (company_slug) {
-      // Regular user (admin or employee): look up within specific company
-      const { rows: companies } = await query(
-        `SELECT id FROM companies WHERE slug = $1 AND active = TRUE`,
-        [company_slug.trim().toLowerCase()]
-      );
-      if (!companies.length) {
-        return res.status(401).json({ error: 'Company not found' });
-      }
-      const companyId = companies[0].id;
-
-      const { rows } = await query(
-        `SELECT * FROM users WHERE username = $1 AND company_id = $2 AND role != 'super_admin'`,
-        [username, companyId]
-      );
-      user = rows[0];
-    } else {
-      // Super admin login (no company slug)
-      const { rows } = await query(
-        `SELECT * FROM users WHERE username = $1 AND role = 'super_admin'`,
-        [username]
-      );
-      user = rows[0];
+    // Regular user (admin or employee): look up within specific company
+    const { rows: companies } = await query(
+      `SELECT id FROM companies WHERE slug = $1 AND active = TRUE`,
+      [company_slug.trim().toLowerCase()]
+    );
+    if (!companies.length) {
+      return res.status(401).json({ error: 'Company not found' });
     }
+    const companyId = companies[0].id;
+
+    const { rows } = await query(
+      `SELECT * FROM users WHERE username = $1 AND company_id = $2 AND role != 'super_admin'`,
+      [username, companyId]
+    );
+    user = rows[0];
 
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -125,6 +121,43 @@ router.post('/register', async (req, res) => {
     );
 
     res.status(201).json({ success: true, company_slug: slug });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Super admin login (isolated endpoint) ─────────────────────────────────────
+
+router.post('/superadmin-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+
+    const { rows } = await query(
+      `SELECT * FROM users WHERE username = $1 AND role = 'super_admin'`,
+      [username]
+    );
+    const user = rows[0];
+
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    await query('UPDATE users SET force_logout = FALSE WHERE id = $1', [user.id]);
+
+    const token = jwt.sign(
+      { id: user.id, name: user.name, username: user.username, role: user.role, company_id: null },
+      JWT_SECRET,
+      { expiresIn: '12h' }
+    );
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, role: user.role, company_id: null }
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

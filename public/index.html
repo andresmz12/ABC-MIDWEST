@@ -7,155 +7,254 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>WorkTrack — Sign In</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    body { background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%); }
-    .logo-img-login { width: 80px; height: 80px; border-radius: 16px; object-fit: contain; display: block; margin: 0 auto 8px; }
-    .company-slug-row { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
-    .company-slug-row button { padding: 10px 14px; font-size: .85rem; white-space: nowrap; }
-    .company-badge { background: #e8f0fe; color: #1a56db; border-radius: 8px; padding: 8px 12px; font-size: .9rem; font-weight: 600; margin-bottom: 12px; display: none; }
-    .register-link { text-align: center; margin-top: 16px; }
-    .register-link a { color: rgba(255,255,255,0.85); font-size: .9rem; text-decoration: none; }
-    .register-link a:hover { text-decoration: underline; }
-  </style>
+  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body>
-  <div class="login-page">
-    <div class="login-logo">
-      <img id="companyLogo" src="/images/WhatsApp%20Image%202026-03-15%20at%2015.01.42.jpeg" alt="Logo" class="logo-img-login" style="display:none">
-      <h1 id="companyTitle">WorkTrack</h1>
-      <p id="companySubtitle">Workforce Management</p>
-    </div>
-    <div class="login-card">
-      <h2>Sign In</h2>
-      <div class="alert alert-error" id="loginError"></div>
 
-      <div id="companyBadge" class="company-badge"></div>
+<div class="auth-split">
 
-      <form id="loginForm">
-        <div class="form-group" id="slugGroup">
-          <label for="companySlug">Company Slug</label>
-          <div class="company-slug-row">
-            <input type="text" id="companySlug" class="form-control"
-                   placeholder="your-company-slug"
-                   autocomplete="off" autocapitalize="none" autocorrect="off">
-            <button type="button" class="btn btn-primary" id="lookupBtn">Find</button>
-          </div>
-          <small style="color:var(--muted,#888);font-size:.8rem">Leave empty for super admin login</small>
-        </div>
+  <!-- ── Left: Brand ────────────────────────────────────────────────────── -->
+  <div class="auth-brand">
+    <h1>WorkTrack</h1>
+    <p class="auth-brand-tagline">Workforce Management</p>
 
-        <div class="form-group">
-          <label for="username">Username</label>
-          <input type="text" id="username" class="form-control"
-                 placeholder="Enter your username"
-                 autocomplete="username" autocapitalize="none"
-                 autocorrect="off" required>
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" class="form-control"
-                 placeholder="Enter your password"
-                 autocomplete="current-password" required>
-        </div>
-        <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
-      </form>
-    </div>
-    <div class="register-link">
-      <a href="/register/">Register your company &rarr;</a>
+    <div class="auth-clock" id="authClock" aria-hidden="true">
+      <div class="hand hand-hour"  id="clockHour"></div>
+      <div class="hand hand-min"   id="clockMin"></div>
+      <div class="hand hand-sec"   id="clockSec"></div>
+      <div class="auth-clock-center"></div>
     </div>
   </div>
 
-  <script>
-    // Redirect if already logged in
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
-    if (token && user) {
-      if (user.role === 'super_admin') window.location.href = '/superadmin/';
-      else if (user.role === 'admin')  window.location.href = '/admin/';
-      else                             window.location.href = '/employee/';
+  <!-- ── Right: Form ────────────────────────────────────────────────────── -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+      <h2>Sign In</h2>
+      <p class="auth-card-sub">Welcome back to your workspace.</p>
+
+      <div class="auth-error" id="loginError"></div>
+
+      <!-- Company chip (return visit) -->
+      <div id="companyChip" class="auth-company-chip" style="display:none">
+        <div>
+          <div style="font-size:.75rem;color:var(--muted);margin-bottom:2px">Signing in to</div>
+          <div class="auth-company-chip-name" id="chipName"></div>
+        </div>
+        <button type="button" class="auth-company-chip-change" id="changeCompanyBtn">Change</button>
+      </div>
+
+      <form id="loginForm">
+        <!-- Slug field (new visit) -->
+        <div class="auth-field" id="slugField">
+          <label for="companySlug">Company Slug</label>
+          <input type="text" id="companySlug" class="auth-input"
+                 placeholder="your-company-slug"
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <div class="auth-inline-msg info" id="slugMsg"></div>
+        </div>
+
+        <div class="auth-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" class="auth-input"
+                 placeholder="Enter your username"
+                 autocomplete="username" autocapitalize="none" autocorrect="off" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <div class="auth-input-wrap">
+            <input type="password" id="password" class="auth-input"
+                   placeholder="Enter your password"
+                   autocomplete="current-password" required>
+            <button type="button" class="auth-input-icon" id="pwToggle" aria-label="Show password">
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="auth-btn" id="loginBtn">Sign In</button>
+      </form>
+
+      <div class="auth-links">
+        Don't have an account? <a href="/register/">Register your company &rarr;</a>
+      </div>
+
+      <div class="auth-footer">© 2026 WorkTrack</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Redirect if already logged in ─────────────────────────────────────────
+  const _tok  = localStorage.getItem('token');
+  const _user = JSON.parse(localStorage.getItem('user') || 'null');
+  if (_tok && _user) {
+    if      (_user.role === 'super_admin') location.href = '/superadmin/';
+    else if (_user.role === 'admin')       location.href = '/admin/';
+    else                                   location.href = '/employee/';
+  }
+
+  // ── Analog clock ──────────────────────────────────────────────────────────
+  function tickClock() {
+    const now = new Date();
+    const s = now.getSeconds();
+    const m = now.getMinutes() + s / 60;
+    const h = (now.getHours() % 12) + m / 60;
+    document.getElementById('clockHour').style.transform = `rotate(${h * 30}deg)`;
+    document.getElementById('clockMin').style.transform  = `rotate(${m * 6}deg)`;
+    document.getElementById('clockSec').style.transform  = `rotate(${s * 6}deg)`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ── Slug state ────────────────────────────────────────────────────────────
+  let resolvedSlug = null;
+  let slugDebounce = null;
+
+  const savedSlug = localStorage.getItem('wt_slug');
+  const savedName = localStorage.getItem('wt_company_name');
+
+  if (savedSlug && savedName) {
+    showChip(savedSlug, savedName);
+  }
+
+  function showChip(slug, name) {
+    resolvedSlug = slug;
+    document.getElementById('chipName').textContent = name;
+    document.getElementById('companyChip').style.display = 'flex';
+    document.getElementById('slugField').style.display = 'none';
+  }
+
+  function showSlugField() {
+    resolvedSlug = null;
+    document.getElementById('companyChip').style.display = 'none';
+    document.getElementById('slugField').style.display = 'block';
+    document.getElementById('companySlug').value = '';
+    document.getElementById('slugMsg').textContent = '';
+    document.getElementById('companySlug').className = 'auth-input';
+    document.getElementById('companySlug').focus();
+  }
+
+  document.getElementById('changeCompanyBtn').addEventListener('click', () => {
+    localStorage.removeItem('wt_slug');
+    localStorage.removeItem('wt_company_name');
+    showSlugField();
+  });
+
+  // Inline slug verification with debounce
+  document.getElementById('companySlug').addEventListener('input', e => {
+    const raw = e.target.value;
+    const slug = raw.toLowerCase().replace(/\s/g, '-');
+    if (raw !== slug) e.target.value = slug;
+
+    clearTimeout(slugDebounce);
+    const msg   = document.getElementById('slugMsg');
+    const input = document.getElementById('companySlug');
+
+    if (!slug) {
+      msg.textContent = '';
+      msg.className = 'auth-inline-msg info';
+      input.className = 'auth-input';
+      resolvedSlug = null;
+      return;
     }
 
-    let resolvedSlug = null;
+    msg.className = 'auth-inline-msg info';
+    msg.textContent = 'Checking…';
 
-    // Company lookup
-    document.getElementById('lookupBtn').addEventListener('click', async () => {
-      const slug = document.getElementById('companySlug').value.trim().toLowerCase();
-      const badge = document.getElementById('companyBadge');
-      const err   = document.getElementById('loginError');
-      err.classList.remove('show');
-
-      if (!slug) {
-        badge.style.display = 'none';
-        resolvedSlug = null;
-        document.getElementById('companyTitle').textContent = 'WorkTrack';
-        document.getElementById('companySubtitle').textContent = 'Workforce Management';
-        return;
-      }
-
+    slugDebounce = setTimeout(async () => {
       try {
-        const res = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
-        if (!res.ok) { err.textContent = 'Company not found'; err.classList.add('show'); resolvedSlug = null; return; }
-        const data = await res.json();
-        resolvedSlug = slug;
-        badge.textContent = '✓ ' + data.name;
-        badge.style.display = 'block';
-        document.getElementById('companyTitle').textContent = data.name;
-        document.getElementById('companySubtitle').textContent = 'Sign in to your account';
-        if (data.logo_url) {
-          const img = document.getElementById('companyLogo');
-          img.src = data.logo_url;
-          img.style.display = 'block';
+        const res  = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
+        if (res.ok) {
+          const data = await res.json();
+          resolvedSlug = slug;
+          input.className = 'auth-input is-valid';
+          msg.className   = 'auth-inline-msg ok';
+          msg.textContent = '✓ ' + data.name;
+        } else {
+          resolvedSlug = null;
+          input.className = 'auth-input is-invalid';
+          msg.className   = 'auth-inline-msg err';
+          msg.textContent = '✗ Company not found';
         }
       } catch {
-        err.textContent = 'Error looking up company';
-        err.classList.add('show');
+        msg.className   = 'auth-inline-msg err';
+        msg.textContent = 'Network error';
       }
-    });
+    }, 600);
+  });
 
-    // Allow Enter key in slug field to trigger lookup
-    document.getElementById('companySlug').addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('lookupBtn').click(); }
-    });
+  // ── Password toggle ───────────────────────────────────────────────────────
+  document.getElementById('pwToggle').addEventListener('click', () => {
+    const pw  = document.getElementById('password');
+    const ico = document.getElementById('eyeIcon');
+    if (pw.type === 'password') {
+      pw.type = 'text';
+      ico.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+    } else {
+      pw.type = 'password';
+      ico.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    }
+  });
 
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('loginBtn');
-      const err = document.getElementById('loginError');
-      err.classList.remove('show');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Signing in...';
+  // ── Login form ────────────────────────────────────────────────────────────
+  document.getElementById('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('loginBtn');
+    const err = document.getElementById('loginError');
+    err.classList.remove('show');
 
-      const slugInput = document.getElementById('companySlug').value.trim().toLowerCase();
-
-      try {
-        const body = {
-          username: document.getElementById('username').value.trim(),
-          password: document.getElementById('password').value
-        };
-        // Include company_slug if provided (even without clicking Find)
-        if (slugInput) body.company_slug = slugInput;
-
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
-
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-
-        if (data.user.role === 'super_admin') window.location.href = '/superadmin/';
-        else if (data.user.role === 'admin')  window.location.href = '/admin/';
-        else                                  window.location.href = '/employee/';
-      } catch (ex) {
-        err.textContent = ex.message;
+    // Must have a resolved slug (no super-admin path here)
+    if (!resolvedSlug) {
+      const slugVal = document.getElementById('companySlug').value.trim();
+      if (!slugVal) {
+        err.textContent = 'Please enter your company slug.';
         err.classList.add('show');
-        btn.disabled = false;
-        btn.textContent = 'Sign In';
+        return;
       }
-    });
-  </script>
+      err.textContent = 'Please wait for slug verification or correct the slug.';
+      err.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="auth-spinner"></div> Signing in…';
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username:     document.getElementById('username').value.trim(),
+          password:     document.getElementById('password').value,
+          company_slug: resolvedSlug
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user',  JSON.stringify(data.user));
+      // Remember company for next visit
+      localStorage.setItem('wt_slug', resolvedSlug);
+      const chipTxt = document.getElementById('chipName').textContent;
+      const msgTxt  = document.getElementById('slugMsg').textContent.replace(/^✓\s*/, '');
+      const nameToSave = chipTxt || msgTxt;
+      if (nameToSave) localStorage.setItem('wt_company_name', nameToSave);
+
+      if      (data.user.role === 'admin')    location.href = '/admin/';
+      else if (data.user.role === 'employee') location.href = '/employee/';
+      else                                    location.href = '/admin/';
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.add('show');
+      btn.disabled  = false;
+      btn.textContent = 'Sign In';
+    }
+  });
+</script>
 </body>
 </html>

@@ -3,145 +3,376 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Register Company — WorkTrack</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    body { background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%); min-height: 100vh; padding: 40px 16px; }
-    .register-card { background: #fff; border-radius: 16px; padding: 32px 28px; max-width: 480px; margin: 0 auto; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
-    .register-card h1 { margin: 0 0 4px; font-size: 1.5rem; color: #111827; }
-    .register-card p.sub { color: #6b7280; margin: 0 0 24px; font-size: .9rem; }
-    .section-title { font-size: .85rem; font-weight: 700; color: #1a56db; text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 10px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
-    .back-link { display: block; text-align: center; margin-top: 20px; color: rgba(255,255,255,.85); font-size: .9rem; text-decoration: none; }
-    .back-link:hover { text-decoration: underline; }
-    .slug-hint { font-size: .8rem; color: #6b7280; margin-top: 4px; }
-  </style>
+  <title>Register — WorkTrack</title>
+  <link rel="stylesheet" href="/css/auth.css">
 </head>
 <body>
-  <div class="register-card">
-    <h1>Register Your Company</h1>
-    <p class="sub">Create your workspace and first admin account.</p>
 
-    <div class="alert alert-error" id="regError"></div>
-    <div class="alert alert-success" id="regSuccess" style="display:none;background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;border-radius:8px;padding:14px;"></div>
+<div class="auth-split">
 
-    <form id="registerForm">
-      <div class="section-title">Company Info</div>
+  <!-- ── Left: Brand ────────────────────────────────────────────────────── -->
+  <div class="auth-brand">
+    <h1>WorkTrack</h1>
+    <p class="auth-brand-tagline">Workforce Management</p>
 
-      <div class="form-group">
-        <label for="companyName">Company Name *</label>
-        <input type="text" id="companyName" class="form-control" placeholder="Acme Corp" required>
-      </div>
-
-      <div class="form-group">
-        <label for="companySlug">Company Slug *</label>
-        <input type="text" id="companySlug" class="form-control" placeholder="acme-corp"
-               autocapitalize="none" autocorrect="off" required>
-        <div class="slug-hint">Lowercase letters, numbers, hyphens only. Used to log in. Example: <strong>acme-corp</strong></div>
-      </div>
-
-      <div class="form-group">
-        <label for="timezone">Timezone</label>
-        <select id="timezone" class="form-control">
-          <option value="America/Chicago">America/Chicago (CST/CDT)</option>
-          <option value="America/New_York">America/New_York (EST/EDT)</option>
-          <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
-          <option value="America/Denver">America/Denver (MST/MDT)</option>
-          <option value="America/Phoenix">America/Phoenix (MST)</option>
-          <option value="America/Anchorage">America/Anchorage (AKST)</option>
-          <option value="Pacific/Honolulu">Pacific/Honolulu (HST)</option>
-          <option value="America/Bogota">America/Bogota (COT)</option>
-          <option value="America/Mexico_City">America/Mexico_City (CST)</option>
-          <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
-          <option value="Europe/London">Europe/London (GMT/BST)</option>
-          <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
-          <option value="UTC">UTC</option>
-        </select>
-      </div>
-
-      <div class="section-title">Admin Account</div>
-
-      <div class="form-group">
-        <label for="adminName">Full Name *</label>
-        <input type="text" id="adminName" class="form-control" placeholder="John Smith" required>
-      </div>
-
-      <div class="form-group">
-        <label for="adminUsername">Username *</label>
-        <input type="text" id="adminUsername" class="form-control" placeholder="admin"
-               autocapitalize="none" autocorrect="off" required>
-      </div>
-
-      <div class="form-group">
-        <label for="adminEmail">Email</label>
-        <input type="email" id="adminEmail" class="form-control" placeholder="admin@yourcompany.com">
-      </div>
-
-      <div class="form-group">
-        <label for="adminPassword">Password *</label>
-        <input type="password" id="adminPassword" class="form-control"
-               placeholder="At least 8 characters" minlength="8" required>
-      </div>
-
-      <button type="submit" class="btn btn-primary" id="submitBtn" style="width:100%;margin-top:8px">
-        Create Company
-      </button>
-    </form>
+    <div class="auth-clock" id="authClock" aria-hidden="true">
+      <div class="hand hand-hour"  id="clockHour"></div>
+      <div class="hand hand-min"   id="clockMin"></div>
+      <div class="hand hand-sec"   id="clockSec"></div>
+      <div class="auth-clock-center"></div>
+    </div>
   </div>
-  <a href="/" class="back-link">&larr; Back to Sign In</a>
 
-  <script>
-    // Auto-generate slug from company name
-    document.getElementById('companyName').addEventListener('input', () => {
-      const name = document.getElementById('companyName').value;
-      const slug = name.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-      document.getElementById('companySlug').value = slug;
+  <!-- ── Right: Form ────────────────────────────────────────────────────── -->
+  <div class="auth-form-panel">
+    <div class="auth-card">
+
+      <!-- ── Step indicator ─────────────────────────────────────────────── -->
+      <div class="auth-steps" id="stepIndicator">
+        <div class="auth-step active" id="step1ind">
+          <div class="auth-step-num">1</div>
+          <span>Company</span>
+        </div>
+        <div class="auth-step-line"></div>
+        <div class="auth-step" id="step2ind">
+          <div class="auth-step-num">2</div>
+          <span>Admin account</span>
+        </div>
+      </div>
+
+      <div class="auth-error" id="regError"></div>
+
+      <!-- ───────────────────────────────── Step 1 ──────────────────────── -->
+      <div id="step1">
+        <h2>Your company</h2>
+        <p class="auth-card-sub">Tell us about your organization.</p>
+
+        <div class="auth-field">
+          <label for="companyName">Company Name *</label>
+          <input type="text" id="companyName" class="auth-input" placeholder="Acme Corp" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="companySlug">Company Slug *</label>
+          <input type="text" id="companySlug" class="auth-input"
+                 placeholder="acme-corp"
+                 autocapitalize="none" autocorrect="off" spellcheck="false">
+          <div class="auth-inline-msg info" id="slugMsg"></div>
+          <div style="font-size:.78rem;color:var(--muted);margin-top:4px" id="slugPreview"></div>
+        </div>
+
+        <div class="auth-field">
+          <label for="tzSearch">Timezone</label>
+          <div class="auth-tz-wrap">
+            <input type="text" id="tzSearch" class="auth-tz-search" placeholder="Filter timezones…">
+            <select id="timezone" class="auth-tz-select" size="1"></select>
+          </div>
+        </div>
+
+        <button type="button" class="auth-btn" id="step1Btn">Continue &rarr;</button>
+
+        <div class="auth-links">Already have an account? <a href="/">Sign in &rarr;</a></div>
+      </div>
+
+      <!-- ───────────────────────────────── Step 2 ──────────────────────── -->
+      <div id="step2" style="display:none">
+        <h2>Admin account</h2>
+        <p class="auth-card-sub">You'll use this to manage your workspace.</p>
+
+        <div class="auth-field">
+          <label for="adminName">Full Name *</label>
+          <input type="text" id="adminName" class="auth-input" placeholder="Jane Smith" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="adminEmail">Email</label>
+          <input type="email" id="adminEmail" class="auth-input" placeholder="jane@yourcompany.com">
+        </div>
+
+        <div class="auth-field">
+          <label for="adminUsername">Username *</label>
+          <input type="text" id="adminUsername" class="auth-input" placeholder="janesmith"
+                 autocomplete="username" autocapitalize="none" autocorrect="off">
+        </div>
+
+        <div class="auth-field">
+          <label for="adminPassword">Password *</label>
+          <div class="auth-input-wrap">
+            <input type="password" id="adminPassword" class="auth-input"
+                   placeholder="At least 8 characters" autocomplete="new-password">
+            <button type="button" class="auth-input-icon" id="pwToggle" aria-label="Show password">
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="auth-strength-bar" id="strengthBar">
+            <div class="auth-strength-seg" id="seg1"></div>
+            <div class="auth-strength-seg" id="seg2"></div>
+            <div class="auth-strength-seg" id="seg3"></div>
+          </div>
+          <div class="auth-strength-label" id="strengthLabel"></div>
+        </div>
+
+        <div class="auth-field">
+          <label for="confirmPassword">Confirm Password *</label>
+          <input type="password" id="confirmPassword" class="auth-input"
+                 placeholder="Repeat your password" autocomplete="new-password">
+          <div class="auth-inline-msg" id="confirmMsg"></div>
+        </div>
+
+        <div class="auth-check">
+          <input type="checkbox" id="terms">
+          <label for="terms">I agree to the Terms of Service and Privacy Policy.</label>
+        </div>
+
+        <button type="button" class="auth-btn" id="submitBtn">Create Company</button>
+        <button type="button" class="auth-btn-ghost" id="backBtn">&larr; Back</button>
+
+        <div class="auth-links">Already have an account? <a href="/">Sign in &rarr;</a></div>
+      </div>
+
+      <!-- ───────────────────────────────── Success ─────────────────────── -->
+      <div id="successPanel" style="display:none" class="auth-success">
+        <div class="auth-success-icon">✓</div>
+        <h2>Your workspace is ready!</h2>
+        <p>Your company has been created successfully.</p>
+        <p>Sign in with slug:</p>
+        <div class="auth-slug-badge" id="successSlug"></div>
+        <a href="/" class="auth-btn" style="text-decoration:none;display:flex;margin-top:4px">Go to Sign In</a>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── Analog clock ──────────────────────────────────────────────────────────
+  function tickClock() {
+    const now = new Date();
+    const s = now.getSeconds();
+    const m = now.getMinutes() + s / 60;
+    const h = (now.getHours() % 12) + m / 60;
+    document.getElementById('clockHour').style.transform = `rotate(${h * 30}deg)`;
+    document.getElementById('clockMin').style.transform  = `rotate(${m * 6}deg)`;
+    document.getElementById('clockSec').style.transform  = `rotate(${s * 6}deg)`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ── Timezone select ───────────────────────────────────────────────────────
+  const tzSelect = document.getElementById('timezone');
+  const tzSearch = document.getElementById('tzSearch');
+  let allTz = [];
+
+  try {
+    allTz = Intl.supportedValuesOf('timeZone');
+  } catch {
+    allTz = ['America/Chicago','America/New_York','America/Los_Angeles','America/Denver',
+             'America/Phoenix','America/Anchorage','Pacific/Honolulu','UTC'];
+  }
+
+  const defaultTz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
+
+  function populateTz(filter) {
+    const f = (filter || '').toLowerCase();
+    const prev = tzSelect.value;
+    tzSelect.innerHTML = '';
+    allTz.filter(tz => !f || tz.toLowerCase().includes(f)).forEach(tz => {
+      const o = document.createElement('option');
+      o.value = tz; o.textContent = tz;
+      if (tz === (prev || defaultTz)) o.selected = true;
+      tzSelect.appendChild(o);
     });
+    if (!tzSelect.value && tzSelect.options.length) tzSelect.selectedIndex = 0;
+  }
 
-    document.getElementById('registerForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('submitBtn');
-      const err = document.getElementById('regError');
-      const ok  = document.getElementById('regSuccess');
-      err.classList.remove('show');
-      ok.style.display = 'none';
-      btn.disabled = true;
-      btn.textContent = 'Creating...';
+  populateTz('');
+  tzSearch.addEventListener('input', () => populateTz(tzSearch.value));
 
+  // ── Slug auto-generate & inline check ────────────────────────────────────
+  let slugOk = false;
+  let slugDebounce = null;
+
+  document.getElementById('companyName').addEventListener('input', () => {
+    const name = document.getElementById('companyName').value;
+    const slug = name.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+    document.getElementById('companySlug').value = slug;
+    triggerSlugCheck(slug);
+  });
+
+  document.getElementById('companySlug').addEventListener('input', e => {
+    const raw  = e.target.value;
+    const slug = raw.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (raw !== slug) e.target.value = slug;
+    triggerSlugCheck(slug);
+  });
+
+  function triggerSlugCheck(slug) {
+    clearTimeout(slugDebounce);
+    slugOk = false;
+    const msg     = document.getElementById('slugMsg');
+    const preview = document.getElementById('slugPreview');
+    const input   = document.getElementById('companySlug');
+
+    if (!slug) {
+      msg.textContent = ''; msg.className = 'auth-inline-msg info';
+      preview.textContent = '';
+      input.className = 'auth-input'; return;
+    }
+
+    preview.textContent = `Your team will sign in with slug: ${slug}`;
+    msg.className = 'auth-inline-msg info';
+    msg.textContent = 'Checking availability…';
+
+    slugDebounce = setTimeout(async () => {
       try {
-        const res = await fetch('/api/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            company_name:    document.getElementById('companyName').value.trim(),
-            company_slug:    document.getElementById('companySlug').value.trim().toLowerCase(),
-            timezone:        document.getElementById('timezone').value,
-            admin_name:      document.getElementById('adminName').value.trim(),
-            admin_username:  document.getElementById('adminUsername').value.trim(),
-            admin_email:     document.getElementById('adminEmail').value.trim(),
-            admin_password:  document.getElementById('adminPassword').value
-          })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Registration failed');
-
-        ok.innerHTML = `
-          <strong>Company created successfully!</strong><br>
-          Your slug is <strong>${data.company_slug}</strong>.<br>
-          <a href="/" style="color:#065f46;font-weight:600">Go to Sign In &rarr;</a>
-        `;
-        ok.style.display = 'block';
-        document.getElementById('registerForm').style.display = 'none';
-      } catch (ex) {
-        err.textContent = ex.message;
-        err.classList.add('show');
-        btn.disabled = false;
-        btn.textContent = 'Create Company';
+        const res = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
+        if (res.ok) {
+          slugOk = false;
+          input.className = 'auth-input is-invalid';
+          msg.className   = 'auth-inline-msg err';
+          msg.textContent = '✗ Slug already taken';
+        } else {
+          slugOk = true;
+          input.className = 'auth-input is-valid';
+          msg.className   = 'auth-inline-msg ok';
+          msg.textContent = '✓ Available';
+        }
+      } catch {
+        msg.className = 'auth-inline-msg err';
+        msg.textContent = 'Could not verify slug';
       }
-    });
-  </script>
+    }, 600);
+  }
+
+  // ── Password strength ─────────────────────────────────────────────────────
+  document.getElementById('adminPassword').addEventListener('input', () => {
+    const pw  = document.getElementById('adminPassword').value;
+    const s1  = document.getElementById('seg1');
+    const s2  = document.getElementById('seg2');
+    const s3  = document.getElementById('seg3');
+    const lbl = document.getElementById('strengthLabel');
+    let score = 0;
+    if (pw.length >= 8)  score++;
+    if (/[A-Z]/.test(pw) || /\d/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw) && pw.length >= 10) score++;
+
+    const classes = ['', 'weak', 'fair', 'strong'];
+    const labels  = ['', 'Weak', 'Fair', 'Strong'];
+    [s1, s2, s3].forEach((s, i) => s.className = 'auth-strength-seg ' + (i < score ? classes[score] : ''));
+    lbl.textContent = pw ? labels[score] || 'Weak' : '';
+  });
+
+  // ── Password toggle ───────────────────────────────────────────────────────
+  document.getElementById('pwToggle').addEventListener('click', () => {
+    const pw  = document.getElementById('adminPassword');
+    const ico = document.getElementById('eyeIcon');
+    if (pw.type === 'password') {
+      pw.type = 'text';
+      ico.innerHTML = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+    } else {
+      pw.type = 'password';
+      ico.innerHTML = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    }
+  });
+
+  // ── Confirm password check ────────────────────────────────────────────────
+  document.getElementById('confirmPassword').addEventListener('input', () => {
+    const pw  = document.getElementById('adminPassword').value;
+    const cpw = document.getElementById('confirmPassword').value;
+    const msg = document.getElementById('confirmMsg');
+    if (!cpw) { msg.textContent = ''; msg.className = 'auth-inline-msg'; return; }
+    if (pw === cpw) { msg.textContent = '✓ Passwords match'; msg.className = 'auth-inline-msg ok'; }
+    else            { msg.textContent = '✗ Passwords don\'t match'; msg.className = 'auth-inline-msg err'; }
+  });
+
+  // ── Step navigation ───────────────────────────────────────────────────────
+  document.getElementById('step1Btn').addEventListener('click', () => {
+    const err  = document.getElementById('regError');
+    const name = document.getElementById('companyName').value.trim();
+    const slug = document.getElementById('companySlug').value.trim();
+
+    err.classList.remove('show');
+
+    if (!name) { err.textContent = 'Company name is required.'; err.classList.add('show'); return; }
+    if (!slug) { err.textContent = 'Company slug is required.'; err.classList.add('show'); return; }
+    if (!slugOk) { err.textContent = 'Please wait for slug availability check (or fix the slug).'; err.classList.add('show'); return; }
+
+    document.getElementById('step1').style.display    = 'none';
+    document.getElementById('step2').style.display    = 'block';
+    document.getElementById('step1ind').className     = 'auth-step done';
+    document.getElementById('step2ind').className     = 'auth-step active';
+    document.getElementById('step1ind').querySelector('.auth-step-num').textContent = '✓';
+  });
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    document.getElementById('step2').style.display    = 'none';
+    document.getElementById('step1').style.display    = 'block';
+    document.getElementById('step1ind').className     = 'auth-step active';
+    document.getElementById('step2ind').className     = 'auth-step';
+    document.getElementById('step1ind').querySelector('.auth-step-num').textContent = '1';
+    document.getElementById('regError').classList.remove('show');
+  });
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const err  = document.getElementById('regError');
+    const btn  = document.getElementById('submitBtn');
+    err.classList.remove('show');
+
+    const adminName  = document.getElementById('adminName').value.trim();
+    const adminUser  = document.getElementById('adminUsername').value.trim();
+    const pw         = document.getElementById('adminPassword').value;
+    const cpw        = document.getElementById('confirmPassword').value;
+    const terms      = document.getElementById('terms').checked;
+
+    if (!adminName) { err.textContent = 'Full name is required.'; err.classList.add('show'); return; }
+    if (!adminUser) { err.textContent = 'Username is required.'; err.classList.add('show'); return; }
+    if (pw.length < 8) { err.textContent = 'Password must be at least 8 characters.'; err.classList.add('show'); return; }
+    if (pw !== cpw) { err.textContent = 'Passwords do not match.'; err.classList.add('show'); return; }
+    if (!terms) { err.textContent = 'Please accept the Terms of Service.'; err.classList.add('show'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<div class="auth-spinner"></div> Creating…';
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_name:    document.getElementById('companyName').value.trim(),
+          company_slug:    document.getElementById('companySlug').value.trim().toLowerCase(),
+          timezone:        document.getElementById('timezone').value,
+          admin_name:      adminName,
+          admin_username:  adminUser,
+          admin_email:     document.getElementById('adminEmail').value.trim(),
+          admin_password:  pw
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+      // Remember company for the login page
+      localStorage.setItem('wt_slug', data.company_slug);
+      localStorage.setItem('wt_company_name', document.getElementById('companyName').value.trim());
+
+      // Show success
+      document.getElementById('step1').style.display    = 'none';
+      document.getElementById('step2').style.display    = 'none';
+      document.getElementById('stepIndicator').style.display = 'none';
+      document.getElementById('successSlug').textContent = data.company_slug;
+      document.getElementById('successPanel').style.display = 'block';
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Create Company';
+    }
+  });
+</script>
 </body>
 </html>

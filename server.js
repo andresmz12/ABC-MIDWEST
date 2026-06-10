@@ -24,6 +24,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Too many login attempts' } });
 app.use('/api/auth/login', loginLimiter);
 
+const superAdminLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: { error: 'Too many attempts' } });
+app.use('/api/auth/superadmin-login', superAdminLimiter);
+
 // Routes
 app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/admin',      require('./routes/admin'));
