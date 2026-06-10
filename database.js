@@ -207,17 +207,19 @@ async function initDb() {
   await pool.query(`CREATE TABLE IF NOT EXISTS invoice_clients (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, address TEXT, email TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
   await pool.query(`CREATE TABLE IF NOT EXISTS invoice_projects (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, default_price NUMERIC(10,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW())`);
 
-  // ── Migrations for existing installations ─────────────────────────────────
-  // Add company_id to pre-existing tables (no-op if column already exists)
-  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE scheduled_jobs ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE rest_days ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
-  await pool.query(`ALTER TABLE admin_recipients ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id) ON DELETE CASCADE`);
+  // ── Phase 1: Add missing columns (all nullable, no constraints yet) ──────────
 
-  // Add other columns that may be missing in older installations
+  // company_id columns — added as nullable so existing rows don't break
+  await pool.query(`ALTER TABLE users               ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE stores              ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE work_records        ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE scheduled_jobs      ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE rest_days           ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE payroll             ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE admin_recipients    ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+
+  // Other legacy columns
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_lat NUMERIC(10,7)`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_lng NUMERIC(10,7)`);
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_out_lat NUMERIC(10,7)`);
@@ -237,7 +239,7 @@ async function initDb() {
   await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS due_date TEXT`);
   await pool.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS po_number TEXT`);
 
-  // Fix role CHECK constraint to include super_admin (safe to re-run)
+  // Fix role CHECK constraint to include super_admin
   await pool.query(`
     DO $$
     BEGIN
@@ -248,48 +250,7 @@ async function initDb() {
     END $$
   `);
 
-  // Fix notification_settings PRIMARY KEY to include company_id
-  await pool.query(`
-    DO $$
-    DECLARE
-      pk_cols text;
-    BEGIN
-      SELECT string_agg(a.attname, ',' ORDER BY a.attnum)
-      INTO pk_cols
-      FROM pg_constraint c
-      JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
-      WHERE c.conrelid = 'notification_settings'::regclass
-        AND c.contype = 'p';
-
-      IF pk_cols IS NOT NULL AND pk_cols NOT LIKE '%company_id%' THEN
-        ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS company_id INTEGER;
-        EXECUTE 'ALTER TABLE notification_settings DROP CONSTRAINT IF EXISTS ' ||
-          (SELECT conname FROM pg_constraint WHERE conrelid = 'notification_settings'::regclass AND contype = 'p');
-        ALTER TABLE notification_settings ALTER COLUMN company_id SET NOT NULL;
-        ALTER TABLE notification_settings ADD PRIMARY KEY (company_id, key);
-      END IF;
-    EXCEPTION WHEN others THEN NULL;
-    END $$
-  `);
-
-  // Fix admin_recipients UNIQUE constraint to be (company_id, email) not just (email)
-  await pool.query(`
-    DO $$
-    BEGIN
-      ALTER TABLE admin_recipients DROP CONSTRAINT IF EXISTS admin_recipients_email_key;
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conrelid = 'admin_recipients'::regclass
-          AND conname = 'admin_recipients_company_email_key'
-      ) THEN
-        ALTER TABLE admin_recipients ADD CONSTRAINT admin_recipients_company_email_key
-          UNIQUE (company_id, email);
-      END IF;
-    EXCEPTION WHEN others THEN NULL;
-    END $$
-  `);
-
-  // Fix users username uniqueness: unique per company (not globally)
+  // Drop old single-column constraints that will be replaced after data migration
   await pool.query(`
     DO $$
     BEGIN
@@ -298,19 +259,15 @@ async function initDb() {
     END $$
   `);
   await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS users_username_per_company
-      ON users(company_id, username)
-      WHERE company_id IS NOT NULL
-  `);
-  await pool.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS users_username_super_admin
-      ON users(username)
-      WHERE company_id IS NULL
+    DO $$
+    BEGIN
+      ALTER TABLE admin_recipients DROP CONSTRAINT IF EXISTS admin_recipients_email_key;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
   `);
 
-  // ── Bootstrap: default company and super admin ─────────────────────────────
+  // ── Phase 2: Bootstrap default company ────────────────────────────────────
 
-  // Create default company if none exist (for fresh installs and migrations)
   const { rows: existingCompanies } = await pool.query('SELECT id FROM companies LIMIT 1');
   let defaultCompanyId;
   if (existingCompanies.length === 0) {
@@ -324,14 +281,15 @@ async function initDb() {
     defaultCompanyId = existingCompanies[0].id;
   }
 
-  // Migrate existing rows: set company_id = defaultCompanyId where NULL
-  await pool.query(`UPDATE users SET company_id = $1 WHERE company_id IS NULL AND role != 'super_admin'`, [defaultCompanyId]);
-  await pool.query(`UPDATE stores SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
-  await pool.query(`UPDATE work_records SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
-  await pool.query(`UPDATE scheduled_jobs SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
-  await pool.query(`UPDATE rest_days SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
-  await pool.query(`UPDATE payroll SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
-  await pool.query(`UPDATE admin_recipients SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  // ── Phase 3: Populate company_id data (must happen before adding constraints) ─
+
+  await pool.query(`UPDATE users               SET company_id = $1 WHERE company_id IS NULL AND role != 'super_admin'`, [defaultCompanyId]);
+  await pool.query(`UPDATE stores              SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE work_records        SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE scheduled_jobs      SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE rest_days           SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE payroll             SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE admin_recipients    SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
   await pool.query(`UPDATE notification_settings SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
 
   // Seed default notification settings for the default company
@@ -340,8 +298,131 @@ async function initDb() {
       ($1, 'time_night',   '20:00'),
       ($1, 'time_morning', '08:00'),
       ($1, 'time_midday',  '12:00')
-    ON CONFLICT (company_id, key) DO NOTHING
+    ON CONFLICT DO NOTHING
   `, [defaultCompanyId]);
+
+  // ── Phase 4: Add constraints now that data is populated ───────────────────
+
+  // Add FK references (safe — data already populated)
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_company_id_fkey' AND conrelid = 'users'::regclass) THEN
+        ALTER TABLE users ADD CONSTRAINT users_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stores_company_id_fkey' AND conrelid = 'stores'::regclass) THEN
+        ALTER TABLE stores ADD CONSTRAINT stores_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'work_records_company_id_fkey' AND conrelid = 'work_records'::regclass) THEN
+        ALTER TABLE work_records ADD CONSTRAINT work_records_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'scheduled_jobs_company_id_fkey' AND conrelid = 'scheduled_jobs'::regclass) THEN
+        ALTER TABLE scheduled_jobs ADD CONSTRAINT scheduled_jobs_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rest_days_company_id_fkey' AND conrelid = 'rest_days'::regclass) THEN
+        ALTER TABLE rest_days ADD CONSTRAINT rest_days_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'payroll_company_id_fkey' AND conrelid = 'payroll'::regclass) THEN
+        ALTER TABLE payroll ADD CONSTRAINT payroll_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'admin_recipients_company_id_fkey' AND conrelid = 'admin_recipients'::regclass) THEN
+        ALTER TABLE admin_recipients ADD CONSTRAINT admin_recipients_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'notification_settings_company_id_fkey' AND conrelid = 'notification_settings'::regclass) THEN
+        ALTER TABLE notification_settings ADD CONSTRAINT notification_settings_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+
+  // Fix notification_settings PK to (company_id, key) — safe now that data is populated
+  await pool.query(`
+    DO $$
+    DECLARE
+      old_pk text;
+    BEGIN
+      SELECT conname INTO old_pk
+      FROM pg_constraint
+      WHERE conrelid = 'notification_settings'::regclass AND contype = 'p'
+        AND conname NOT LIKE '%company_id%';
+      -- Only re-create if old PK exists and doesn't include company_id
+      IF old_pk IS NOT NULL THEN
+        EXECUTE 'ALTER TABLE notification_settings DROP CONSTRAINT ' || quote_ident(old_pk);
+        ALTER TABLE notification_settings ADD PRIMARY KEY (company_id, key);
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+
+  // Add (company_id, email) unique constraint on admin_recipients
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = 'admin_recipients'::regclass
+          AND conname = 'admin_recipients_company_email_key'
+      ) THEN
+        ALTER TABLE admin_recipients ADD CONSTRAINT admin_recipients_company_email_key
+          UNIQUE (company_id, email);
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+
+  // Per-company unique username indexes (replaces old global unique constraint)
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_per_company
+      ON users(company_id, username)
+      WHERE company_id IS NOT NULL
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS users_username_super_admin
+      ON users(username)
+      WHERE company_id IS NULL
+  `);
 
   // Create super admin if none exists
   const { rows: superAdmins } = await pool.query(`SELECT id FROM users WHERE role = 'super_admin' LIMIT 1`);
