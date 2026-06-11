@@ -40,6 +40,7 @@
     <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
     <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
+    <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
     <button class="tab-btn" data-tab="cleardata">🗑 Datos</button>
   </div>
 
@@ -448,6 +449,128 @@
     </div>
   </div>
 
+  <!-- ── INVOICES TAB ─────────────────────────────────────────────── -->
+  <div id="tab-invoices" class="content" style="display:none">
+    <div class="container">
+      <!-- Summary cards -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;margin-bottom:16px">
+        <div class="card" style="padding:16px 20px">
+          <div style="font-size:1.6rem;font-weight:700;color:var(--primary)" id="invStatTotal">—</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Total Invoices</div>
+        </div>
+        <div class="card" style="padding:16px 20px">
+          <div style="font-size:1.6rem;font-weight:700;color:#d97706" id="invStatPending">—</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Pending</div>
+        </div>
+        <div class="card" style="padding:16px 20px">
+          <div style="font-size:1.6rem;font-weight:700;color:#059669" id="invStatPaid">—</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Paid</div>
+        </div>
+      </div>
+
+      <div class="card" style="overflow:hidden;padding:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+          <h2 style="margin:0;font-size:1rem;font-weight:600">Invoices</h2>
+          <button class="btn btn-primary btn-sm" id="newInvoiceBtn" style="padding:8px 16px">+ New Invoice</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:.88rem">
+            <thead>
+              <tr style="background:var(--surface)">
+                <th style="padding:10px 14px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">#</th>
+                <th style="padding:10px 14px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Client</th>
+                <th style="padding:10px 14px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Date</th>
+                <th style="padding:10px 14px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Due</th>
+                <th style="padding:10px 14px;text-align:right;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Total</th>
+                <th style="padding:10px 14px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border)">Status</th>
+                <th style="padding:10px 14px;border-bottom:1px solid var(--border)"></th>
+              </tr>
+            </thead>
+            <tbody id="invTableBody">
+              <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Create / Edit Modal -->
+  <div class="modal-overlay" id="invoiceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-start;justify-content:center;padding:16px;overflow-y:auto">
+    <div style="background:#fff;border-radius:16px;width:100%;max-width:640px;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+      <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
+        <h3 id="invModalTitle" style="margin:0;font-size:1.1rem;font-weight:700">New Invoice</h3>
+        <button id="invModalClose" style="background:var(--surface);border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:1rem;color:var(--muted)">✕</button>
+      </div>
+      <div style="padding:16px 24px 20px">
+        <div class="alert alert-error" id="invModalError" style="display:none;margin-bottom:12px"></div>
+        <input type="hidden" id="invEditId">
+
+        <div style="font-size:.72rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.07em;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Client Info</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Client Name *</label>
+            <input type="text" id="invClient" class="form-control" placeholder="Acme Corp">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Client Email</label>
+            <input type="email" id="invEmail" class="form-control" placeholder="client@example.com">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Client Address</label>
+          <input type="text" id="invAddress" class="form-control" placeholder="123 Main St, City, State">
+        </div>
+
+        <div style="font-size:.72rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.07em;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Invoice Details</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:14px">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Invoice #</label>
+            <input type="text" id="invNumber" class="form-control" placeholder="Auto">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Date *</label>
+            <input type="date" id="invDate" class="form-control">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Due Date</label>
+            <input type="date" id="invDue" class="form-control">
+          </div>
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">PO Number</label>
+            <input type="text" id="invPO" class="form-control" placeholder="Optional">
+          </div>
+        </div>
+
+        <div style="font-size:.72rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.07em;margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Line Items</div>
+        <div id="invItemsContainer" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+        <button type="button" id="invAddItemBtn" style="background:none;border:1.5px dashed var(--border);border-radius:8px;padding:7px 14px;font-size:.82rem;color:var(--muted);cursor:pointer;width:100%;transition:border-color .15s,color .15s">+ Add Line Item</button>
+
+        <div style="display:grid;grid-template-columns:1fr auto;gap:12px;margin-top:14px;align-items:end">
+          <div class="form-group" style="margin:0">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Notes</label>
+            <input type="text" id="invNotes" class="form-control" placeholder="Payment terms, thank you note…">
+          </div>
+          <div class="form-group" style="margin:0;width:90px">
+            <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">Tax %</label>
+            <input type="number" id="invTax" class="form-control" placeholder="0" min="0" max="100" step="0.01" value="0">
+          </div>
+        </div>
+
+        <!-- Totals preview -->
+        <div id="invTotalsPreview" style="margin-top:14px;background:var(--surface);border-radius:10px;padding:12px 14px;font-size:.88rem;display:none">
+          <div style="display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px"><span>Subtotal</span><span id="invPreviewSubtotal">$0.00</span></div>
+          <div id="invPreviewTaxRow" style="display:none;display:flex;justify-content:space-between;color:var(--muted);margin-bottom:4px"><span>Tax</span><span id="invPreviewTax">$0.00</span></div>
+          <div style="display:flex;justify-content:space-between;font-weight:700;font-size:.95rem;padding-top:6px;border-top:1px solid var(--border)"><span>Total</span><span id="invPreviewTotal">$0.00</span></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;padding:0 24px 20px">
+        <button class="btn btn-secondary" id="invModalCancel" style="padding:9px 18px">Cancel</button>
+        <button class="btn btn-primary" id="invModalSave" style="padding:9px 20px">Save Invoice</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── CLEAR DATA TAB ───────────────────────────────────────────── -->
   <div id="tab-cleardata" class="content" style="display:none">
     <div class="container">
@@ -676,7 +799,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', cleardata: 'tab-cleardata' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices', cleardata: 'tab-cleardata' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -692,6 +815,7 @@
         if (tab === 'payroll')   initPayrollTab();
         if (tab === 'calendar')  initCalendarTab();
         if (tab === 'restdays')  loadRestDays();
+        if (tab === 'invoices')  loadInvoices();
       });
     });
 
@@ -1988,6 +2112,243 @@
         this.disabled = false;
         this.textContent = '🗑 Eliminar Todo';
       });
+    })();
+
+    // ── Invoices ──────────────────────────────────────────────────
+    let invCache = [];
+    let invEditId = null;
+
+    function fmtMoney(n) {
+      return '$' + Number(n || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    async function loadInvoices() {
+      const tbody = document.getElementById('invTableBody');
+      try {
+        invCache = await api('/admin/invoices');
+        updateInvStats();
+        if (!invCache.length) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No invoices yet. Create your first one.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = invCache.map(inv => `
+          <tr>
+            <td style="font-weight:600;font-size:.85rem">${escHtml(inv.invoice_number)}</td>
+            <td>
+              <div style="font-weight:600">${escHtml(inv.client_name)}</div>
+              ${inv.client_email ? `<div style="font-size:.78rem;color:var(--muted)">${escHtml(inv.client_email)}</div>` : ''}
+            </td>
+            <td style="font-size:.85rem;color:var(--muted)">${inv.invoice_date || '—'}</td>
+            <td style="font-size:.85rem;color:var(--muted)">${inv.due_date || '—'}</td>
+            <td style="text-align:right;font-weight:700">${fmtMoney(inv.total)}</td>
+            <td>
+              <span style="display:inline-block;border-radius:20px;padding:3px 10px;font-size:.75rem;font-weight:600;${inv.status === 'paid' ? 'background:#D1FAE5;color:#065F46' : 'background:#FEF3C7;color:#92400E'}">
+                ${inv.status === 'paid' ? '✓ Paid' : '⏳ Pending'}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <button class="btn-download" onclick="invEdit(${inv.id})">Edit</button>
+                <button class="btn-download" onclick="invToggleStatus(${inv.id})">${inv.status === 'paid' ? 'Unpaid' : 'Mark Paid'}</button>
+                <button class="btn-download" onclick="invDownloadPDF(${inv.id}, '${escHtml(inv.invoice_number)}')">PDF</button>
+                <button class="btn-download" style="color:var(--danger);border-color:var(--danger)" onclick="invDelete(${inv.id})">Delete</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:var(--danger)">${escHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    function updateInvStats() {
+      const pending = invCache.filter(i => i.status !== 'paid');
+      const paid    = invCache.filter(i => i.status === 'paid');
+      document.getElementById('invStatTotal').textContent   = invCache.length;
+      document.getElementById('invStatPending').textContent = fmtMoney(pending.reduce((s, i) => s + Number(i.total), 0));
+      document.getElementById('invStatPaid').textContent    = fmtMoney(paid.reduce((s, i) => s + Number(i.total), 0));
+    }
+
+    // ── Modal helpers ─────────────────────────────────────────────
+    function invOpenModal() {
+      const m = document.getElementById('invoiceModal');
+      m.style.display = 'flex';
+      document.getElementById('invModalError').style.display = 'none';
+    }
+    function invCloseModal() {
+      document.getElementById('invoiceModal').style.display = 'none';
+    }
+
+    document.getElementById('invModalClose').addEventListener('click', invCloseModal);
+    document.getElementById('invModalCancel').addEventListener('click', invCloseModal);
+    document.getElementById('invoiceModal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) invCloseModal();
+    });
+
+    // ── Line items ────────────────────────────────────────────────
+    function invRenderItems(items) {
+      const c = document.getElementById('invItemsContainer');
+      c.innerHTML = '';
+      (items || []).forEach((item, idx) => invAddItemRow(item, idx));
+      invUpdateTotals();
+    }
+
+    function invAddItemRow(item = {}) {
+      const c = document.getElementById('invItemsContainer');
+      const row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 70px 110px 30px;gap:6px;align-items:center';
+      row.innerHTML = `
+        <input type="text" class="form-control inv-desc" placeholder="Description" value="${escHtml(item.description || '')}" style="font-size:.85rem;padding:7px 10px">
+        <input type="number" class="form-control inv-qty" placeholder="Qty" value="${item.quantity || 1}" min="0" step="any" style="font-size:.85rem;padding:7px 10px">
+        <input type="number" class="form-control inv-price" placeholder="Unit price" value="${item.unit_price || ''}" min="0" step="0.01" style="font-size:.85rem;padding:7px 10px">
+        <button type="button" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0" onclick="this.closest('div').remove();invUpdateTotals()">×</button>
+      `;
+      row.querySelectorAll('input').forEach(inp => inp.addEventListener('input', invUpdateTotals));
+      c.appendChild(row);
+      invUpdateTotals();
+    }
+
+    function invGetItems() {
+      return [...document.getElementById('invItemsContainer').querySelectorAll('div')].map(row => ({
+        description: row.querySelector('.inv-desc').value.trim(),
+        quantity:    parseFloat(row.querySelector('.inv-qty').value) || 0,
+        unit_price:  parseFloat(row.querySelector('.inv-price').value) || 0,
+      }));
+    }
+
+    function invUpdateTotals() {
+      const items    = invGetItems();
+      const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+      const taxRate  = parseFloat(document.getElementById('invTax').value) || 0;
+      const tax      = subtotal * taxRate / 100;
+      const total    = subtotal + tax;
+      const preview  = document.getElementById('invTotalsPreview');
+      const taxRow   = document.getElementById('invPreviewTaxRow');
+      preview.style.display = items.length ? '' : 'none';
+      document.getElementById('invPreviewSubtotal').textContent = fmtMoney(subtotal);
+      document.getElementById('invPreviewTax').textContent      = fmtMoney(tax);
+      document.getElementById('invPreviewTotal').textContent    = fmtMoney(total);
+      taxRow.style.display = taxRate > 0 ? 'flex' : 'none';
+    }
+
+    document.getElementById('invAddItemBtn').addEventListener('click', () => invAddItemRow());
+    document.getElementById('invTax').addEventListener('input', invUpdateTotals);
+
+    // ── New invoice ───────────────────────────────────────────────
+    document.getElementById('newInvoiceBtn').addEventListener('click', () => {
+      invEditId = null;
+      document.getElementById('invModalTitle').textContent = 'New Invoice';
+      document.getElementById('invEditId').value = '';
+      document.getElementById('invClient').value  = '';
+      document.getElementById('invEmail').value   = '';
+      document.getElementById('invAddress').value = '';
+      document.getElementById('invNumber').value  = '';
+      document.getElementById('invDate').value    = new Date().toISOString().split('T')[0];
+      document.getElementById('invDue').value     = '';
+      document.getElementById('invPO').value      = '';
+      document.getElementById('invNotes').value   = '';
+      document.getElementById('invTax').value     = '0';
+      invRenderItems([{ description: '', quantity: 1, unit_price: '' }]);
+      invOpenModal();
+    });
+
+    // ── Edit invoice ──────────────────────────────────────────────
+    window.invEdit = async (id) => {
+      try {
+        const inv = await api('/admin/invoices/' + id);
+        invEditId = id;
+        document.getElementById('invModalTitle').textContent = 'Edit Invoice';
+        document.getElementById('invEditId').value   = id;
+        document.getElementById('invClient').value   = inv.client_name || '';
+        document.getElementById('invEmail').value    = inv.client_email || '';
+        document.getElementById('invAddress').value  = inv.client_address || '';
+        document.getElementById('invNumber').value   = inv.invoice_number || '';
+        document.getElementById('invDate').value     = inv.invoice_date || '';
+        document.getElementById('invDue').value      = inv.due_date || '';
+        document.getElementById('invPO').value       = inv.po_number || '';
+        document.getElementById('invNotes').value    = inv.notes || '';
+        const items = Array.isArray(inv.items) ? inv.items : JSON.parse(inv.items || '[]');
+        // Back-calculate tax rate from stored subtotal/tax
+        const sub = Number(inv.subtotal) || 0;
+        const taxRate = sub > 0 ? ((Number(inv.tax) / sub) * 100).toFixed(2) : 0;
+        document.getElementById('invTax').value = taxRate;
+        invRenderItems(items);
+        invOpenModal();
+      } catch (err) { alert(err.message); }
+    };
+
+    // ── Save ──────────────────────────────────────────────────────
+    document.getElementById('invModalSave').addEventListener('click', async () => {
+      const errEl = document.getElementById('invModalError');
+      const btn   = document.getElementById('invModalSave');
+      errEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+      try {
+        const id = document.getElementById('invEditId').value;
+        const body = JSON.stringify({
+          invoice_number: document.getElementById('invNumber').value.trim(),
+          invoice_date:   document.getElementById('invDate').value,
+          due_date:       document.getElementById('invDue').value,
+          po_number:      document.getElementById('invPO').value.trim(),
+          client_name:    document.getElementById('invClient').value.trim(),
+          client_address: document.getElementById('invAddress').value.trim(),
+          client_email:   document.getElementById('invEmail').value.trim(),
+          notes:          document.getElementById('invNotes').value.trim(),
+          tax_rate:       parseFloat(document.getElementById('invTax').value) || 0,
+          items:          invGetItems()
+        });
+        if (id) {
+          await api('/admin/invoices/' + id, { method: 'PUT', body });
+        } else {
+          await api('/admin/invoices', { method: 'POST', body });
+        }
+        invCloseModal();
+        loadInvoices();
+      } catch (ex) {
+        errEl.textContent = ex.message;
+        errEl.style.display = 'block';
+        errEl.className = 'alert alert-error show';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Invoice';
+      }
+    });
+
+    // ── Toggle paid status ────────────────────────────────────────
+    window.invToggleStatus = async (id) => {
+      try {
+        await api('/admin/invoices/' + id + '/status', { method: 'PATCH', body: '{}' });
+        loadInvoices();
+      } catch (err) { alert(err.message); }
+    };
+
+    // ── Download PDF ──────────────────────────────────────────────
+    window.invDownloadPDF = (id, invNum) => {
+      fetch('/api/admin/invoices/' + id + '/pdf', { headers: { Authorization: 'Bearer ' + token } })
+        .then(r => {
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'PDF generation failed'); });
+          return r.blob().then(blob => ({ blob }));
+        })
+        .then(({ blob }) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'invoice_' + invNum + '.pdf'; a.click();
+          URL.revokeObjectURL(url);
+        })
+        .catch(err => alert('PDF failed: ' + err.message));
+    };
+
+    // ── Delete ────────────────────────────────────────────────────
+    window.invDelete = async (id) => {
+      const inv = invCache.find(i => i.id === id);
+      if (!confirm('Delete invoice ' + (inv?.invoice_number || '') + '? This cannot be undone.')) return;
+      try {
+        await api('/admin/invoices/' + id, { method: 'DELETE', body: '{}' });
+        loadInvoices();
+      } catch (err) { alert(err.message); }
+    };
+
     })();
   })();
   </script>

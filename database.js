@@ -218,6 +218,7 @@ async function initDb() {
   await pool.query(`ALTER TABLE payroll             ADD COLUMN IF NOT EXISTS company_id INTEGER`);
   await pool.query(`ALTER TABLE admin_recipients    ADD COLUMN IF NOT EXISTS company_id INTEGER`);
   await pool.query(`ALTER TABLE notification_settings ADD COLUMN IF NOT EXISTS company_id INTEGER`);
+  await pool.query(`ALTER TABLE invoices             ADD COLUMN IF NOT EXISTS company_id INTEGER`);
 
   // Other legacy columns
   await pool.query(`ALTER TABLE work_records ADD COLUMN IF NOT EXISTS clock_in_lat NUMERIC(10,7)`);
@@ -291,6 +292,7 @@ async function initDb() {
   await pool.query(`UPDATE payroll             SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
   await pool.query(`UPDATE admin_recipients    SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
   await pool.query(`UPDATE notification_settings SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
+  await pool.query(`UPDATE invoices             SET company_id = $1 WHERE company_id IS NULL`, [defaultCompanyId]);
 
   // Seed default notification settings for the default company
   await pool.query(`

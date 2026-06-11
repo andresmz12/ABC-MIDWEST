@@ -32,8 +32,9 @@ app.use('/api/auth/register', registerLimiter);
 
 // Routes
 app.use('/api/auth',       require('./routes/auth'));
-app.use('/api/admin',      require('./routes/admin'));
-app.use('/api/admin',      require('./routes/payroll'));
+app.use('/api/admin',           require('./routes/admin'));
+app.use('/api/admin',           require('./routes/payroll'));
+app.use('/api/admin/invoices',  require('./routes/invoices'));
 app.use('/api/employee',   require('./routes/employee'));
 app.use('/api/superadmin', require('./routes/superadmin'));
 
