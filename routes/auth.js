@@ -175,14 +175,25 @@ router.post('/superadmin-login', async (req, res) => {
   }
 });
 
-// ── Public: list active companies (for login page auto-detect) ────────────────
+// ── Public: company count only — used to decide login UI mode (never reveals names) ──
 
-router.get('/companies', async (req, res) => {
+router.get('/companies/count', async (req, res) => {
   try {
-    const { rows } = await query(
-      `SELECT name, slug, logo_url FROM companies WHERE active = TRUE ORDER BY name`
-    );
-    res.json(rows);
+    const { rows } = await query(`SELECT COUNT(*) AS total FROM companies WHERE active = TRUE`);
+    res.json({ total: parseInt(rows[0].total, 10) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Public: default company slug — only works when exactly 1 company exists ───
+
+router.get('/companies/default', async (req, res) => {
+  try {
+    const { rows } = await query(`SELECT slug FROM companies WHERE active = TRUE`);
+    if (rows.length !== 1) return res.status(404).json({ error: 'Not a single-company instance' });
+    res.json({ slug: rows[0].slug });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

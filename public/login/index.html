@@ -8,59 +8,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>WorkTrack — Sign In</title>
   <link rel="stylesheet" href="/css/auth.css">
-  <style>
-    /* Company picker cards */
-    .company-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-    .company-card {
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      padding: 14px 12px;
-      cursor: pointer;
-      text-align: center;
-      transition: border-color .15s, box-shadow .15s;
-      background: #fff;
-    }
-    .company-card:hover { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(29,91,240,.08); }
-    .company-card.selected { border-color: var(--blue); background: #EFF6FF; box-shadow: 0 0 0 3px rgba(29,91,240,.12); }
-    .company-card-avatar {
-      width: 44px; height: 44px;
-      border-radius: 12px;
-      background: var(--blue);
-      color: #fff;
-      font-size: 1.2rem;
-      font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      margin: 0 auto 8px;
-      font-family: 'Bricolage Grotesque', sans-serif;
-    }
-    .company-card-name {
-      font-size: .82rem;
-      font-weight: 600;
-      color: var(--text);
-      line-height: 1.3;
-    }
-    .company-card.selected .company-card-name { color: var(--blue); }
-    /* Single-company pill shown in brand panel */
-    .auth-brand-company {
-      margin-top: 16px;
-      background: rgba(255,255,255,.1);
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 999px;
-      padding: 6px 16px;
-      font-size: .85rem;
-      color: rgba(255,255,255,.9);
-      font-weight: 500;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  </style>
 </head>
 <body>
 
@@ -70,7 +17,6 @@
   <div class="auth-brand">
     <h1>WorkTrack</h1>
     <p class="auth-brand-tagline">Workforce Management</p>
-    <div class="auth-brand-company" id="brandCompany" style="display:none"></div>
 
     <div class="auth-clock" id="authClock" aria-hidden="true">
       <div class="hand hand-hour"  id="clockHour"></div>
@@ -83,46 +29,45 @@
   <!-- ── Right: Form ────────────────────────────────────────────────────── -->
   <div class="auth-form-panel">
     <div class="auth-card">
+      <h2>Sign In</h2>
+      <p class="auth-card-sub" id="formSub">Connecting…</p>
 
-      <!-- Multi-company picker (hidden until needed) -->
-      <div id="companyPicker" style="display:none">
-        <h2>Select company</h2>
-        <p class="auth-card-sub">Choose your workspace to continue.</p>
-        <div class="company-grid" id="companyGrid"></div>
-      </div>
+      <div class="auth-error" id="loginError"></div>
 
-      <!-- Login form -->
-      <div id="loginPanel">
-        <h2>Sign In</h2>
-        <p class="auth-card-sub" id="formSub">Connecting…</p>
+      <form id="loginForm">
 
-        <div class="auth-error" id="loginError"></div>
+        <!-- Workspace code field: only shown when there are multiple companies -->
+        <div class="auth-field" id="workspaceField" style="display:none">
+          <label for="workspaceCode">Workspace Code</label>
+          <input type="text" id="workspaceCode" class="auth-input"
+                 placeholder="your-workspace-code"
+                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <div class="auth-inline-msg info" id="workspaceMsg"></div>
+        </div>
 
-        <form id="loginForm">
-          <div class="auth-field">
-            <label for="username">Username</label>
-            <input type="text" id="username" class="auth-input"
-                   placeholder="Enter your username"
-                   autocomplete="username" autocapitalize="none" autocorrect="off" required>
+        <div class="auth-field">
+          <label for="username">Username</label>
+          <input type="text" id="username" class="auth-input"
+                 placeholder="Enter your username"
+                 autocomplete="username" autocapitalize="none" autocorrect="off" required>
+        </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          <div class="auth-input-wrap">
+            <input type="password" id="password" class="auth-input"
+                   placeholder="Enter your password"
+                   autocomplete="current-password" required>
+            <button type="button" class="auth-input-icon" id="pwToggle" aria-label="Show password">
+              <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
           </div>
+        </div>
 
-          <div class="auth-field">
-            <label for="password">Password</label>
-            <div class="auth-input-wrap">
-              <input type="password" id="password" class="auth-input"
-                     placeholder="Enter your password"
-                     autocomplete="current-password" required>
-              <button type="button" class="auth-input-icon" id="pwToggle" aria-label="Show password">
-                <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <button type="submit" class="auth-btn" id="loginBtn" disabled>Sign In</button>
-        </form>
-      </div>
+        <button type="submit" class="auth-btn" id="loginBtn" disabled>Sign In</button>
+      </form>
 
       <div class="auth-footer">© 2026 WorkTrack</div>
     </div>
@@ -153,72 +98,103 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // ── Company loader ────────────────────────────────────────────────────────
+  // ── Determine login mode ──────────────────────────────────────────────────
+  // resolvedSlug is set silently for single-company or after workspace validation
   let resolvedSlug = null;
+  let slugDebounce = null;
+  let slugReqId    = 0;
 
-  function avatarColor(name) {
-    const colors = ['#1D5BF0','#7C3AED','#059669','#DC2626','#D97706','#0891B2'];
-    let h = 0;
-    for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
-    return colors[Math.abs(h) % colors.length];
-  }
-
-  async function loadCompanies() {
+  async function init() {
     const err = document.getElementById('loginError');
     const btn = document.getElementById('loginBtn');
     try {
-      const res = await fetch('/api/auth/companies');
-      if (!res.ok) throw new Error('Could not connect to server');
-      const companies = await res.json();
+      const res = await fetch('/api/auth/companies/count');
+      if (!res.ok) throw new Error('Connection error');
+      const { total } = await res.json();
 
-      if (!companies.length) {
-        document.getElementById('formSub').textContent = 'No active company found.';
-        err.textContent = 'No hay empresa registrada. Contacta al administrador.';
+      if (total === 0) {
+        document.getElementById('formSub').textContent = 'No active workspace found.';
+        err.textContent = 'Contact your administrator.';
         err.classList.add('show');
         return;
       }
 
-      if (companies.length === 1) {
-        // ── Single company: silent auto-select, show name on brand panel ──
-        resolvedSlug = companies[0].slug;
-        document.getElementById('formSub').textContent = `Signing in to ${companies[0].name}`;
-        document.getElementById('brandCompany').textContent = companies[0].name;
-        document.getElementById('brandCompany').style.display = 'block';
-
+      if (total === 1) {
+        // Single company — resolve silently via company-info with known slug
+        // Use a single lookup without exposing names
+        const r2 = await fetch('/api/auth/companies/default');
+        if (r2.ok) {
+          const d = await r2.json();
+          resolvedSlug = d.slug;
+          document.getElementById('formSub').textContent = 'Welcome back. Sign in to continue.';
+        } else {
+          // Fallback: show workspace field
+          showWorkspaceField();
+        }
       } else {
-        // ── Multiple companies: show visual card picker ──────────────────
-        const grid = document.getElementById('companyGrid');
-        companies.forEach((c, i) => {
-          const card = document.createElement('div');
-          card.className = 'company-card' + (i === 0 ? ' selected' : '');
-          card.innerHTML = `
-            <div class="company-card-avatar" style="background:${avatarColor(c.name)}">${c.name.charAt(0).toUpperCase()}</div>
-            <div class="company-card-name">${c.name}</div>
-          `;
-          card.addEventListener('click', () => {
-            document.querySelectorAll('.company-card').forEach(x => x.classList.remove('selected'));
-            card.classList.add('selected');
-            resolvedSlug = c.slug;
-            document.getElementById('formSub').textContent = `Signing in to ${c.name}`;
-          });
-          grid.appendChild(card);
-        });
-
-        // Auto-select first
-        resolvedSlug = companies[0].slug;
-        document.getElementById('formSub').textContent = `Signing in to ${companies[0].name}`;
-        document.getElementById('companyPicker').style.display = 'block';
+        // Multiple companies — show workspace code field (never reveals names)
+        showWorkspaceField();
       }
 
       btn.disabled = false;
-    } catch (ex) {
-      document.getElementById('formSub').textContent = 'Error de conexión';
-      err.textContent = ex.message;
+    } catch {
+      document.getElementById('formSub').textContent = 'Connection error.';
+      err.textContent = 'Could not reach the server. Try again.';
       err.classList.add('show');
     }
   }
 
-  loadCompanies();
+  function showWorkspaceField() {
+    document.getElementById('workspaceField').style.display = 'block';
+    document.getElementById('formSub').textContent = 'Enter your workspace code to sign in.';
+    setupWorkspaceValidation();
+  }
+
+  function setupWorkspaceValidation() {
+    document.getElementById('workspaceCode').addEventListener('input', e => {
+      const raw  = e.target.value;
+      const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+      if (raw !== slug) e.target.value = slug;
+
+      clearTimeout(slugDebounce);
+      resolvedSlug = null;
+      const msg   = document.getElementById('workspaceMsg');
+      const input = document.getElementById('workspaceCode');
+
+      if (!slug) {
+        msg.textContent = ''; input.className = 'auth-input'; return;
+      }
+
+      msg.className = 'auth-inline-msg info';
+      msg.textContent = 'Verifying…';
+      input.className = 'auth-input';
+
+      const reqId = ++slugReqId;
+      slugDebounce = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
+          if (reqId !== slugReqId) return;
+          if (res.ok) {
+            resolvedSlug = slug;
+            input.className = 'auth-input is-valid';
+            msg.className   = 'auth-inline-msg ok';
+            msg.textContent = '✓ Workspace found';
+          } else {
+            resolvedSlug = null;
+            input.className = 'auth-input is-invalid';
+            msg.className   = 'auth-inline-msg err';
+            msg.textContent = '✗ Workspace not found';
+          }
+        } catch {
+          if (reqId !== slugReqId) return;
+          msg.className   = 'auth-inline-msg err';
+          msg.textContent = 'Connection error';
+        }
+      }, 600);
+    });
+  }
+
+  init();
 
   // ── Password toggle ───────────────────────────────────────────────────────
   document.getElementById('pwToggle').addEventListener('click', () => {
@@ -241,7 +217,7 @@
     err.classList.remove('show');
 
     if (!resolvedSlug) {
-      err.textContent = 'No hay empresa seleccionada.';
+      err.textContent = 'Please enter a valid workspace code.';
       err.classList.add('show');
       return;
     }
@@ -251,7 +227,7 @@
 
     try {
       const res = await fetch('/api/auth/login', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username:     document.getElementById('username').value.trim(),
