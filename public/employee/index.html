@@ -232,7 +232,7 @@
     const token = localStorage.getItem('token');
     const user  = JSON.parse(localStorage.getItem('user') || 'null');
     if (!token || !user || user.role !== 'employee') {
-      window.location.href = '/';
+      window.location.href = '/login/';
       throw '';
     }
     document.getElementById('headerName').textContent = user.name;
@@ -258,7 +258,7 @@
         headers: { Authorization: 'Bearer ' + token, ...(opts.headers || {}) }
       });
       const data = await res.json();
-      if (res.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; }
+      if (res.status === 401) { localStorage.clear(); window.location.href = '/login/'; throw ''; }
       if (res.status === 503) throw new Error(data.error || 'Service temporarily unavailable');
       if (!res.ok) throw new Error(data.error || 'Request failed');
       return data;
@@ -282,7 +282,7 @@
 
     // ── Logout ───────────────────────────────────────────────────
     document.getElementById('logoutBtn').addEventListener('click', () => {
-      localStorage.clear(); window.location.href = '/';
+      localStorage.clear(); window.location.href = '/login/';
     });
 
     // ── Idle auto-logout after 8 hours ───────────────────────────
@@ -290,7 +290,7 @@
       const IDLE_MS = 8 * 60 * 60 * 1000;
       let idleTimer = setTimeout(doIdleLogout, IDLE_MS);
       function resetIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(doIdleLogout, IDLE_MS); }
-      function doIdleLogout() { localStorage.clear(); window.location.href = '/'; }
+      function doIdleLogout() { localStorage.clear(); window.location.href = '/login/'; }
       ['mousemove','mousedown','keydown','touchstart','scroll','click'].forEach(e => {
         document.addEventListener(e, resetIdle, { passive: true });
       });
@@ -510,7 +510,7 @@
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: fd
-        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; } if (r.status === 503) throw new Error(d.error || 'Service temporarily unavailable'); if (!r.ok) throw new Error(d.error); return d; });
+        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/login/'; throw ''; } if (r.status === 503) throw new Error(d.error || 'Service temporarily unavailable'); if (!r.ok) throw new Error(d.error); return d; });
 
         // Reload fresh record
         await checkCurrentShift();
@@ -569,7 +569,7 @@
           method: 'POST',
           headers: { Authorization: 'Bearer ' + token },
           body: fd
-        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; } if (r.status === 503) throw new Error(d.error || 'Service temporarily unavailable'); if (!r.ok) throw new Error(d.error); return d; });
+        }).then(async r => { const d = await r.json(); if (r.status === 401) { localStorage.clear(); window.location.href = '/login/'; throw ''; } if (r.status === 503) throw new Error(d.error || 'Service temporarily unavailable'); if (!r.ok) throw new Error(d.error); return d; });
 
         currentRecord = null;
         document.getElementById('clockOutFiles')._files = [];

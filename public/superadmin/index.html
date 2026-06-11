@@ -149,14 +149,14 @@
 
     if (!token || !user || user.role !== 'super_admin') {
       localStorage.clear();
-      window.location.href = '/';
+      window.location.href = '/superadmin/login/';
     }
 
     document.getElementById('saUserName').textContent = 'Logged in as ' + (user?.name || 'Super Admin');
 
     document.getElementById('logoutBtn').addEventListener('click', () => {
       localStorage.clear();
-      window.location.href = '/';
+      window.location.href = '/superadmin/login/';
     });
 
     async function api(method, path, body) {
