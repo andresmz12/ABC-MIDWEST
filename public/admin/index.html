@@ -854,13 +854,15 @@
       const params = getProjectFilterParams();
       fetch('/api/admin/projects/export?' + params, { headers: { Authorization: 'Bearer ' + token } })
         .then(r => {
-          if (!r.ok) throw new Error('Export failed');
-          return r.blob();
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed (' + r.status + ')'); });
+          const cd = r.headers.get('content-disposition') || '';
+          const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || 'extra_projects.xlsx';
+          return r.blob().then(blob => ({ blob, fn }));
         })
-        .then(blob => {
+        .then(({ blob, fn }) => {
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href = url; a.download = 'extra_projects.xlsx'; a.click();
+          a.href = url; a.download = fn; a.click();
           URL.revokeObjectURL(url);
         })
         .catch(err => alert('Export failed: ' + err.message));
@@ -1425,14 +1427,16 @@
       const url  = '/api/admin/payroll/export?year=' + year;
       fetch(url, { headers: { Authorization: 'Bearer ' + token } })
         .then(r => {
-          if (!r.ok) throw new Error('Export failed');
-          return r.blob().then(blob => ({ blob }));
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed (' + r.status + ')'); });
+          const cd = r.headers.get('content-disposition') || '';
+          const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || `payroll_${year}.xlsx`;
+          return r.blob().then(blob => ({ blob, fn }));
         })
-        .then(({ blob }) => {
+        .then(({ blob, fn }) => {
           const blobUrl = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = blobUrl;
-          link.download = `payroll_${year}.xlsx`;
+          link.download = fn;
           link.click();
           URL.revokeObjectURL(blobUrl);
         })
@@ -1603,8 +1607,10 @@
       try {
         const result = await fetch(`/api/admin/scheduled-jobs/${calEditId}/images`, {
           method: 'POST', headers: { Authorization: 'Bearer ' + token }, body: fd
-        }).then(r => r.json());
-        if (result.error) throw new Error(result.error);
+        }).then(r => {
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Upload failed (' + r.status + ')'); });
+          return r.json();
+        });
         statusEl.textContent = result.urls.length + ' image(s) uploaded.';
         const job = calJobs.find(j => j.id === calEditId);
         if (job) { job.image_urls = [...(job.image_urls||[]), ...result.urls]; renderJobImages(job.image_urls); }
@@ -1787,7 +1793,7 @@
       const url = '/api/admin/rest-days/export' + (p.length ? '?' + p.join('&') : '');
       fetch(url, { headers: { Authorization: 'Bearer ' + token } })
         .then(r => {
-          if (!r.ok) throw new Error('Export failed (' + r.status + ')');
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed (' + r.status + ')'); });
           const cd = r.headers.get('content-disposition') || '';
           const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || 'rest_days.xlsx';
           return r.blob().then(blob => ({ blob, fn }));
@@ -1810,7 +1816,7 @@
       const url = '/api/admin/rest-days/export-pdf' + (p.length ? '?' + p.join('&') : '');
       fetch(url, { headers: { Authorization: 'Bearer ' + token } })
         .then(r => {
-          if (!r.ok) throw new Error('Export failed (' + r.status + ')');
+          if (!r.ok) return r.json().then(d => { throw new Error(d.error || 'Export failed (' + r.status + ')'); });
           const cd = r.headers.get('content-disposition') || '';
           const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || 'rest_days.pdf';
           return r.blob().then(blob => ({ blob, fn }));

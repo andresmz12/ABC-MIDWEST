@@ -126,9 +126,10 @@
       localStorage.setItem('token', data.token);
       localStorage.setItem('user',  JSON.stringify(data.user));
 
-      if      (data.user.role === 'admin')    location.href = '/admin/';
-      else if (data.user.role === 'employee') location.href = '/employee/';
-      else                                    location.href = '/login/';
+      if      (data.user.role === 'super_admin') location.href = '/superadmin/';
+      else if (data.user.role === 'admin')       location.href = '/admin/';
+      else if (data.user.role === 'employee')    location.href = '/employee/';
+      else                                       location.href = '/login/';
     } catch (ex) {
       err.textContent = ex.message;
       err.classList.add('show');
