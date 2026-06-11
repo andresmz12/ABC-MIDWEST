@@ -1786,10 +1786,16 @@
       if (emp)   p.push('employee_id=' + emp);
       const url = '/api/admin/rest-days/export' + (p.length ? '?' + p.join('&') : '');
       fetch(url, { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.blob()).then(blob => {
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed (' + r.status + ')');
+          const cd = r.headers.get('content-disposition') || '';
+          const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || 'rest_days.xlsx';
+          return r.blob().then(blob => ({ blob, fn }));
+        })
+        .then(({ blob, fn }) => {
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
-          link.download = 'rest_days.xlsx';
+          link.download = fn;
           link.click();
           URL.revokeObjectURL(link.href);
         }).catch(err => alert('Export failed: ' + err.message));
@@ -1803,11 +1809,18 @@
       if (emp)   p.push('employee_id=' + emp);
       const url = '/api/admin/rest-days/export-pdf' + (p.length ? '?' + p.join('&') : '');
       fetch(url, { headers: { Authorization: 'Bearer ' + token } })
-        .then(r => r.blob()).then(blob => {
+        .then(r => {
+          if (!r.ok) throw new Error('Export failed (' + r.status + ')');
+          const cd = r.headers.get('content-disposition') || '';
+          const fn = (cd.match(/filename="([^"]+)"/) || [])[1] || 'rest_days.pdf';
+          return r.blob().then(blob => ({ blob, fn }));
+        })
+        .then(({ blob, fn }) => {
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
-          link.download = 'rest_days.pdf';
-          link.click(); URL.revokeObjectURL(link.href);
+          link.download = fn;
+          link.click();
+          URL.revokeObjectURL(link.href);
         }).catch(err => alert('Export failed: ' + err.message));
     });
 
