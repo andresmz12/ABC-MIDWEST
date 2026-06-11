@@ -4,99 +4,504 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <title>Super Admin — WorkTrack</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
-    .sa-header { background: #111827; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
-    .sa-header h1 { margin: 0; font-size: 1.2rem; }
-    .sa-header .sub { color: #9ca3af; font-size: .85rem; margin-top: 2px; }
-    .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0 16px; }
-    .stat-card { background: #fff; border-radius: 12px; padding: 18px 22px; flex: 1; min-width: 150px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e5e7eb; }
-    .stat-card .val { font-size: 2rem; font-weight: 700; color: #1a56db; }
-    .stat-card .lbl { font-size: .85rem; color: #6b7280; margin-top: 2px; }
-    .company-list { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e5e7eb; overflow: hidden; }
-    .company-list table { width: 100%; border-collapse: collapse; font-size: .9rem; }
-    .company-list th { background: #f9fafb; padding: 10px 14px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb; }
-    .company-list td { padding: 12px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
-    .company-list tr:last-child td { border-bottom: none; }
-    .badge-active { background: #d1fae5; color: #065f46; border-radius: 20px; padding: 2px 10px; font-size: .78rem; font-weight: 600; }
-    .badge-inactive { background: #fee2e2; color: #991b1b; border-radius: 20px; padding: 2px 10px; font-size: .78rem; font-weight: 600; }
-    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; }
-    .modal-overlay.show { display:flex; }
-    .modal { background:#fff; border-radius:16px; padding:28px 28px 24px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; }
-    .modal h3 { margin:0 0 20px; font-size:1.1rem; }
-    .section-label { font-size:.8rem; font-weight:700; color:#1a56db; text-transform:uppercase; letter-spacing:.05em; margin:16px 0 8px; border-bottom:2px solid #e5e7eb; padding-bottom:4px; }
-    .btn-row { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
-    .btn-danger { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:.85rem; }
-    .btn-danger:hover { background:#b91c1c; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:    #0C1822;
+      --blue:   #1D5BF0;
+      --amber:  #FFB454;
+      --red:    #DC2626;
+      --green:  #059669;
+      --border: #E5E7EB;
+      --muted:  #6B7280;
+      --surface:#F9FAFB;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #F3F4F6;
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .sa-header {
+      background: var(--ink);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .sa-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sa-logo {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.02em;
+    }
+
+    .sa-badge {
+      background: rgba(255, 180, 84, .15);
+      color: var(--amber);
+      border: 1px solid rgba(255, 180, 84, .3);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .sa-user {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .sa-user-name {
+      color: rgba(255,255,255,.6);
+      font-size: .85rem;
+    }
+
+    .btn-logout {
+      background: rgba(255,255,255,.1);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: .85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .btn-logout:hover { background: rgba(255,255,255,.18); }
+
+    /* ── Page body ── */
+    .sa-body {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+
+    /* ── Error alert ── */
+    .alert-error {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #B91C1C;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: .88rem;
+      display: none;
+      margin-bottom: 20px;
+    }
+    .alert-error.show { display: block; }
+
+    /* ── Stats ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+
+    .stat-val {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--blue);
+      line-height: 1;
+    }
+
+    .stat-lbl {
+      font-size: .8rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, opacity .15s;
+    }
+
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1449C4; }
+    .btn-primary:disabled { opacity: .6; cursor: default; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--surface); }
+
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: .8rem;
+      border-radius: 6px;
+    }
+
+    .btn-edit {
+      background: #EFF6FF;
+      color: var(--blue);
+      border: 1px solid #BFDBFE;
+    }
+    .btn-edit:hover { background: #DBEAFE; }
+
+    .btn-deactivate {
+      background: #FEF2F2;
+      color: var(--red);
+      border: 1px solid #FECACA;
+    }
+    .btn-deactivate:hover { background: #FEE2E2; }
+
+    .btn-activate {
+      background: #ECFDF5;
+      color: var(--green);
+      border: 1px solid #A7F3D0;
+    }
+    .btn-activate:hover { background: #D1FAE5; }
+
+    /* ── Table ── */
+    .table-wrap {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+
+    thead th {
+      background: var(--surface);
+      padding: 11px 16px;
+      text-align: left;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 1px solid var(--border);
+    }
+
+    tbody td {
+      padding: 13px 16px;
+      border-bottom: 1px solid #F3F4F6;
+      vertical-align: middle;
+    }
+
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #FAFAFA; }
+
+    .company-name {
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    .slug-chip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 8px;
+      font-family: monospace;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+
+    .badge-active   { background: #D1FAE5; color: #065F46; }
+    .badge-inactive { background: #FEE2E2; color: #991B1B; }
+
+    .actions { display: flex; gap: 6px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 92vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+
+    .modal-header {
+      padding: 22px 24px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-family: 'Bricolage Grotesque', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: var(--surface);
+      border: none;
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 1.1rem;
+      transition: background .15s;
+    }
+    .modal-close:hover { background: var(--border); color: var(--ink); }
+
+    .modal-body { padding: 20px 24px 24px; }
+
+    .modal-section-label {
+      font-size: .72rem;
+      font-weight: 700;
+      color: var(--blue);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin: 20px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-section-label:first-child { margin-top: 0; }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 5px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: .9rem;
+      font-family: inherit;
+      color: var(--ink);
+      background: #fff;
+      transition: border-color .15s;
+      outline: none;
+    }
+    .field input:focus,
+    .field select:focus { border-color: var(--blue); }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .field-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: .88rem;
+      font-weight: 500;
+    }
+
+    .field-check input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--blue);
+    }
+
+    .modal-footer {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      padding: 0 24px 22px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .stats-row { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .sa-header { padding: 0 16px; }
+      .sa-body { padding: 16px 12px 40px; }
+      .stats-row { grid-template-columns: repeat(2, 1fr); }
+      thead th:nth-child(3),
+      thead th:nth-child(4),
+      thead th:nth-child(5),
+      tbody td:nth-child(3),
+      tbody td:nth-child(4),
+      tbody td:nth-child(5) { display: none; }
+    }
   </style>
 </head>
 <body>
-  <div class="sa-header">
-    <div>
-      <h1>WorkTrack Super Admin</h1>
-      <div class="sub" id="saUserName">Loading...</div>
-    </div>
+
+<header class="sa-header">
+  <div class="sa-brand">
+    <span class="sa-logo">WorkTrack</span>
+    <span class="sa-badge">Super Admin</span>
+  </div>
+  <div class="sa-user">
+    <span class="sa-user-name" id="saUserName"></span>
     <button class="btn-logout" id="logoutBtn">Log Out</button>
   </div>
+</header>
 
-  <div class="container" style="padding:24px 16px;max-width:1100px">
-    <div class="alert alert-error" id="pageError"></div>
+<main class="sa-body">
+  <div class="alert-error" id="pageError"></div>
 
-    <!-- Stats -->
-    <div class="stats-row" id="statsRow">
-      <div class="stat-card"><div class="val" id="statCompanies">—</div><div class="lbl">Total Companies</div></div>
-      <div class="stat-card"><div class="val" id="statActive">—</div><div class="lbl">Active Companies</div></div>
-      <div class="stat-card"><div class="val" id="statAdmins">—</div><div class="lbl">Admins</div></div>
-      <div class="stat-card"><div class="val" id="statEmployees">—</div><div class="lbl">Employees</div></div>
-      <div class="stat-card"><div class="val" id="statRecords">—</div><div class="lbl">Work Records</div></div>
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-val" id="statCompanies">—</div>
+      <div class="stat-lbl">Total Companies</div>
     </div>
-
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-      <h2 style="margin:0;font-size:1.1rem">Companies</h2>
-      <button class="btn btn-primary" id="newCompanyBtn" style="padding:10px 18px;font-size:.9rem">+ New Company</button>
+    <div class="stat-card">
+      <div class="stat-val" id="statActive">—</div>
+      <div class="stat-lbl">Active Companies</div>
     </div>
-
-    <div class="company-list">
-      <table id="companiesTable">
-        <thead>
-          <tr>
-            <th>Company</th>
-            <th>Slug</th>
-            <th>Timezone</th>
-            <th>Admins</th>
-            <th>Employees</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="companiesTbody">
-          <tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">Loading...</td></tr>
-        </tbody>
-      </table>
+    <div class="stat-card">
+      <div class="stat-val" id="statAdmins">—</div>
+      <div class="stat-lbl">Admins</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statEmployees">—</div>
+      <div class="stat-lbl">Employees</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" id="statRecords">—</div>
+      <div class="stat-lbl">Work Records</div>
     </div>
   </div>
 
-  <!-- New / Edit Company Modal -->
-  <div class="modal-overlay" id="companyModal">
-    <div class="modal">
-      <h3 id="modalTitle">New Company</h3>
-      <div class="alert alert-error" id="modalError"></div>
+  <!-- Companies table -->
+  <div class="section-header">
+    <h2 class="section-title">Companies</h2>
+    <button class="btn btn-primary" id="newCompanyBtn">+ New Company</button>
+  </div>
 
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Slug</th>
+          <th>Timezone</th>
+          <th>Admins</th>
+          <th>Employees</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="companiesTbody">
+        <tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Company Modal -->
+<div class="modal-overlay" id="companyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">New Company</span>
+      <button class="modal-close" id="modalCloseBtn" aria-label="Close">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="alert-error" id="modalError"></div>
       <input type="hidden" id="editCompanyId">
 
-      <div class="section-label">Company Info</div>
-      <div class="form-group">
-        <label>Company Name *</label>
-        <input type="text" id="mName" class="form-control" placeholder="Acme Corp">
+      <div class="modal-section-label">Company Info</div>
+
+      <div class="field">
+        <label for="mName">Company Name *</label>
+        <input type="text" id="mName" placeholder="ABC Cleaning Co.">
       </div>
-      <div class="form-group">
-        <label>Slug *</label>
-        <input type="text" id="mSlug" class="form-control" placeholder="acme-corp" autocapitalize="none" autocorrect="off">
+
+      <div class="field">
+        <label for="mSlug">Slug *</label>
+        <input type="text" id="mSlug" placeholder="abc-cleaning" autocapitalize="none" autocorrect="off">
       </div>
-      <div class="form-group">
-        <label>Timezone</label>
-        <select id="mTimezone" class="form-control">
+
+      <div class="field">
+        <label for="mTimezone">Timezone</label>
+        <select id="mTimezone">
           <option value="America/Chicago">America/Chicago</option>
           <option value="America/New_York">America/New_York</option>
           <option value="America/Los_Angeles">America/Los_Angeles</option>
@@ -109,218 +514,246 @@
           <option value="UTC">UTC</option>
         </select>
       </div>
-      <div class="form-group">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="mActive" checked style="width:16px;height:16px">
-          <span>Active</span>
-        </label>
-      </div>
+
+      <label class="field-check">
+        <input type="checkbox" id="mActive" checked>
+        Active
+      </label>
 
       <div id="adminSection">
-        <div class="section-label">Initial Admin Account</div>
-        <div class="form-group">
-          <label>Admin Full Name *</label>
-          <input type="text" id="mAdminName" class="form-control" placeholder="John Smith">
-        </div>
-        <div class="form-group">
-          <label>Admin Username *</label>
-          <input type="text" id="mAdminUsername" class="form-control" placeholder="admin" autocapitalize="none">
-        </div>
-        <div class="form-group">
-          <label>Admin Email</label>
-          <input type="email" id="mAdminEmail" class="form-control" placeholder="admin@company.com">
-        </div>
-        <div class="form-group">
-          <label>Admin Password *</label>
-          <input type="password" id="mAdminPassword" class="form-control" placeholder="At least 8 characters">
-        </div>
-      </div>
+        <div class="modal-section-label" style="margin-top:22px">Initial Admin Account</div>
 
-      <div class="btn-row">
-        <button class="btn btn-secondary" id="modalCancelBtn" style="padding:10px 18px">Cancel</button>
-        <button class="btn btn-primary" id="modalSaveBtn" style="padding:10px 22px">Save</button>
+        <div class="field-row">
+          <div class="field">
+            <label for="mAdminName">Full Name *</label>
+            <input type="text" id="mAdminName" placeholder="John Smith">
+          </div>
+          <div class="field">
+            <label for="mAdminUsername">Username *</label>
+            <input type="text" id="mAdminUsername" placeholder="admin" autocapitalize="none">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="mAdminEmail">Email</label>
+          <input type="email" id="mAdminEmail" placeholder="admin@company.com">
+        </div>
+
+        <div class="field">
+          <label for="mAdminPassword">Password * <span style="font-weight:400;color:var(--muted)">(min 8 characters)</span></label>
+          <input type="password" id="mAdminPassword" placeholder="••••••••">
+        </div>
       </div>
     </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modalCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="modalSaveBtn">Save</button>
+    </div>
   </div>
+</div>
 
-  <script>
-    const token = localStorage.getItem('token');
-    const user  = JSON.parse(localStorage.getItem('user') || 'null');
+<script>
+  const token = localStorage.getItem('token');
+  const user  = JSON.parse(localStorage.getItem('user') || 'null');
 
-    if (!token || !user || user.role !== 'super_admin') {
-      localStorage.clear();
-      window.location.href = '/superadmin/login/';
-    }
+  if (!token || !user || user.role !== 'super_admin') {
+    localStorage.clear();
+    location.href = '/superadmin/login/';
+  }
 
-    document.getElementById('saUserName').textContent = 'Logged in as ' + (user?.name || 'Super Admin');
+  document.getElementById('saUserName').textContent = 'Logged in as ' + (user?.name || 'Super Admin');
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.clear();
+    location.href = '/superadmin/login/';
+  });
 
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      localStorage.clear();
-      window.location.href = '/superadmin/login/';
+  async function api(method, path, body) {
+    const res = await fetch('/api/superadmin' + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: body ? JSON.stringify(body) : undefined
     });
+    if (res.status === 401) { localStorage.clear(); location.href = '/superadmin/login/'; return; }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  }
 
-    async function api(method, path, body) {
-      const res = await fetch('/api/superadmin' + path, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-        body: body ? JSON.stringify(body) : undefined
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Request failed');
-      return data;
-    }
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
-    async function loadStats() {
-      try {
-        const s = await api('GET', '/stats');
-        document.getElementById('statCompanies').textContent = s.companies.total;
-        document.getElementById('statActive').textContent    = s.companies.active;
-        document.getElementById('statAdmins').textContent    = s.users.admins;
-        document.getElementById('statEmployees').textContent = s.users.employees;
-        document.getElementById('statRecords').textContent   = s.work_records;
-      } catch (err) {
-        console.error(err);
+  // Keep companies in memory for toggle (avoids extra GET on each action)
+  let companiesCache = [];
+
+  async function loadStats() {
+    try {
+      const s = await api('GET', '/stats');
+      document.getElementById('statCompanies').textContent = s.companies.total;
+      document.getElementById('statActive').textContent    = s.companies.active;
+      document.getElementById('statAdmins').textContent    = s.users.admins;
+      document.getElementById('statEmployees').textContent = s.users.employees;
+      document.getElementById('statRecords').textContent   = s.work_records;
+    } catch { /* silent */ }
+  }
+
+  async function loadCompanies() {
+    const tbody = document.getElementById('companiesTbody');
+    try {
+      companiesCache = await api('GET', '/companies');
+      if (!companiesCache.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:40px">No companies yet. Create your first one above.</td></tr>';
+        return;
       }
-    }
-
-    async function loadCompanies() {
-      const tbody = document.getElementById('companiesTbody');
-      try {
-        const companies = await api('GET', '/companies');
-        if (!companies.length) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">No companies yet</td></tr>';
-          return;
-        }
-        tbody.innerHTML = companies.map(c => `
-          <tr>
-            <td><strong>${esc(c.name)}</strong></td>
-            <td><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.85rem">${esc(c.slug)}</code></td>
-            <td style="font-size:.85rem;color:#6b7280">${esc(c.timezone)}</td>
-            <td>${c.admin_count}</td>
-            <td>${c.employee_count}</td>
-            <td><span class="${c.active ? 'badge-active' : 'badge-inactive'}">${c.active ? 'Active' : 'Inactive'}</span></td>
-            <td style="font-size:.8rem;color:#9ca3af">${new Date(c.created_at).toLocaleDateString()}</td>
-            <td>
-              <button class="btn-download" onclick="editCompany(${c.id})">Edit</button>
-              <button class="btn-download" style="color:#dc2626;border-color:#dc2626" onclick="deactivateCompany(${c.id}, ${JSON.stringify(c.name)}, ${c.active})">
+      tbody.innerHTML = companiesCache.map(c => `
+        <tr>
+          <td class="company-name">${esc(c.name)}</td>
+          <td><span class="slug-chip">${esc(c.slug)}</span></td>
+          <td style="color:var(--muted);font-size:.82rem">${esc(c.timezone)}</td>
+          <td style="text-align:center">${c.admin_count}</td>
+          <td style="text-align:center">${c.employee_count}</td>
+          <td><span class="badge ${c.active ? 'badge-active' : 'badge-inactive'}">${c.active ? 'Active' : 'Inactive'}</span></td>
+          <td style="color:var(--muted);font-size:.8rem">${new Date(c.created_at).toLocaleDateString()}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-sm btn-edit" onclick="editCompany(${c.id})">Edit</button>
+              <button class="btn btn-sm ${c.active ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleActive(${c.id}, ${c.active})">
                 ${c.active ? 'Deactivate' : 'Activate'}
               </button>
-            </td>
-          </tr>
-        `).join('');
-      } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="color:#dc2626;padding:16px">${esc(err.message)}</td></tr>`;
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="8" style="color:var(--red);padding:16px">${esc(err.message)}</td></tr>`;
+    }
+  }
+
+  async function toggleActive(id, currentActive) {
+    const action = currentActive ? 'Deactivate' : 'Activate';
+    const c = companiesCache.find(x => x.id === id);
+    if (!c) return;
+    if (!confirm(`${action} company "${c.name}"?`)) return;
+    try {
+      await api('PUT', '/companies/' + id, {
+        name: c.name,
+        slug: c.slug,
+        timezone: c.timezone,
+        logo_url: c.logo_url || null,
+        active: !currentActive
+      });
+      loadCompanies();
+      loadStats();
+    } catch (err) { alert(err.message); }
+  }
+
+  // ── Modal ──
+  let editingId = null;
+
+  function openModal(mode) {
+    document.getElementById('modalError').classList.remove('show');
+    document.getElementById('companyModal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('companyModal').classList.remove('show');
+  }
+
+  document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('modalCancelBtn').addEventListener('click', closeModal);
+  document.getElementById('companyModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('newCompanyBtn').addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('modalTitle').textContent = 'New Company';
+    document.getElementById('editCompanyId').value = '';
+    document.getElementById('mName').value = '';
+    document.getElementById('mSlug').value = '';
+    document.getElementById('mTimezone').value = 'America/Chicago';
+    document.getElementById('mActive').checked = true;
+    document.getElementById('mAdminName').value = '';
+    document.getElementById('mAdminUsername').value = '';
+    document.getElementById('mAdminEmail').value = '';
+    document.getElementById('mAdminPassword').value = '';
+    document.getElementById('adminSection').style.display = '';
+    openModal();
+  });
+
+  async function editCompany(id) {
+    try {
+      const c = await api('GET', '/companies/' + id);
+      editingId = id;
+      document.getElementById('modalTitle').textContent = 'Edit Company';
+      document.getElementById('editCompanyId').value = id;
+      document.getElementById('mName').value = c.name;
+      document.getElementById('mSlug').value = c.slug;
+      document.getElementById('mTimezone').value = c.timezone || 'America/Chicago';
+      document.getElementById('mActive').checked = c.active;
+      document.getElementById('adminSection').style.display = 'none';
+      openModal();
+    } catch (err) { alert(err.message); }
+  }
+
+  // Auto-generate slug from name
+  document.getElementById('mName').addEventListener('input', () => {
+    if (editingId) return;
+    const val = document.getElementById('mName').value;
+    document.getElementById('mSlug').value = val.toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
+  });
+
+  document.getElementById('modalSaveBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('modalError');
+    const btn   = document.getElementById('modalSaveBtn');
+    errEl.classList.remove('show');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const id   = document.getElementById('editCompanyId').value;
+      const body = {
+        name:     document.getElementById('mName').value.trim(),
+        slug:     document.getElementById('mSlug').value.trim().toLowerCase(),
+        timezone: document.getElementById('mTimezone').value,
+        active:   document.getElementById('mActive').checked
+      };
+
+      if (!body.name || !body.slug) throw new Error('Name and slug are required');
+
+      if (id) {
+        await api('PUT', '/companies/' + id, body);
+      } else {
+        const adminName = document.getElementById('mAdminName').value.trim();
+        const adminUser = document.getElementById('mAdminUsername').value.trim();
+        const adminPass = document.getElementById('mAdminPassword').value;
+        if (!adminName || !adminUser) throw new Error('Admin name and username are required');
+        if (!adminPass || adminPass.length < 8) throw new Error('Admin password must be at least 8 characters');
+        await api('POST', '/companies', {
+          ...body,
+          admin_name:     adminName,
+          admin_username: adminUser,
+          admin_email:    document.getElementById('mAdminEmail').value.trim(),
+          admin_password: adminPass
+        });
       }
+
+      closeModal();
+      loadCompanies();
+      loadStats();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save';
     }
+  });
 
-    function esc(s) {
-      return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    async function deactivateCompany(id, name, currentActive) {
-      if (!confirm(`${currentActive ? 'Deactivate' : 'Activate'} company "${name}"?`)) return;
-      try {
-        const companies = await api('GET', '/companies/' + id);
-        await api('PUT', '/companies/' + id, { ...companies, active: !currentActive });
-        loadCompanies();
-        loadStats();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-
-    let editingId = null;
-
-    document.getElementById('newCompanyBtn').addEventListener('click', () => {
-      editingId = null;
-      document.getElementById('modalTitle').textContent = 'New Company';
-      document.getElementById('editCompanyId').value = '';
-      document.getElementById('mName').value = '';
-      document.getElementById('mSlug').value = '';
-      document.getElementById('mTimezone').value = 'America/Chicago';
-      document.getElementById('mActive').checked = true;
-      document.getElementById('mAdminName').value = '';
-      document.getElementById('mAdminUsername').value = '';
-      document.getElementById('mAdminEmail').value = '';
-      document.getElementById('mAdminPassword').value = '';
-      document.getElementById('adminSection').style.display = 'block';
-      document.getElementById('modalError').classList.remove('show');
-      document.getElementById('companyModal').classList.add('show');
-    });
-
-    async function editCompany(id) {
-      try {
-        const c = await api('GET', '/companies/' + id);
-        editingId = id;
-        document.getElementById('modalTitle').textContent = 'Edit Company';
-        document.getElementById('editCompanyId').value = id;
-        document.getElementById('mName').value = c.name;
-        document.getElementById('mSlug').value = c.slug;
-        document.getElementById('mTimezone').value = c.timezone;
-        document.getElementById('mActive').checked = c.active;
-        document.getElementById('adminSection').style.display = 'none';
-        document.getElementById('modalError').classList.remove('show');
-        document.getElementById('companyModal').classList.add('show');
-      } catch (err) { alert(err.message); }
-    }
-
-    document.getElementById('modalCancelBtn').addEventListener('click', () => {
-      document.getElementById('companyModal').classList.remove('show');
-    });
-
-    document.getElementById('mName').addEventListener('input', () => {
-      if (editingId) return;
-      const name = document.getElementById('mName').value;
-      document.getElementById('mSlug').value = name.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-');
-    });
-
-    document.getElementById('modalSaveBtn').addEventListener('click', async () => {
-      const err = document.getElementById('modalError');
-      err.classList.remove('show');
-      const btn = document.getElementById('modalSaveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
-
-      try {
-        const id = document.getElementById('editCompanyId').value;
-        const body = {
-          name:     document.getElementById('mName').value.trim(),
-          slug:     document.getElementById('mSlug').value.trim().toLowerCase(),
-          timezone: document.getElementById('mTimezone').value,
-          active:   document.getElementById('mActive').checked
-        };
-
-        if (!body.name || !body.slug) throw new Error('Name and slug are required');
-
-        if (id) {
-          await api('PUT', '/companies/' + id, body);
-        } else {
-          const adminPass = document.getElementById('mAdminPassword').value;
-          if (!adminPass || adminPass.length < 8) throw new Error('Admin password must be at least 8 characters');
-          await api('POST', '/companies', {
-            ...body,
-            admin_name:     document.getElementById('mAdminName').value.trim(),
-            admin_username: document.getElementById('mAdminUsername').value.trim(),
-            admin_email:    document.getElementById('mAdminEmail').value.trim(),
-            admin_password: adminPass
-          });
-        }
-
-        document.getElementById('companyModal').classList.remove('show');
-        loadCompanies();
-        loadStats();
-      } catch (ex) {
-        err.textContent = ex.message;
-        err.classList.add('show');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save';
-      }
-    });
-
-    loadStats();
-    loadCompanies();
-  </script>
+  loadStats();
+  loadCompanies();
+</script>
 </body>
 </html>
