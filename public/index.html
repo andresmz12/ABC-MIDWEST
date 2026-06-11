@@ -46,8 +46,39 @@
       text-decoration: none;
       letter-spacing: -.02em;
     }
-
     .nav-logo span { color: var(--blue); }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Language switcher */
+    .lang-switch {
+      display: flex;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: .82rem;
+      font-weight: 600;
+    }
+    .lang-btn {
+      background: none;
+      border: none;
+      padding: 6px 12px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: background .15s, color .15s;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+    }
+    .lang-btn.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .lang-btn:not(.active):hover { background: #F3F4F6; color: var(--ink); }
 
     .nav-btn {
       background: var(--blue);
@@ -59,7 +90,6 @@
       font-weight: 600;
       transition: background .15s;
     }
-
     .nav-btn:hover { background: #1449C4; }
 
     /* ── Hero ── */
@@ -70,9 +100,7 @@
       align-items: center;
     }
 
-    .hero-text {
-      padding: 80px 48px 80px 80px;
-    }
+    .hero-text { padding: 80px 48px 80px 80px; }
 
     .hero-badge {
       display: inline-flex;
@@ -99,11 +127,7 @@
       color: var(--ink);
       margin-bottom: 20px;
     }
-
-    .hero h1 em {
-      font-style: normal;
-      color: var(--blue);
-    }
+    .hero h1 em { font-style: normal; color: var(--blue); }
 
     .hero-sub {
       font-size: 1.1rem;
@@ -113,12 +137,7 @@
       margin-bottom: 36px;
     }
 
-    .hero-actions {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 
     .btn-primary {
       background: var(--blue);
@@ -131,10 +150,9 @@
       transition: background .15s, transform .1s;
       display: inline-block;
     }
-
     .btn-primary:hover { background: #1449C4; transform: translateY(-1px); }
 
-    /* ── Hero visual (right panel) ── */
+    /* ── Hero visual ── */
     .hero-visual {
       background: linear-gradient(160deg, #0C1822 0%, #14304A 100%);
       height: 100%;
@@ -146,16 +164,13 @@
       gap: 32px;
     }
 
-    /* Analog clock */
     .lp-clock {
       position: relative;
-      width: 180px;
-      height: 180px;
+      width: 180px; height: 180px;
       border-radius: 50%;
       border: 2.5px solid rgba(255,255,255,.15);
       flex-shrink: 0;
     }
-
     .lp-clock::before {
       content: '';
       position: absolute;
@@ -163,7 +178,6 @@
       border-radius: 50%;
       background: repeating-conic-gradient(rgba(255,255,255,.2) 0deg 2deg, transparent 2deg 30deg);
     }
-
     .lp-clock-center {
       position: absolute;
       width: 8px; height: 8px;
@@ -173,20 +187,16 @@
       transform: translate(-50%, -50%);
       z-index: 10;
     }
-
     .lp-hand {
       position: absolute;
-      bottom: 50%;
-      left: 50%;
+      bottom: 50%; left: 50%;
       transform-origin: bottom center;
       border-radius: 4px;
     }
+    .lp-hand-h { width: 4px;   height: 48px; background: rgba(255,255,255,.9);  margin-left: -2px; }
+    .lp-hand-m { width: 3px;   height: 64px; background: rgba(255,255,255,.75); margin-left: -1.5px; }
+    .lp-hand-s { width: 1.5px; height: 72px; background: var(--amber);          margin-left: -.75px; }
 
-    .lp-hand-h { width: 4px; height: 48px; background: rgba(255,255,255,.9); margin-left: -2px; }
-    .lp-hand-m { width: 3px; height: 64px; background: rgba(255,255,255,.75); margin-left: -1.5px; }
-    .lp-hand-s { width: 1.5px; height: 72px; background: var(--amber); margin-left: -.75px; }
-
-    /* Stat cards */
     .hero-stats {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -194,53 +204,26 @@
       width: 100%;
       max-width: 320px;
     }
-
     .hero-stat {
       background: rgba(255,255,255,.07);
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 12px;
       padding: 16px;
     }
-
     .hero-stat-val {
       font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 1.6rem;
-      font-weight: 700;
-      color: #fff;
+      font-size: 1.6rem; font-weight: 700; color: #fff;
     }
-
-    .hero-stat-lbl {
-      font-size: .78rem;
-      color: rgba(255,255,255,.5);
-      margin-top: 2px;
-    }
+    .hero-stat-lbl { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: 2px; }
 
     /* ── Features ── */
-    .features {
-      padding: 96px 80px;
-      background: #F7F8FA;
-    }
-
-    .features-header {
-      text-align: center;
-      margin-bottom: 56px;
-    }
-
+    .features { padding: 96px 80px; background: #F7F8FA; }
+    .features-header { text-align: center; margin-bottom: 56px; }
     .features-header h2 {
       font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 2.2rem;
-      font-weight: 700;
-      letter-spacing: -.02em;
-      margin-bottom: 12px;
+      font-size: 2.2rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px;
     }
-
-    .features-header p {
-      color: var(--muted);
-      font-size: 1rem;
-      max-width: 480px;
-      margin: 0 auto;
-      line-height: 1.7;
-    }
+    .features-header p { color: var(--muted); font-size: 1rem; max-width: 480px; margin: 0 auto; line-height: 1.7; }
 
     .features-grid {
       display: grid;
@@ -249,91 +232,54 @@
       max-width: 1100px;
       margin: 0 auto;
     }
-
     .feature-card {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px 24px;
+      background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px;
     }
-
     .feature-icon {
-      width: 48px; height: 48px;
-      border-radius: 12px;
-      background: #EFF6FF;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      margin-bottom: 16px;
+      width: 48px; height: 48px; border-radius: 12px; background: #EFF6FF;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.4rem; margin-bottom: 16px;
     }
-
     .feature-card h3 {
       font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin-bottom: 8px;
+      font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;
     }
-
-    .feature-card p {
-      color: var(--muted);
-      font-size: .88rem;
-      line-height: 1.6;
-    }
+    .feature-card p { color: var(--muted); font-size: .88rem; line-height: 1.6; }
 
     /* ── CTA ── */
     .cta {
       background: linear-gradient(160deg, #0C1822 0%, #14304A 100%);
-      padding: 80px 80px;
+      padding: 80px;
       text-align: center;
     }
-
     .cta h2 {
       font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #fff;
-      letter-spacing: -.02em;
-      margin-bottom: 16px;
+      font-size: 2.2rem; font-weight: 700; color: #fff;
+      letter-spacing: -.02em; margin-bottom: 16px;
     }
-
-    .cta p {
-      color: rgba(255,255,255,.6);
-      font-size: 1rem;
-      margin-bottom: 36px;
-    }
-
+    .cta p { color: rgba(255,255,255,.6); font-size: 1rem; margin-bottom: 36px; }
     .btn-amber {
-      background: var(--amber);
-      color: var(--ink);
-      text-decoration: none;
-      padding: 14px 32px;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      display: inline-block;
-      transition: opacity .15s, transform .1s;
+      background: var(--amber); color: var(--ink);
+      text-decoration: none; padding: 14px 32px;
+      border-radius: 12px; font-size: 1rem; font-weight: 700;
+      display: inline-block; transition: opacity .15s, transform .1s;
     }
-
     .btn-amber:hover { opacity: .9; transform: translateY(-1px); }
 
     /* ── Footer ── */
     footer {
       padding: 24px 80px;
       border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: .82rem;
-      color: var(--muted);
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: .82rem; color: var(--muted);
     }
-
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--ink); }
 
     /* ── Responsive ── */
     @media (max-width: 900px) {
-      nav { padding: 16px 24px; }
+      nav { padding: 16px 20px; }
+      .nav-right { gap: 8px; }
       .hero { grid-template-columns: 1fr; min-height: auto; }
       .hero-text { padding: 60px 24px; }
       .hero h1 { font-size: 2.4rem; }
@@ -350,48 +296,51 @@
 <!-- ── Nav ─────────────────────────────────────────────────────────────── -->
 <nav>
   <a href="/" class="nav-logo">Work<span>Track</span></a>
-  <a href="/login/" class="nav-btn">Sign In →</a>
+  <div class="nav-right">
+    <div class="lang-switch" role="group" aria-label="Language">
+      <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
+      <button class="lang-btn"        id="btnES" onclick="setLang('es')">ES</button>
+    </div>
+    <a href="/login/" class="nav-btn" data-i18n="nav_signin">Sign In →</a>
+  </div>
 </nav>
 
 <!-- ── Hero ────────────────────────────────────────────────────────────── -->
 <section class="hero">
   <div class="hero-text">
-    <div class="hero-badge">⚡ Workforce Management</div>
-    <h1>Your team,<br><em>always on track</em></h1>
-    <p class="hero-sub">
+    <div class="hero-badge" data-i18n="hero_badge">⚡ Workforce Management</div>
+    <h1 data-i18n-html="hero_h1">Your team,<br><em>always on track</em></h1>
+    <p class="hero-sub" data-i18n="hero_sub">
       Clock-in, schedules, payroll and reports — everything your cleaning business needs, in one simple platform.
     </p>
     <div class="hero-actions">
-      <a href="/login/" class="btn-primary">Sign In to your account →</a>
+      <a href="/login/" class="btn-primary" data-i18n="hero_cta">Sign In to your account →</a>
     </div>
   </div>
 
   <div class="hero-visual">
-    <!-- Analog clock -->
     <div class="lp-clock" id="lpClock">
       <div class="lp-hand lp-hand-h" id="lpHour"></div>
       <div class="lp-hand lp-hand-m" id="lpMin"></div>
       <div class="lp-hand lp-hand-s" id="lpSec"></div>
       <div class="lp-clock-center"></div>
     </div>
-
-    <!-- Stats -->
     <div class="hero-stats">
       <div class="hero-stat">
         <div class="hero-stat-val">⏱</div>
-        <div class="hero-stat-lbl">Time Tracking</div>
+        <div class="hero-stat-lbl" data-i18n="stat_time">Time Tracking</div>
       </div>
       <div class="hero-stat">
         <div class="hero-stat-val">📅</div>
-        <div class="hero-stat-lbl">Scheduling</div>
+        <div class="hero-stat-lbl" data-i18n="stat_sched">Scheduling</div>
       </div>
       <div class="hero-stat">
         <div class="hero-stat-val">💰</div>
-        <div class="hero-stat-lbl">Payroll</div>
+        <div class="hero-stat-lbl" data-i18n="stat_payroll">Payroll</div>
       </div>
       <div class="hero-stat">
         <div class="hero-stat-val">📍</div>
-        <div class="hero-stat-lbl">Multi-location</div>
+        <div class="hero-stat-lbl" data-i18n="stat_multi">Multi-location</div>
       </div>
     </div>
   </div>
@@ -400,59 +349,59 @@
 <!-- ── Features ─────────────────────────────────────────────────────────── -->
 <section class="features">
   <div class="features-header">
-    <h2>Everything you need to manage your team</h2>
-    <p>Built for cleaning companies. Simple for employees, powerful for managers.</p>
+    <h2 data-i18n="feat_title">Everything you need to manage your team</h2>
+    <p data-i18n="feat_sub">Built for cleaning companies. Simple for employees, powerful for managers.</p>
   </div>
 
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">⏱</div>
-      <h3>Clock In / Clock Out</h3>
-      <p>Employees clock in with photo evidence from their phone. No hardware needed.</p>
+      <h3 data-i18n="f1_title">Clock In / Clock Out</h3>
+      <p data-i18n="f1_desc">Employees clock in with photo evidence from their phone. No hardware needed.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📅</div>
-      <h3>Job Scheduling</h3>
-      <p>Assign jobs to locations with time slots. Employees see their schedule instantly.</p>
+      <h3 data-i18n="f2_title">Job Scheduling</h3>
+      <p data-i18n="f2_desc">Assign jobs to locations with time slots. Employees see their schedule instantly.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">💰</div>
-      <h3>Payroll Reports</h3>
-      <p>Automatic hour summaries per employee. Export to Excel in one click.</p>
+      <h3 data-i18n="f3_title">Payroll Reports</h3>
+      <p data-i18n="f3_desc">Automatic hour summaries per employee. Export to Excel in one click.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📍</div>
-      <h3>Multi-location</h3>
-      <p>Manage multiple stores or locations from a single dashboard.</p>
+      <h3 data-i18n="f4_title">Multi-location</h3>
+      <p data-i18n="f4_desc">Manage multiple stores or locations from a single dashboard.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🔔</div>
-      <h3>Email Reminders</h3>
-      <p>Automatic daily summaries sent to managers at the times they choose.</p>
+      <h3 data-i18n="f5_title">Email Reminders</h3>
+      <p data-i18n="f5_desc">Automatic daily summaries sent to managers at the times they choose.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">📊</div>
-      <h3>Real-time Dashboard</h3>
-      <p>See who's working right now, across all your locations.</p>
+      <h3 data-i18n="f6_title">Real-time Dashboard</h3>
+      <p data-i18n="f6_desc">See who's working right now, across all your locations.</p>
     </div>
   </div>
 </section>
 
 <!-- ── CTA ──────────────────────────────────────────────────────────────── -->
 <section class="cta">
-  <h2>Ready to get started?</h2>
-  <p>Sign in to your workspace and manage your team today.</p>
-  <a href="/login/" class="btn-amber">Sign In →</a>
+  <h2 data-i18n="cta_title">Ready to get started?</h2>
+  <p data-i18n="cta_sub">Sign in to your workspace and manage your team today.</p>
+  <a href="/login/" class="btn-amber" data-i18n="cta_btn">Sign In →</a>
 </section>
 
 <!-- ── Footer ───────────────────────────────────────────────────────────── -->
 <footer>
-  <span>© 2026 WorkTrack. All rights reserved.</span>
-  <a href="/superadmin/login/">System Admin</a>
+  <span data-i18n="footer_copy">© 2026 WorkTrack. All rights reserved.</span>
+  <a href="/superadmin/login/" data-i18n="footer_admin">System Admin</a>
 </footer>
 
 <script>
-  // Redirect already-logged-in users
+  // ── Redirect already-logged-in users ─────────────────────────────────────
   const _u = JSON.parse(localStorage.getItem('user') || 'null');
   const _t = localStorage.getItem('token');
   if (_t && _u) {
@@ -461,16 +410,103 @@
     else                                location.href = '/employee/';
   }
 
-  // Analog clock
+  // ── Analog clock ─────────────────────────────────────────────────────────
   function tick() {
     const now = new Date();
-    const s = now.getSeconds(), m = now.getMinutes() + s/60, h = (now.getHours()%12) + m/60;
-    document.getElementById('lpHour').style.transform = `rotate(${h*30}deg)`;
-    document.getElementById('lpMin').style.transform  = `rotate(${m*6}deg)`;
-    document.getElementById('lpSec').style.transform  = `rotate(${s*6}deg)`;
+    const s = now.getSeconds(), m = now.getMinutes() + s / 60, h = (now.getHours() % 12) + m / 60;
+    document.getElementById('lpHour').style.transform = `rotate(${h * 30}deg)`;
+    document.getElementById('lpMin').style.transform  = `rotate(${m * 6}deg)`;
+    document.getElementById('lpSec').style.transform  = `rotate(${s * 6}deg)`;
   }
   tick();
   setInterval(tick, 1000);
+
+  // ── i18n ─────────────────────────────────────────────────────────────────
+  const T = {
+    en: {
+      nav_signin:   'Sign In →',
+      hero_badge:   '⚡ Workforce Management',
+      hero_h1:      'Your team,<br><em>always on track</em>',
+      hero_sub:     'Clock-in, schedules, payroll and reports — everything your cleaning business needs, in one simple platform.',
+      hero_cta:     'Sign In to your account →',
+      stat_time:    'Time Tracking',
+      stat_sched:   'Scheduling',
+      stat_payroll: 'Payroll',
+      stat_multi:   'Multi-location',
+      feat_title:   'Everything you need to manage your team',
+      feat_sub:     'Built for cleaning companies. Simple for employees, powerful for managers.',
+      f1_title:     'Clock In / Clock Out',
+      f1_desc:      'Employees clock in with photo evidence from their phone. No hardware needed.',
+      f2_title:     'Job Scheduling',
+      f2_desc:      'Assign jobs to locations with time slots. Employees see their schedule instantly.',
+      f3_title:     'Payroll Reports',
+      f3_desc:      'Automatic hour summaries per employee. Export to Excel in one click.',
+      f4_title:     'Multi-location',
+      f4_desc:      'Manage multiple stores or locations from a single dashboard.',
+      f5_title:     'Email Reminders',
+      f5_desc:      'Automatic daily summaries sent to managers at the times they choose.',
+      f6_title:     'Real-time Dashboard',
+      f6_desc:      'See who\'s working right now, across all your locations.',
+      cta_title:    'Ready to get started?',
+      cta_sub:      'Sign in to your workspace and manage your team today.',
+      cta_btn:      'Sign In →',
+      footer_copy:  '© 2026 WorkTrack. All rights reserved.',
+      footer_admin: 'System Admin',
+    },
+    es: {
+      nav_signin:   'Iniciar sesión →',
+      hero_badge:   '⚡ Gestión de Personal',
+      hero_h1:      'Tu equipo,<br><em>siempre al día</em>',
+      hero_sub:     'Marcaje, horarios, nómina y reportes — todo lo que tu empresa de limpieza necesita, en una sola plataforma.',
+      hero_cta:     'Iniciar sesión en tu cuenta →',
+      stat_time:    'Control de Tiempo',
+      stat_sched:   'Programación',
+      stat_payroll: 'Nómina',
+      stat_multi:   'Multi-ubicación',
+      feat_title:   'Todo lo que necesitas para gestionar tu equipo',
+      feat_sub:     'Hecho para empresas de limpieza. Simple para empleados, poderoso para gerentes.',
+      f1_title:     'Entrada / Salida',
+      f1_desc:      'Los empleados marcan entrada con foto desde su celular. Sin equipos adicionales.',
+      f2_title:     'Programación de Trabajos',
+      f2_desc:      'Asigna trabajos a ubicaciones con horarios. Los empleados ven su agenda al instante.',
+      f3_title:     'Reportes de Nómina',
+      f3_desc:      'Resúmenes de horas por empleado. Exporta a Excel con un clic.',
+      f4_title:     'Multi-ubicación',
+      f4_desc:      'Gestiona múltiples tiendas o ubicaciones desde un solo panel.',
+      f5_title:     'Recordatorios por Email',
+      f5_desc:      'Resúmenes diarios automáticos enviados a los gerentes en los horarios que elijan.',
+      f6_title:     'Panel en Tiempo Real',
+      f6_desc:      'Ve quién está trabajando ahora mismo, en todas tus ubicaciones.',
+      cta_title:    '¿Listo para comenzar?',
+      cta_sub:      'Inicia sesión en tu espacio y gestiona tu equipo hoy.',
+      cta_btn:      'Iniciar sesión →',
+      footer_copy:  '© 2026 WorkTrack. Todos los derechos reservados.',
+      footer_admin: 'Admin del Sistema',
+    }
+  };
+
+  function applyLang(lang) {
+    const dict = T[lang];
+    document.documentElement.lang = lang;
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if (dict[key] !== undefined) el.textContent = dict[key];
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+      const key = el.dataset.i18nHtml;
+      if (dict[key] !== undefined) el.innerHTML = dict[key];
+    });
+    document.getElementById('btnEN').classList.toggle('active', lang === 'en');
+    document.getElementById('btnES').classList.toggle('active', lang === 'es');
+    localStorage.setItem('wt_lang', lang);
+  }
+
+  function setLang(lang) { applyLang(lang); }
+
+  // Load saved preference, fall back to browser language
+  const saved = localStorage.getItem('wt_lang');
+  const browser = navigator.language?.startsWith('es') ? 'es' : 'en';
+  applyLang(saved || browser);
 </script>
 </body>
 </html>
