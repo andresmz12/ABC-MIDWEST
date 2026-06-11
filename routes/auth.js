@@ -175,6 +175,20 @@ router.post('/superadmin-login', async (req, res) => {
   }
 });
 
+// ── Public: list active companies (for login page auto-detect) ────────────────
+
+router.get('/companies', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT name, slug, logo_url FROM companies WHERE active = TRUE ORDER BY name`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Public: get company info by slug (for login page branding) ─────────────────
 
 router.get('/company-info', async (req, res) => {

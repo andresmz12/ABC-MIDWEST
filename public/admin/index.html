@@ -654,6 +654,7 @@
       });
       const data = await res.json();
       if (res.status === 401) { localStorage.clear(); window.location.href = '/'; throw ''; }
+      if (res.status === 503) throw new Error(data.error || 'Service temporarily unavailable');
       if (!res.ok) throw new Error(data.error || 'Request failed');
       return data;
     };
@@ -663,9 +664,9 @@
       localStorage.clear(); window.location.href = '/';
     });
 
-    // ── Idle auto-logout after 3 minutes ─────────────────────────
+    // ── Idle auto-logout after 8 hours ───────────────────────────
     (function() {
-      const IDLE_MS = 3 * 60 * 1000;
+      const IDLE_MS = 8 * 60 * 60 * 1000;
       let idleTimer = setTimeout(doIdleLogout, IDLE_MS);
       function resetIdle() { clearTimeout(idleTimer); idleTimer = setTimeout(doIdleLogout, IDLE_MS); }
       function doIdleLogout() { localStorage.clear(); window.location.href = '/'; }

@@ -15,8 +15,8 @@
 
   <!-- ── Left: Brand ────────────────────────────────────────────────────── -->
   <div class="auth-brand">
-    <h1>WorkTrack</h1>
-    <p class="auth-brand-tagline">Workforce Management</p>
+    <h1 id="brandName">WorkTrack</h1>
+    <p class="auth-brand-tagline" id="brandTagline">Workforce Management</p>
 
     <div class="auth-clock" id="authClock" aria-hidden="true">
       <div class="hand hand-hour"  id="clockHour"></div>
@@ -30,29 +30,17 @@
   <div class="auth-form-panel">
     <div class="auth-card">
       <h2>Sign In</h2>
-      <p class="auth-card-sub">Welcome back to your workspace.</p>
+      <p class="auth-card-sub" id="formSub">Connecting…</p>
 
       <div class="auth-error" id="loginError"></div>
 
-      <!-- Company chip (return visit) -->
-      <div id="companyChip" class="auth-company-chip" style="display:none">
-        <div>
-          <div style="font-size:.75rem;color:var(--muted);margin-bottom:2px">Signing in to</div>
-          <div class="auth-company-chip-name" id="chipName"></div>
-        </div>
-        <button type="button" class="auth-company-chip-change" id="changeCompanyBtn">Change</button>
+      <!-- Multi-company selector (only shown if >1 company) -->
+      <div class="auth-field" id="companyField" style="display:none">
+        <label for="companySelect">Company</label>
+        <select id="companySelect" class="auth-input" style="height:44px;padding:0 12px;cursor:pointer"></select>
       </div>
 
       <form id="loginForm">
-        <!-- Slug field (new visit) -->
-        <div class="auth-field" id="slugField">
-          <label for="companySlug">Company Slug</label>
-          <input type="text" id="companySlug" class="auth-input"
-                 placeholder="your-company-slug"
-                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-          <div class="auth-inline-msg info" id="slugMsg"></div>
-        </div>
-
         <div class="auth-field">
           <label for="username">Username</label>
           <input type="text" id="username" class="auth-input"
@@ -74,12 +62,8 @@
           </div>
         </div>
 
-        <button type="submit" class="auth-btn" id="loginBtn">Sign In</button>
+        <button type="submit" class="auth-btn" id="loginBtn" disabled>Sign In</button>
       </form>
-
-      <div class="auth-links">
-        Don't have an account? <a href="/register/">Register your company &rarr;</a>
-      </div>
 
       <div class="auth-footer">© 2026 WorkTrack</div>
     </div>
@@ -110,87 +94,54 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // ── Slug state ────────────────────────────────────────────────────────────
+  // ── Auto-detect company ───────────────────────────────────────────────────
   let resolvedSlug = null;
-  let slugDebounce = null;
+  let companies    = [];
 
-  const savedSlug = localStorage.getItem('wt_slug');
-  const savedName = localStorage.getItem('wt_company_name');
+  async function loadCompanies() {
+    const err = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    try {
+      const res = await fetch('/api/auth/companies');
+      if (!res.ok) throw new Error('Could not connect');
+      companies = await res.json();
 
-  if (savedSlug && savedName) {
-    showChip(savedSlug, savedName);
-  }
-
-  function showChip(slug, name) {
-    resolvedSlug = slug;
-    document.getElementById('chipName').textContent = name;
-    document.getElementById('companyChip').style.display = 'flex';
-    document.getElementById('slugField').style.display = 'none';
-  }
-
-  function showSlugField() {
-    resolvedSlug = null;
-    document.getElementById('companyChip').style.display = 'none';
-    document.getElementById('slugField').style.display = 'block';
-    document.getElementById('companySlug').value = '';
-    document.getElementById('slugMsg').textContent = '';
-    document.getElementById('companySlug').className = 'auth-input';
-    document.getElementById('companySlug').focus();
-  }
-
-  document.getElementById('changeCompanyBtn').addEventListener('click', () => {
-    localStorage.removeItem('wt_slug');
-    localStorage.removeItem('wt_company_name');
-    showSlugField();
-  });
-
-  // Inline slug verification with debounce
-  let slugReqId = 0;
-  document.getElementById('companySlug').addEventListener('input', e => {
-    const raw = e.target.value;
-    const slug = raw.toLowerCase().replace(/\s/g, '-');
-    if (raw !== slug) e.target.value = slug;
-
-    clearTimeout(slugDebounce);
-    resolvedSlug = null; // always invalidate while typing
-    const msg   = document.getElementById('slugMsg');
-    const input = document.getElementById('companySlug');
-
-    if (!slug) {
-      msg.textContent = '';
-      msg.className = 'auth-inline-msg info';
-      input.className = 'auth-input';
-      return;
-    }
-
-    input.className = 'auth-input';
-    msg.className = 'auth-inline-msg info';
-    msg.textContent = 'Checking…';
-
-    const reqId = ++slugReqId;
-    slugDebounce = setTimeout(async () => {
-      try {
-        const res  = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
-        if (reqId !== slugReqId) return; // stale response — a newer request is in flight
-        if (res.ok) {
-          const data = await res.json();
-          resolvedSlug = slug;
-          input.className = 'auth-input is-valid';
-          msg.className   = 'auth-inline-msg ok';
-          msg.textContent = '✓ ' + data.name;
-        } else {
-          resolvedSlug = null;
-          input.className = 'auth-input is-invalid';
-          msg.className   = 'auth-inline-msg err';
-          msg.textContent = '✗ Company not found';
-        }
-      } catch {
-        if (reqId !== slugReqId) return;
-        msg.className   = 'auth-inline-msg err';
-        msg.textContent = 'Network error';
+      if (!companies.length) {
+        document.getElementById('formSub').textContent = 'No active company found.';
+        err.textContent = 'No hay una empresa registrada. Contacta al administrador.';
+        err.classList.add('show');
+        return;
       }
-    }, 600);
-  });
+
+      if (companies.length === 1) {
+        // Single company — auto-select, show name
+        resolvedSlug = companies[0].slug;
+        document.getElementById('brandName').textContent    = companies[0].name;
+        document.getElementById('brandTagline').textContent = 'Workforce Management';
+        document.getElementById('formSub').textContent      = `Iniciando sesión en ${companies[0].name}`;
+      } else {
+        // Multiple companies — show dropdown
+        const sel = document.getElementById('companySelect');
+        companies.forEach(c => {
+          const o = document.createElement('option');
+          o.value = c.slug; o.textContent = c.name;
+          sel.appendChild(o);
+        });
+        resolvedSlug = sel.value;
+        sel.addEventListener('change', () => { resolvedSlug = sel.value; });
+        document.getElementById('companyField').style.display = 'block';
+        document.getElementById('formSub').textContent = 'Select your company and sign in.';
+      }
+
+      btn.disabled = false;
+    } catch (ex) {
+      document.getElementById('formSub').textContent = 'Error de conexión.';
+      err.textContent = ex.message;
+      err.classList.add('show');
+    }
+  }
+
+  loadCompanies();
 
   // ── Password toggle ───────────────────────────────────────────────────────
   document.getElementById('pwToggle').addEventListener('click', () => {
@@ -212,15 +163,8 @@
     const err = document.getElementById('loginError');
     err.classList.remove('show');
 
-    // Must have a resolved slug (no super-admin path here)
     if (!resolvedSlug) {
-      const slugVal = document.getElementById('companySlug').value.trim();
-      if (!slugVal) {
-        err.textContent = 'Please enter your company slug.';
-        err.classList.add('show');
-        return;
-      }
-      err.textContent = 'Please wait for slug verification or correct the slug.';
+      err.textContent = 'No hay empresa seleccionada.';
       err.classList.add('show');
       return;
     }
@@ -243,12 +187,6 @@
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('user',  JSON.stringify(data.user));
-      // Remember company for next visit
-      localStorage.setItem('wt_slug', resolvedSlug);
-      const chipTxt = document.getElementById('chipName').textContent;
-      const msgTxt  = document.getElementById('slugMsg').textContent.replace(/^✓\s*/, '');
-      const nameToSave = chipTxt || msgTxt;
-      if (nameToSave) localStorage.setItem('wt_company_name', nameToSave);
 
       if      (data.user.role === 'admin')    location.href = '/admin/';
       else if (data.user.role === 'employee') location.href = '/employee/';
