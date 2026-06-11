@@ -11,33 +11,25 @@ const DUMMY_HASH = bcrypt.hashSync('__worktrack_dummy_sentinel__', 10);
 
 router.post('/login', async (req, res) => {
   try {
-    const { username, password, company_slug } = req.body;
+    const { username, password } = req.body;
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    // Company slug is required for regular login; super admins use /superadmin-login
-    if (!company_slug) {
-      return res.status(401).json({ error: 'Company slug required' });
-    }
-
-    let user;
-
-    // Regular user (admin or employee): look up within specific company
-    const { rows: companies } = await query(
-      `SELECT id FROM companies WHERE slug = $1 AND active = TRUE`,
-      [company_slug.trim().toLowerCase()]
-    );
-    if (!companies.length) {
-      return res.status(401).json({ error: 'Company not found' });
-    }
-    const companyId = companies[0].id;
-
+    // Look up user by username across all active companies (super_admin excluded)
     const { rows } = await query(
-      `SELECT * FROM users WHERE username = $1 AND company_id = $2 AND role != 'super_admin'`,
-      [username, companyId]
+      `SELECT u.* FROM users u
+       JOIN companies c ON c.id = u.company_id
+       WHERE u.username = $1 AND u.role != 'super_admin' AND c.active = TRUE`,
+      [username]
     );
-    user = rows[0];
+
+    // If the same username exists in more than one company the admin must fix it
+    if (rows.length > 1) {
+      return res.status(401).json({ error: 'Duplicate username across workspaces — contact your administrator' });
+    }
+
+    const user = rows[0];
 
     // Always run bcrypt to prevent username enumeration via timing
     const hashToCheck = user ? user.password : DUMMY_HASH;

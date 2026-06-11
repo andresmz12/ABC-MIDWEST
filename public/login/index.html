@@ -30,26 +30,16 @@
   <div class="auth-form-panel">
     <div class="auth-card">
       <h2>Sign In</h2>
-      <p class="auth-card-sub" id="formSub">Connecting…</p>
+      <p class="auth-card-sub">Enter your username and password to continue.</p>
 
       <div class="auth-error" id="loginError"></div>
 
       <form id="loginForm">
-
-        <!-- Workspace code field: only shown when there are multiple companies -->
-        <div class="auth-field" id="workspaceField" style="display:none">
-          <label for="workspaceCode">Workspace Code</label>
-          <input type="text" id="workspaceCode" class="auth-input"
-                 placeholder="your-workspace-code"
-                 autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-          <div class="auth-inline-msg info" id="workspaceMsg"></div>
-        </div>
-
         <div class="auth-field">
           <label for="username">Username</label>
           <input type="text" id="username" class="auth-input"
                  placeholder="Enter your username"
-                 autocomplete="username" autocapitalize="none" autocorrect="off" required>
+                 autocomplete="username" autocapitalize="none" autocorrect="off" required autofocus>
         </div>
 
         <div class="auth-field">
@@ -66,7 +56,7 @@
           </div>
         </div>
 
-        <button type="submit" class="auth-btn" id="loginBtn" disabled>Sign In</button>
+        <button type="submit" class="auth-btn" id="loginBtn">Sign In</button>
       </form>
 
       <div class="auth-footer">© 2026 WorkTrack</div>
@@ -98,104 +88,6 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // ── Determine login mode ──────────────────────────────────────────────────
-  // resolvedSlug is set silently for single-company or after workspace validation
-  let resolvedSlug = null;
-  let slugDebounce = null;
-  let slugReqId    = 0;
-
-  async function init() {
-    const err = document.getElementById('loginError');
-    const btn = document.getElementById('loginBtn');
-    try {
-      const res = await fetch('/api/auth/companies/count');
-      if (!res.ok) throw new Error('Connection error');
-      const { total } = await res.json();
-
-      if (total === 0) {
-        document.getElementById('formSub').textContent = 'No active workspace found.';
-        err.textContent = 'Contact your administrator.';
-        err.classList.add('show');
-        return;
-      }
-
-      if (total === 1) {
-        // Single company — resolve silently via company-info with known slug
-        // Use a single lookup without exposing names
-        const r2 = await fetch('/api/auth/companies/default');
-        if (r2.ok) {
-          const d = await r2.json();
-          resolvedSlug = d.slug;
-          document.getElementById('formSub').textContent = 'Welcome back. Sign in to continue.';
-        } else {
-          // Fallback: show workspace field
-          showWorkspaceField();
-        }
-      } else {
-        // Multiple companies — show workspace code field (never reveals names)
-        showWorkspaceField();
-      }
-
-      btn.disabled = false;
-    } catch {
-      document.getElementById('formSub').textContent = 'Connection error.';
-      err.textContent = 'Could not reach the server. Try again.';
-      err.classList.add('show');
-    }
-  }
-
-  function showWorkspaceField() {
-    document.getElementById('workspaceField').style.display = 'block';
-    document.getElementById('formSub').textContent = 'Enter your workspace code to sign in.';
-    setupWorkspaceValidation();
-  }
-
-  function setupWorkspaceValidation() {
-    document.getElementById('workspaceCode').addEventListener('input', e => {
-      const raw  = e.target.value;
-      const slug = raw.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      if (raw !== slug) e.target.value = slug;
-
-      clearTimeout(slugDebounce);
-      resolvedSlug = null;
-      const msg   = document.getElementById('workspaceMsg');
-      const input = document.getElementById('workspaceCode');
-
-      if (!slug) {
-        msg.textContent = ''; input.className = 'auth-input'; return;
-      }
-
-      msg.className = 'auth-inline-msg info';
-      msg.textContent = 'Verifying…';
-      input.className = 'auth-input';
-
-      const reqId = ++slugReqId;
-      slugDebounce = setTimeout(async () => {
-        try {
-          const res = await fetch('/api/auth/company-info?slug=' + encodeURIComponent(slug));
-          if (reqId !== slugReqId) return;
-          if (res.ok) {
-            resolvedSlug = slug;
-            input.className = 'auth-input is-valid';
-            msg.className   = 'auth-inline-msg ok';
-            msg.textContent = '✓ Workspace found';
-          } else {
-            resolvedSlug = null;
-            input.className = 'auth-input is-invalid';
-            msg.className   = 'auth-inline-msg err';
-            msg.textContent = '✗ Workspace not found';
-          }
-        } catch {
-          if (reqId !== slugReqId) return;
-          msg.className   = 'auth-inline-msg err';
-          msg.textContent = 'Connection error';
-        }
-      }, 600);
-    });
-  }
-
-  init();
-
   // ── Password toggle ───────────────────────────────────────────────────────
   document.getElementById('pwToggle').addEventListener('click', () => {
     const pw  = document.getElementById('password');
@@ -209,19 +101,12 @@
     }
   });
 
-  // ── Login form ────────────────────────────────────────────────────────────
+  // ── Login ─────────────────────────────────────────────────────────────────
   document.getElementById('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('loginBtn');
     const err = document.getElementById('loginError');
     err.classList.remove('show');
-
-    if (!resolvedSlug) {
-      err.textContent = 'Please enter a valid workspace code.';
-      err.classList.add('show');
-      return;
-    }
-
     btn.disabled = true;
     btn.innerHTML = '<div class="auth-spinner"></div> Signing in…';
 
@@ -230,9 +115,8 @@
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          username:     document.getElementById('username').value.trim(),
-          password:     document.getElementById('password').value,
-          company_slug: resolvedSlug
+          username: document.getElementById('username').value.trim(),
+          password: document.getElementById('password').value
         })
       });
       const data = await res.json();
