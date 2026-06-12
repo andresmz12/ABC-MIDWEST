@@ -2,16 +2,16 @@
 
 /* ── Tokens ─────────────────────────────────────────────────────────────── */
 :root {
-  --ink:     #0C1822;
-  --blue:    #1D5BF0;
-  --blue-dk: #1449C4;
-  --amber:   #FFB454;
-  --surface: #F7F8FA;
-  --text:    #1A2433;
-  --muted:   #6B7280;
+  --ink:     #0F172A;
+  --blue:    #2563EB;
+  --blue-dk: #1D4ED8;
+  --amber:   #F59E0B;
+  --surface: #F1F5F9;
+  --text:    #0F172A;
+  --muted:   #64748B;
   --border:  #E2E8F0;
-  --error:   #EF4444;
-  --ok:      #10B981;
+  --error:   #DC2626;
+  --ok:      #059669;
   --radius:  12px;
 }
 
