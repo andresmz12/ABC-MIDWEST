@@ -3,401 +3,557 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WorkTrack — Workforce Management</title>
+  <title>WorkTrack — Workforce Management for Cleaning Companies</title>
+  <meta name="description" content="Clock-in, payroll, GPS tracking and scheduling — everything your cleaning business needs, in one platform.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --ink:    #0C1822;
-      --blue:   #1D5BF0;
-      --amber:  #FFB454;
-      --muted:  #6B7280;
-      --border: #E2E8F0;
+      --primary:    #2563EB;
+      --primary-dk: #1D4ED8;
+      --primary-lt: #EFF6FF;
+      --dark:       #0F172A;
+      --dark2:      #1E293B;
+      --text:       #0F172A;
+      --text2:      #334155;
+      --muted:      #64748B;
+      --border:     #E2E8F0;
+      --surface:    #F1F5F9;
+      --success:    #059669;
     }
 
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      color: var(--ink);
-      background: #fff;
-    }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--text); background: #fff; }
 
-    /* ── Nav ── */
+    /* ── Nav ──────────────────────────────────────────── */
     nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 56px; height: 64px;
       border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      background: rgba(255,255,255,.95);
-      backdrop-filter: blur(8px);
-      z-index: 10;
+      position: sticky; top: 0;
+      background: rgba(255,255,255,.96);
+      backdrop-filter: blur(12px); z-index: 100;
     }
+    .nav-logo { font-size: 1.2rem; font-weight: 800; color: var(--dark); text-decoration: none; letter-spacing: -.04em; }
+    .nav-logo span { color: var(--primary); }
+    .nav-links { display: flex; gap: 28px; }
+    .nav-link { font-size: .86rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .nav-link:hover { color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .lang-switch { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; font-size: .8rem; font-weight: 600; }
+    .lang-btn { background: none; border: none; padding: 6px 12px; cursor: pointer; color: var(--muted); transition: background .15s, color .15s; font-family: inherit; font-size: inherit; font-weight: inherit; }
+    .lang-btn.active { background: var(--primary); color: #fff; }
+    .lang-btn:not(.active):hover { background: var(--surface); color: var(--text); }
+    .nav-cta { background: var(--primary); color: #fff; text-decoration: none; padding: 9px 20px; border-radius: 8px; font-size: .86rem; font-weight: 600; transition: background .15s; }
+    .nav-cta:hover { background: var(--primary-dk); }
 
-    .nav-logo {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--ink);
-      text-decoration: none;
-      letter-spacing: -.02em;
-    }
-    .nav-logo span { color: var(--blue); }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    /* Language switcher */
-    .lang-switch {
-      display: flex;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      font-size: .82rem;
-      font-weight: 600;
-    }
-    .lang-btn {
-      background: none;
-      border: none;
-      padding: 6px 12px;
-      cursor: pointer;
-      color: var(--muted);
-      transition: background .15s, color .15s;
-      font-family: inherit;
-      font-size: inherit;
-      font-weight: inherit;
-    }
-    .lang-btn.active {
-      background: var(--blue);
-      color: #fff;
-    }
-    .lang-btn:not(.active):hover { background: #F3F4F6; color: var(--ink); }
-
-    .nav-btn {
-      background: var(--blue);
-      color: #fff;
-      text-decoration: none;
-      padding: 10px 22px;
-      border-radius: 10px;
-      font-size: .9rem;
-      font-weight: 600;
-      transition: background .15s;
-    }
-    .nav-btn:hover { background: #1449C4; }
-
-    /* ── Hero ── */
-    .hero {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      min-height: calc(100vh - 65px);
-      align-items: center;
-    }
-
-    .hero-text { padding: 80px 48px 80px 80px; }
-
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 64px); align-items: stretch; overflow: hidden; }
+    .hero-text { display: flex; flex-direction: column; justify-content: center; padding: 80px 56px 80px 80px; }
     .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: #EFF6FF;
-      color: var(--blue);
-      border: 1px solid #BFDBFE;
-      border-radius: 999px;
-      padding: 5px 14px;
-      font-size: .8rem;
-      font-weight: 600;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      margin-bottom: 24px;
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--primary-lt); color: var(--primary);
+      border: 1px solid #BFDBFE; border-radius: 999px;
+      padding: 5px 14px; font-size: .74rem; font-weight: 600;
+      letter-spacing: .06em; text-transform: uppercase;
+      margin-bottom: 28px; width: fit-content;
     }
-
     .hero h1 {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 3.5rem;
-      font-weight: 700;
-      line-height: 1.1;
-      letter-spacing: -.03em;
-      color: var(--ink);
-      margin-bottom: 20px;
+      font-size: clamp(2.4rem, 3.8vw, 3.6rem);
+      font-weight: 800; line-height: 1.08; letter-spacing: -.05em;
+      color: var(--dark); margin-bottom: 22px;
     }
-    .hero h1 em { font-style: normal; color: var(--blue); }
-
-    .hero-sub {
-      font-size: 1.1rem;
-      color: var(--muted);
-      line-height: 1.7;
-      max-width: 480px;
-      margin-bottom: 36px;
-    }
-
-    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-
+    .hero h1 em { font-style: normal; color: var(--primary); }
+    .hero-sub { font-size: 1rem; color: var(--muted); line-height: 1.8; max-width: 460px; margin-bottom: 40px; }
+    .hero-actions { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
     .btn-primary {
-      background: var(--blue);
-      color: #fff;
-      text-decoration: none;
-      padding: 14px 28px;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 600;
-      transition: background .15s, transform .1s;
-      display: inline-block;
+      background: var(--primary); color: #fff; text-decoration: none;
+      padding: 13px 28px; border-radius: 10px; font-size: .95rem; font-weight: 600;
+      transition: background .15s, transform .1s; display: inline-flex; align-items: center; gap: 7px;
     }
-    .btn-primary:hover { background: #1449C4; transform: translateY(-1px); }
+    .btn-primary:hover { background: var(--primary-dk); transform: translateY(-1px); }
+    .hero-proof { margin-top: 40px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .proof-item { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .proof-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; flex-shrink: 0; }
 
-    /* ── Hero visual ── */
+    /* ── Hero Visual ─────────────────────────────────── */
     .hero-visual {
-      background: linear-gradient(160deg, #0C1822 0%, #14304A 100%);
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 48px;
-      gap: 32px;
+      background: var(--dark);
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 40px; position: relative; overflow: hidden;
+    }
+    .hero-visual::before {
+      content: ''; position: absolute;
+      width: 480px; height: 480px;
+      background: radial-gradient(circle, #2563EB1A 0%, transparent 65%);
+      top: -80px; right: -80px; pointer-events: none;
+    }
+    .hero-visual::after {
+      content: ''; position: absolute;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, #0EA5E91A 0%, transparent 60%);
+      bottom: -60px; left: 0; pointer-events: none;
     }
 
-    .lp-clock {
-      position: relative;
-      width: 180px; height: 180px;
-      border-radius: 50%;
-      border: 2.5px solid rgba(255,255,255,.15);
-      flex-shrink: 0;
+    /* App mockup */
+    .app-mockup {
+      background: #0F172A; border: 1px solid #1E293B;
+      border-radius: 16px; width: 100%; max-width: 420px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.6); overflow: hidden;
+      position: relative; z-index: 1;
     }
-    .lp-clock::before {
-      content: '';
-      position: absolute;
-      inset: 6px;
-      border-radius: 50%;
-      background: repeating-conic-gradient(rgba(255,255,255,.2) 0deg 2deg, transparent 2deg 30deg);
+    .mock-titlebar {
+      background: #1E293B; padding: 10px 16px;
+      display: flex; align-items: center; gap: 6px;
     }
-    .lp-clock-center {
-      position: absolute;
-      width: 8px; height: 8px;
-      background: #fff;
-      border-radius: 50%;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 10;
+    .mock-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .mock-dot-r { background: #EF4444; } .mock-dot-y { background: #F59E0B; } .mock-dot-g { background: #22C55E; }
+    .mock-url { margin-left: 10px; font-size: .68rem; color: #475569; font-weight: 500; }
+    .mock-body { display: flex; height: 340px; }
+    .mock-sidebar-panel { width: 140px; background: #0F172A; border-right: 1px solid #1E293B; padding: 14px 0; flex-shrink: 0; display: flex; flex-direction: column; }
+    .mock-brand-inner { padding: 0 14px 12px; font-size: .78rem; font-weight: 800; color: #fff; letter-spacing: -.03em; border-bottom: 1px solid #1E293B; margin-bottom: 10px; }
+    .mock-nav-item { padding: 7px 10px; display: flex; align-items: center; gap: 7px; font-size: .7rem; color: #475569; border-radius: 6px; margin: 1px 8px; }
+    .mock-nav-item.active { background: #1E3A8A; color: #fff; }
+    .mock-nav-bullet { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; opacity: .5; }
+    .mock-nav-item.active .mock-nav-bullet { opacity: 1; }
+    .mock-nav-spacer { flex: 1; }
+    .mock-user-row { padding: 10px 14px; border-top: 1px solid #1E293B; display: flex; align-items: center; gap: 7px; }
+    .mock-user-av { width: 22px; height: 22px; background: #2563EB; border-radius: 50%; font-size: .55rem; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .mock-user-name { font-size: .65rem; color: #64748B; }
+    .mock-main { flex: 1; padding: 16px; overflow: hidden; display: flex; flex-direction: column; gap: 14px; }
+    .mock-section-title { font-size: .74rem; font-weight: 700; color: #94A3B8; letter-spacing: .04em; text-transform: uppercase; }
+    .mock-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .mock-card {
+      background: #1E293B; border: 1px solid #334155;
+      border-left: 3px solid var(--primary); border-radius: 8px; padding: 10px 11px;
     }
-    .lp-hand {
-      position: absolute;
-      bottom: 50%; left: 50%;
-      transform-origin: bottom center;
-      border-radius: 4px;
-    }
-    .lp-hand-h { width: 4px;   height: 48px; background: rgba(255,255,255,.9);  margin-left: -2px; }
-    .lp-hand-m { width: 3px;   height: 64px; background: rgba(255,255,255,.75); margin-left: -1.5px; }
-    .lp-hand-s { width: 1.5px; height: 72px; background: var(--amber);          margin-left: -.75px; }
+    .mock-card-val { font-size: .9rem; font-weight: 700; color: #F1F5F9; }
+    .mock-card-lbl { font-size: .58rem; color: #64748B; margin-top: 2px; }
+    .mock-chart-wrap { flex: 1; }
+    .mock-chart-title { font-size: .62rem; color: #475569; font-weight: 600; margin-bottom: 6px; }
+    .mock-bars { display: flex; align-items: flex-end; gap: 4px; height: 70px; }
+    .mock-b { flex: 1; border-radius: 4px 4px 0 0; background: #2563EB33; border: 1px solid #2563EB55; }
+    .mock-b.hi { background: #2563EB; border-color: #2563EB; }
 
-    .hero-stats {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      width: 100%;
-      max-width: 320px;
+    /* Floating notification cards */
+    .float-card {
+      position: absolute; background: #fff; border-radius: 12px;
+      padding: 11px 15px; box-shadow: 0 8px 32px rgba(0,0,0,.35);
+      z-index: 2; display: flex; align-items: center; gap: 10px;
     }
-    .hero-stat {
-      background: rgba(255,255,255,.07);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .hero-stat-val {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 1.6rem; font-weight: 700; color: #fff;
-    }
-    .hero-stat-lbl { font-size: .78rem; color: rgba(255,255,255,.5); margin-top: 2px; }
+    .float-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .float-val { font-size: .82rem; font-weight: 700; color: var(--text); }
+    .float-lbl { font-size: .7rem; color: var(--muted); margin-top: 1px; }
+    .float-1 { bottom: 28px; left: -16px; animation: floatY 3s ease-in-out infinite; }
+    .float-2 { top: 44px; right: -16px; animation: floatY 3s ease-in-out infinite .9s; }
+    @keyframes floatY { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
 
-    /* ── Features ── */
-    .features { padding: 96px 80px; background: #F7F8FA; }
-    .features-header { text-align: center; margin-bottom: 56px; }
-    .features-header h2 {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 2.2rem; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px;
+    /* ── Stats Strip ────────────────────────────────── */
+    .stats-strip {
+      background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+      padding: 44px 80px; display: grid; grid-template-columns: repeat(4,1fr); gap: 24px;
     }
-    .features-header p { color: var(--muted); font-size: 1rem; max-width: 480px; margin: 0 auto; line-height: 1.7; }
+    .stat-item { text-align: center; }
+    .stat-val { font-size: 2.2rem; font-weight: 800; color: var(--dark); letter-spacing: -.05em; margin-bottom: 4px; }
+    .stat-val span { color: var(--primary); }
+    .stat-desc { font-size: .8rem; color: var(--muted); }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      max-width: 1100px;
-      margin: 0 auto;
+    /* ── Section common ─────────────────────────────── */
+    .section-tag {
+      display: inline-block; background: var(--primary-lt); color: var(--primary);
+      border: 1px solid #BFDBFE; border-radius: 999px;
+      padding: 4px 14px; font-size: .72rem; font-weight: 600;
+      letter-spacing: .07em; text-transform: uppercase; margin-bottom: 16px;
     }
+    .section-header { text-align: center; margin-bottom: 56px; }
+    .section-header h2 { font-size: 2rem; font-weight: 800; letter-spacing: -.04em; margin-bottom: 12px; }
+    .section-header p { color: var(--muted); font-size: .92rem; line-height: 1.75; max-width: 500px; margin: 0 auto; }
+
+    /* ── How it Works ──────────────────────────────── */
+    .how-section { padding: 96px 80px; }
+    .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 40px; max-width: 920px; margin: 0 auto; position: relative; }
+    .steps::before {
+      content: ''; position: absolute;
+      top: 28px; left: calc(16.6% + 8px); right: calc(16.6% + 8px);
+      height: 2px; background: linear-gradient(90deg, transparent, var(--primary) 30%, var(--primary) 70%, transparent);
+      opacity: .3;
+    }
+    .step { text-align: center; position: relative; z-index: 1; }
+    .step-num {
+      width: 56px; height: 56px; background: var(--primary); color: #fff;
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-weight: 800; margin: 0 auto 20px;
+      box-shadow: 0 0 0 8px var(--primary-lt);
+    }
+    .step h3 { font-size: .95rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -.01em; }
+    .step p { font-size: .84rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── Features ────────────────────────────────────── */
+    .features-section { padding: 96px 80px; background: var(--surface); }
+    .features-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; max-width: 1100px; margin: 0 auto; }
     .feature-card {
       background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px;
+      transition: box-shadow .2s, transform .2s;
     }
+    .feature-card:hover { box-shadow: 0 8px 32px rgba(37,99,235,.09); transform: translateY(-3px); }
     .feature-icon {
-      width: 48px; height: 48px; border-radius: 12px; background: #EFF6FF;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem; margin-bottom: 16px;
+      width: 48px; height: 48px; border-radius: 12px;
+      background: var(--primary-lt); display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
     }
-    .feature-card h3 {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 1.05rem; font-weight: 600; margin-bottom: 8px;
-    }
-    .feature-card p { color: var(--muted); font-size: .88rem; line-height: 1.6; }
+    .feature-icon svg { width: 22px; height: 22px; stroke: var(--primary); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .feature-card h3 { font-size: .95rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -.01em; }
+    .feature-card p { color: var(--muted); font-size: .84rem; line-height: 1.65; }
 
-    /* ── CTA ── */
-    .cta {
-      background: linear-gradient(160deg, #0C1822 0%, #14304A 100%);
-      padding: 80px;
-      text-align: center;
+    /* ── Why WorkTrack ────────────────────────────────── */
+    .why-section { padding: 96px 80px; }
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; max-width: 1080px; margin: 0 auto; }
+    .why-list { list-style: none; display: flex; flex-direction: column; gap: 20px; }
+    .why-item { display: flex; gap: 14px; align-items: flex-start; }
+    .why-check {
+      width: 28px; height: 28px; border-radius: 50%; background: var(--primary-lt);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
     }
-    .cta h2 {
-      font-family: 'Bricolage Grotesque', sans-serif;
-      font-size: 2.2rem; font-weight: 700; color: #fff;
-      letter-spacing: -.02em; margin-bottom: 16px;
+    .why-check svg { width: 14px; height: 14px; stroke: var(--primary); fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .why-item-title { font-size: .95rem; font-weight: 700; margin-bottom: 4px; }
+    .why-item-desc { font-size: .84rem; color: var(--muted); line-height: 1.6; }
+    .why-visual {
+      background: linear-gradient(145deg, var(--dark) 0%, #1E3A5F 100%);
+      border-radius: 20px; padding: 40px 36px;
+      display: flex; flex-direction: column; gap: 16px;
     }
-    .cta p { color: rgba(255,255,255,.6); font-size: 1rem; margin-bottom: 36px; }
-    .btn-amber {
-      background: var(--amber); color: var(--ink);
-      text-decoration: none; padding: 14px 32px;
-      border-radius: 12px; font-size: 1rem; font-weight: 700;
-      display: inline-block; transition: opacity .15s, transform .1s;
-    }
-    .btn-amber:hover { opacity: .9; transform: translateY(-1px); }
+    .why-visual-title { font-size: .8rem; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+    .why-stat-row { display: flex; align-items: center; justify-content: space-between; background: #1E293B; border-radius: 10px; padding: 14px 18px; border: 1px solid #334155; }
+    .why-stat-name { font-size: .84rem; color: #94A3B8; }
+    .why-stat-hours { font-size: 1rem; font-weight: 700; color: #F1F5F9; }
+    .why-stat-bar-wrap { flex: 1; height: 6px; background: #334155; border-radius: 3px; margin: 0 16px; }
+    .why-stat-bar { height: 100%; background: var(--primary); border-radius: 3px; }
 
-    /* ── Footer ── */
+    /* ── CTA ──────────────────────────────────────────── */
+    .cta-section {
+      background: var(--dark); padding: 100px 80px; text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .cta-section::before {
+      content: ''; position: absolute; width: 700px; height: 700px;
+      background: radial-gradient(circle, #2563EB14 0%, transparent 60%);
+      top: 50%; left: 50%; transform: translate(-50%,-50%); pointer-events: none;
+    }
+    .cta-inner { position: relative; z-index: 1; }
+    .cta-tag { display: inline-block; border: 1px solid #1E3A8A; background: #1E293B; color: #93C5FD; border-radius: 999px; padding: 4px 14px; font-size: .72rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; margin-bottom: 24px; }
+    .cta-section h2 { font-size: 2.6rem; font-weight: 800; color: #fff; letter-spacing: -.05em; margin-bottom: 16px; }
+    .cta-section p { color: #94A3B8; font-size: .95rem; margin-bottom: 44px; max-width: 460px; margin-left: auto; margin-right: auto; line-height: 1.75; }
+    .btn-cta {
+      background: var(--primary); color: #fff; text-decoration: none;
+      padding: 15px 40px; border-radius: 10px; font-size: 1rem; font-weight: 700;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: background .15s, transform .1s;
+    }
+    .btn-cta:hover { background: var(--primary-dk); transform: translateY(-2px); }
+
+    /* ── Footer ─────────────────────────────────────── */
     footer {
-      padding: 24px 80px;
-      border-top: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: space-between;
-      font-size: .82rem; color: var(--muted);
+      padding: 32px 80px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
     }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--ink); }
+    .footer-left { display: flex; align-items: center; gap: 28px; }
+    .footer-logo { font-size: 1rem; font-weight: 800; color: var(--dark); text-decoration: none; letter-spacing: -.04em; }
+    .footer-logo span { color: var(--primary); }
+    .footer-links { display: flex; gap: 20px; }
+    .footer-links a { font-size: .82rem; color: var(--muted); text-decoration: none; transition: color .15s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { font-size: .8rem; color: var(--muted); }
 
-    /* ── Responsive ── */
-    @media (max-width: 900px) {
-      nav { padding: 16px 20px; }
-      .nav-right { gap: 8px; }
+    /* ── Responsive ─────────────────────────────────── */
+    @media (max-width: 1024px) {
+      nav { padding: 0 32px; }
+      .nav-links { display: none; }
+      .hero-text { padding: 60px 40px; }
+      .stats-strip,.how-section,.features-section,.why-section,.cta-section { padding: 64px 40px; }
+      footer { padding: 24px 32px; }
+    }
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
       .hero { grid-template-columns: 1fr; min-height: auto; }
-      .hero-text { padding: 60px 24px; }
-      .hero h1 { font-size: 2.4rem; }
+      .hero-text { padding: 48px 24px 56px; }
+      .hero h1 { font-size: 2.2rem; }
       .hero-visual { display: none; }
-      .features { padding: 60px 24px; }
-      .features-grid { grid-template-columns: 1fr; gap: 14px; }
-      .cta { padding: 60px 24px; }
-      footer { padding: 20px 24px; flex-direction: column; gap: 8px; text-align: center; }
+      .stats-strip { grid-template-columns: 1fr 1fr; padding: 32px 24px; gap: 16px; }
+      .steps { grid-template-columns: 1fr; gap: 32px; }
+      .steps::before { display: none; }
+      .features-grid { grid-template-columns: 1fr; }
+      .why-grid { grid-template-columns: 1fr; }
+      .how-section,.features-section,.why-section,.cta-section { padding: 56px 24px; }
+      footer { padding: 20px 24px; flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
-<!-- ── Nav ─────────────────────────────────────────────────────────────── -->
+<!-- ── Nav ──────────────────────────────────────────────────────────────── -->
 <nav>
   <a href="/" class="nav-logo">Work<span>Track</span></a>
+  <div class="nav-links">
+    <a href="#features" class="nav-link" data-i18n="nav_features">Features</a>
+    <a href="#how" class="nav-link" data-i18n="nav_how">How it Works</a>
+    <a href="#why" class="nav-link" data-i18n="nav_why">Why WorkTrack</a>
+  </div>
   <div class="nav-right">
-    <div class="lang-switch" role="group" aria-label="Language">
+    <div class="lang-switch">
       <button class="lang-btn active" id="btnEN" onclick="setLang('en')">EN</button>
       <button class="lang-btn"        id="btnES" onclick="setLang('es')">ES</button>
     </div>
-    <a href="/login/" class="nav-btn" data-i18n="nav_signin">Sign In →</a>
+    <a href="/login/" class="nav-cta" data-i18n="nav_signin">Sign In →</a>
   </div>
 </nav>
 
-<!-- ── Hero ────────────────────────────────────────────────────────────── -->
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
 <section class="hero">
   <div class="hero-text">
-    <div class="hero-badge" data-i18n="hero_badge">⚡ Workforce Management</div>
-    <h1 data-i18n-html="hero_h1">Your team,<br><em>always on track</em></h1>
-    <p class="hero-sub" data-i18n="hero_sub">
-      Clock-in, schedules, payroll and reports — everything your cleaning business needs, in one simple platform.
-    </p>
+    <div class="hero-badge" data-i18n="hero_badge">⚡ Built for Cleaning Companies</div>
+    <h1 data-i18n-html="hero_h1">Run your team<br><em>with confidence</em></h1>
+    <p class="hero-sub" data-i18n="hero_sub">Clock-in with photo evidence, track hours by location, generate payroll, and keep your whole team in sync — from any phone.</p>
     <div class="hero-actions">
       <a href="/login/" class="btn-primary" data-i18n="hero_cta">Sign In to your account →</a>
+    </div>
+    <div class="hero-proof">
+      <div class="proof-item"><span class="proof-dot"></span><span data-i18n="proof_1">Photo on every shift</span></div>
+      <div class="proof-item"><span class="proof-dot"></span><span data-i18n="proof_2">GPS address tracking</span></div>
+      <div class="proof-item"><span class="proof-dot"></span><span data-i18n="proof_3">1-click payroll export</span></div>
     </div>
   </div>
 
   <div class="hero-visual">
-    <div class="lp-clock" id="lpClock">
-      <div class="lp-hand lp-hand-h" id="lpHour"></div>
-      <div class="lp-hand lp-hand-m" id="lpMin"></div>
-      <div class="lp-hand lp-hand-s" id="lpSec"></div>
-      <div class="lp-clock-center"></div>
+    <div class="app-mockup">
+      <div class="mock-titlebar">
+        <div class="mock-dot mock-dot-r"></div>
+        <div class="mock-dot mock-dot-y"></div>
+        <div class="mock-dot mock-dot-g"></div>
+        <span class="mock-url">worktrack — Admin Dashboard</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-sidebar-panel">
+          <div class="mock-brand-inner">WorkTrack</div>
+          <div class="mock-nav-item active"><span class="mock-nav-bullet"></span>Dashboard</div>
+          <div class="mock-nav-item"><span class="mock-nav-bullet"></span>Time Cards</div>
+          <div class="mock-nav-item"><span class="mock-nav-bullet"></span>Map</div>
+          <div class="mock-nav-item"><span class="mock-nav-bullet"></span>Employees</div>
+          <div class="mock-nav-item"><span class="mock-nav-bullet"></span>Payroll</div>
+          <div class="mock-nav-spacer"></div>
+          <div class="mock-user-row">
+            <div class="mock-user-av">A</div>
+            <div class="mock-user-name">Admin</div>
+          </div>
+        </div>
+        <div class="mock-main">
+          <div class="mock-section-title" data-i18n="mock_dashboard">Dashboard</div>
+          <div class="mock-cards">
+            <div class="mock-card">
+              <div class="mock-card-val">347h</div>
+              <div class="mock-card-lbl" data-i18n="mock_total_hours">Total Hours</div>
+            </div>
+            <div class="mock-card">
+              <div class="mock-card-val">12</div>
+              <div class="mock-card-lbl" data-i18n="mock_employees">Employees</div>
+            </div>
+          </div>
+          <div class="mock-chart-wrap">
+            <div class="mock-chart-title" data-i18n="mock_chart">Hours per Employee</div>
+            <div class="mock-bars">
+              <div class="mock-b" style="height:55%"></div>
+              <div class="mock-b hi" style="height:87%"></div>
+              <div class="mock-b" style="height:48%"></div>
+              <div class="mock-b hi" style="height:72%"></div>
+              <div class="mock-b" style="height:40%"></div>
+              <div class="mock-b" style="height:65%"></div>
+              <div class="mock-b hi" style="height:92%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="hero-stats">
-      <div class="hero-stat">
-        <div class="hero-stat-val">⏱</div>
-        <div class="hero-stat-lbl" data-i18n="stat_time">Time Tracking</div>
+    <div class="float-card float-1">
+      <div class="float-icon">✅</div>
+      <div>
+        <div class="float-val" data-i18n="float_val1">8 Clocked In</div>
+        <div class="float-lbl" data-i18n="float_lbl1">Active right now</div>
       </div>
-      <div class="hero-stat">
-        <div class="hero-stat-val">📅</div>
-        <div class="hero-stat-lbl" data-i18n="stat_sched">Scheduling</div>
+    </div>
+    <div class="float-card float-2">
+      <div class="float-icon">💰</div>
+      <div>
+        <div class="float-val" data-i18n="float_val2">Payroll Ready</div>
+        <div class="float-lbl" data-i18n="float_lbl2">Export to Excel →</div>
       </div>
-      <div class="hero-stat">
-        <div class="hero-stat-val">💰</div>
-        <div class="hero-stat-lbl" data-i18n="stat_payroll">Payroll</div>
-      </div>
-      <div class="hero-stat">
-        <div class="hero-stat-val">📍</div>
-        <div class="hero-stat-lbl" data-i18n="stat_multi">Multi-location</div>
-      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Stats Strip ────────────────────────────────────────────────────────── -->
+<div class="stats-strip">
+  <div class="stat-item">
+    <div class="stat-val">10<span>k+</span></div>
+    <div class="stat-desc" data-i18n="stat_1">Shifts tracked</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val"><span>100%</span></div>
+    <div class="stat-desc" data-i18n="stat_2">Mobile-first design</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">0</div>
+    <div class="stat-desc" data-i18n="stat_3">Hardware required</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-val">1<span>-click</span></div>
+    <div class="stat-desc" data-i18n="stat_4">Payroll export</div>
+  </div>
+</div>
+
+<!-- ── How it Works ──────────────────────────────────────────────────────── -->
+<section class="how-section" id="how">
+  <div class="section-header">
+    <div class="section-tag" data-i18n="how_tag">How It Works</div>
+    <h2 data-i18n="how_title">From first punch-in to payday</h2>
+    <p data-i18n="how_sub">WorkTrack handles the whole cycle automatically — no paperwork, no manual tracking.</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3 data-i18n="step1_h">Employee clocks in</h3>
+      <p data-i18n="step1_p">From any phone — tap Clock In, snap a photo. Time, GPS address, and evidence captured instantly.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3 data-i18n="step2_h">Manager reviews in real time</h3>
+      <p data-i18n="step2_p">The dashboard shows who's working, where, and how long. Review shifts, approve time cards, verify addresses on the map.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3 data-i18n="step3_h">Export &amp; pay your team</h3>
+      <p data-i18n="step3_p">One click generates a full payroll report by employee. Export to Excel and pay your team in minutes, not hours.</p>
     </div>
   </div>
 </section>
 
 <!-- ── Features ─────────────────────────────────────────────────────────── -->
-<section class="features">
-  <div class="features-header">
-    <h2 data-i18n="feat_title">Everything you need to manage your team</h2>
+<section class="features-section" id="features">
+  <div class="section-header">
+    <div class="section-tag" data-i18n="feat_tag">Features</div>
+    <h2 data-i18n="feat_title">Everything your operation needs</h2>
     <p data-i18n="feat_sub">Built for cleaning companies. Simple for employees, powerful for managers.</p>
   </div>
-
   <div class="features-grid">
     <div class="feature-card">
-      <div class="feature-icon">⏱</div>
-      <h3 data-i18n="f1_title">Clock In / Clock Out</h3>
-      <p data-i18n="f1_desc">Employees clock in with photo evidence from their phone. No hardware needed.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+      <h3 data-i18n="f1_h">Clock In / Clock Out</h3>
+      <p data-i18n="f1_p">Employees clock in from any smartphone with a photo. Timestamps are automatic and tamper-proof.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">📅</div>
-      <h3 data-i18n="f2_title">Job Scheduling</h3>
-      <p data-i18n="f2_desc">Assign jobs to locations with time slots. Employees see their schedule instantly.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <h3 data-i18n="f2_h">GPS Address Tracking</h3>
+      <p data-i18n="f2_p">See exactly where employees clocked in and out on an interactive map. Download a full address report to verify every shift.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">💰</div>
-      <h3 data-i18n="f3_title">Payroll Reports</h3>
-      <p data-i18n="f3_desc">Automatic hour summaries per employee. Export to Excel in one click.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+      <h3 data-i18n="f3_h">Payroll Reports</h3>
+      <p data-i18n="f3_p">Automatic hour summaries per employee and location. Export to Excel in one click — payroll in minutes, not hours.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">📍</div>
-      <h3 data-i18n="f4_title">Multi-location</h3>
-      <p data-i18n="f4_desc">Manage multiple stores or locations from a single dashboard.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <h3 data-i18n="f4_h">Team Management</h3>
+      <p data-i18n="f4_p">Add employees, assign locations, set hourly rates. Manage permissions and see who's active right now.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">🔔</div>
-      <h3 data-i18n="f5_title">Email Reminders</h3>
-      <p data-i18n="f5_desc">Automatic daily summaries sent to managers at the times they choose.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+      <h3 data-i18n="f5_h">Scheduling &amp; Calendar</h3>
+      <p data-i18n="f5_p">Schedule jobs by location, assign employees, and let them see their upcoming calendar from their phone.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <h3 data-i18n="f6_title">Real-time Dashboard</h3>
-      <p data-i18n="f6_desc">See who's working right now, across all your locations.</p>
+      <div class="feature-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+      <h3 data-i18n="f6_h">Client Invoicing</h3>
+      <p data-i18n="f6_p">Generate professional invoices for your clients, track payment status, and export PDF receipts — all in one place.</p>
     </div>
   </div>
 </section>
 
-<!-- ── CTA ──────────────────────────────────────────────────────────────── -->
-<section class="cta">
-  <h2 data-i18n="cta_title">Ready to get started?</h2>
-  <p data-i18n="cta_sub">Sign in to your workspace and manage your team today.</p>
-  <a href="/login/" class="btn-amber" data-i18n="cta_btn">Sign In →</a>
+<!-- ── Why WorkTrack ─────────────────────────────────────────────────────── -->
+<section class="why-section" id="why">
+  <div class="why-grid">
+    <div>
+      <div class="section-tag" data-i18n="why_tag">Why WorkTrack</div>
+      <h2 style="font-size:2rem;font-weight:800;letter-spacing:-.04em;margin-bottom:16px;margin-top:16px" data-i18n="why_title">Built around how cleaning teams actually work</h2>
+      <p style="color:var(--muted);font-size:.92rem;line-height:1.75;margin-bottom:36px" data-i18n="why_sub">No complicated setup, no training required. Employees start in minutes from any phone.</p>
+      <ul class="why-list">
+        <li class="why-item">
+          <div class="why-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div><div class="why-item-title" data-i18n="why1_h">No hardware, no app install required</div><div class="why-item-desc" data-i18n="why1_p">Employees open a link, clock in, done. Works on any smartphone browser.</div></div>
+        </li>
+        <li class="why-item">
+          <div class="why-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div><div class="why-item-title" data-i18n="why2_h">Photo evidence on every shift</div><div class="why-item-desc" data-i18n="why2_p">Employees upload photos at clock-in. Disputes resolved before they start.</div></div>
+        </li>
+        <li class="why-item">
+          <div class="why-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div><div class="why-item-title" data-i18n="why3_h">Full bilingual support (EN/ES)</div><div class="why-item-desc" data-i18n="why3_p">The entire platform switches between English and Spanish in one click.</div></div>
+        </li>
+        <li class="why-item">
+          <div class="why-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div><div class="why-item-title" data-i18n="why4_h">Multi-location from day one</div><div class="why-item-desc" data-i18n="why4_p">Manage every store, client location, or project from a single admin dashboard.</div></div>
+        </li>
+      </ul>
+    </div>
+    <div class="why-visual">
+      <div class="why-visual-title" data-i18n="why_report">Weekly Hours Report</div>
+      <div class="why-stat-row">
+        <div class="why-stat-name">Maria G.</div>
+        <div class="why-stat-bar-wrap"><div class="why-stat-bar" style="width:90%"></div></div>
+        <div class="why-stat-hours">38.5h</div>
+      </div>
+      <div class="why-stat-row">
+        <div class="why-stat-name">Carlos M.</div>
+        <div class="why-stat-bar-wrap"><div class="why-stat-bar" style="width:72%"></div></div>
+        <div class="why-stat-hours">30.0h</div>
+      </div>
+      <div class="why-stat-row">
+        <div class="why-stat-name">Ana R.</div>
+        <div class="why-stat-bar-wrap"><div class="why-stat-bar" style="width:58%"></div></div>
+        <div class="why-stat-hours">24.5h</div>
+      </div>
+      <div class="why-stat-row">
+        <div class="why-stat-name">Luis F.</div>
+        <div class="why-stat-bar-wrap"><div class="why-stat-bar" style="width:80%"></div></div>
+        <div class="why-stat-hours">33.0h</div>
+      </div>
+      <div style="margin-top:4px;padding:14px 18px;background:#1E3A8A22;border:1px solid #1E3A8A66;border-radius:10px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:.8rem;color:#93C5FD" data-i18n="why_total">Total team hours</span>
+        <span style="font-size:1.1rem;font-weight:800;color:#fff">126h</span>
+      </div>
+    </div>
+  </div>
 </section>
 
-<!-- ── Footer ───────────────────────────────────────────────────────────── -->
+<!-- ── CTA ───────────────────────────────────────────────────────────────── -->
+<section class="cta-section">
+  <div class="cta-inner">
+    <div class="cta-tag" data-i18n="cta_tag">Get Started</div>
+    <h2 data-i18n="cta_title">Ready to run your team smarter?</h2>
+    <p data-i18n="cta_sub">Sign in to your workspace and put your whole operation on autopilot — payroll, scheduling, and tracking in one place.</p>
+    <a href="/login/" class="btn-cta" data-i18n="cta_btn">Sign In to WorkTrack →</a>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
 <footer>
-  <span data-i18n="footer_copy">© 2026 WorkTrack. All rights reserved.</span>
-  <a href="/superadmin/login/" data-i18n="footer_admin">System Admin</a>
+  <div class="footer-left">
+    <a href="/" class="footer-logo">Work<span>Track</span></a>
+    <div class="footer-links">
+      <a href="#features" data-i18n="nav_features">Features</a>
+      <a href="#how" data-i18n="nav_how">How it Works</a>
+      <a href="/superadmin/login/" data-i18n="footer_admin">System Admin</a>
+    </div>
+  </div>
+  <span class="footer-copy" data-i18n="footer_copy">© 2026 WorkTrack. All rights reserved.</span>
 </footer>
 
 <script>
@@ -410,100 +566,97 @@
     else                                location.href = '/employee/';
   }
 
-  // ── Analog clock ─────────────────────────────────────────────────────────
-  function tick() {
-    const now = new Date();
-    const s = now.getSeconds(), m = now.getMinutes() + s / 60, h = (now.getHours() % 12) + m / 60;
-    document.getElementById('lpHour').style.transform = `rotate(${h * 30}deg)`;
-    document.getElementById('lpMin').style.transform  = `rotate(${m * 6}deg)`;
-    document.getElementById('lpSec').style.transform  = `rotate(${s * 6}deg)`;
-  }
-  tick();
-  setInterval(tick, 1000);
-
   // ── i18n ─────────────────────────────────────────────────────────────────
   const T = {
     en: {
-      nav_signin:   'Sign In →',
-      hero_badge:   '⚡ Workforce Management',
-      hero_h1:      'Your team,<br><em>always on track</em>',
-      hero_sub:     'Clock-in, schedules, payroll and reports — everything your cleaning business needs, in one simple platform.',
-      hero_cta:     'Sign In to your account →',
-      stat_time:    'Time Tracking',
-      stat_sched:   'Scheduling',
-      stat_payroll: 'Payroll',
-      stat_multi:   'Multi-location',
-      feat_title:   'Everything you need to manage your team',
-      feat_sub:     'Built for cleaning companies. Simple for employees, powerful for managers.',
-      f1_title:     'Clock In / Clock Out',
-      f1_desc:      'Employees clock in with photo evidence from their phone. No hardware needed.',
-      f2_title:     'Job Scheduling',
-      f2_desc:      'Assign jobs to locations with time slots. Employees see their schedule instantly.',
-      f3_title:     'Payroll Reports',
-      f3_desc:      'Automatic hour summaries per employee. Export to Excel in one click.',
-      f4_title:     'Multi-location',
-      f4_desc:      'Manage multiple stores or locations from a single dashboard.',
-      f5_title:     'Email Reminders',
-      f5_desc:      'Automatic daily summaries sent to managers at the times they choose.',
-      f6_title:     'Real-time Dashboard',
-      f6_desc:      'See who\'s working right now, across all your locations.',
-      cta_title:    'Ready to get started?',
-      cta_sub:      'Sign in to your workspace and manage your team today.',
-      cta_btn:      'Sign In →',
-      footer_copy:  '© 2026 WorkTrack. All rights reserved.',
-      footer_admin: 'System Admin',
+      nav_features:'Features', nav_how:'How it Works', nav_why:'Why WorkTrack', nav_signin:'Sign In →',
+      hero_badge:'⚡ Built for Cleaning Companies',
+      hero_h1:'Run your team<br><em>with confidence</em>',
+      hero_sub:'Clock-in with photo evidence, track hours by location, generate payroll, and keep your whole team in sync — from any phone.',
+      hero_cta:'Sign In to your account →',
+      proof_1:'Photo on every shift', proof_2:'GPS address tracking', proof_3:'1-click payroll export',
+      float_val1:'8 Clocked In', float_lbl1:'Active right now', float_val2:'Payroll Ready', float_lbl2:'Export to Excel →',
+      mock_dashboard:'Dashboard', mock_total_hours:'Total Hours', mock_employees:'Employees', mock_chart:'Hours per Employee',
+      stat_1:'Shifts tracked', stat_2:'Mobile-first design', stat_3:'Hardware required', stat_4:'Payroll export',
+      how_tag:'How It Works', how_title:'From first punch-in to payday',
+      how_sub:'WorkTrack handles the whole cycle automatically — no paperwork, no manual tracking.',
+      step1_h:'Employee clocks in', step1_p:'From any phone — tap Clock In, snap a photo. Time, GPS address, and evidence captured instantly.',
+      step2_h:'Manager reviews in real time', step2_p:'The dashboard shows who\'s working, where, and how long. Review shifts, approve time cards, verify addresses on the map.',
+      step3_h:'Export & pay your team', step3_p:'One click generates a full payroll report by employee. Export to Excel and pay your team in minutes, not hours.',
+      feat_tag:'Features', feat_title:'Everything your operation needs',
+      feat_sub:'Built for cleaning companies. Simple for employees, powerful for managers.',
+      f1_h:'Clock In / Clock Out', f1_p:'Employees clock in from any smartphone with a photo. Timestamps are automatic and tamper-proof.',
+      f2_h:'GPS Address Tracking', f2_p:'See exactly where employees clocked in and out on an interactive map. Download a full address report to verify every shift.',
+      f3_h:'Payroll Reports', f3_p:'Automatic hour summaries per employee and location. Export to Excel in one click — payroll in minutes, not hours.',
+      f4_h:'Team Management', f4_p:'Add employees, assign locations, set hourly rates. Manage permissions and see who\'s active right now.',
+      f5_h:'Scheduling & Calendar', f5_p:'Schedule jobs by location, assign employees, and let them see their upcoming calendar from their phone.',
+      f6_h:'Client Invoicing', f6_p:'Generate professional invoices for your clients, track payment status, and export PDF receipts.',
+      why_tag:'Why WorkTrack', why_title:'Built around how cleaning teams actually work',
+      why_sub:'No complicated setup, no training required. Employees start in minutes from any phone.',
+      why1_h:'No hardware, no app install required', why1_p:'Employees open a link, clock in, done. Works on any smartphone browser.',
+      why2_h:'Photo evidence on every shift', why2_p:'Employees upload photos at clock-in. Disputes resolved before they start.',
+      why3_h:'Full bilingual support (EN/ES)', why3_p:'The entire platform switches between English and Spanish in one click.',
+      why4_h:'Multi-location from day one', why4_p:'Manage every store, client location, or project from a single admin dashboard.',
+      why_report:'Weekly Hours Report', why_total:'Total team hours',
+      cta_tag:'Get Started', cta_title:'Ready to run your team smarter?',
+      cta_sub:'Sign in to your workspace and put your whole operation on autopilot — payroll, scheduling, and tracking in one place.',
+      cta_btn:'Sign In to WorkTrack →',
+      footer_admin:'System Admin', footer_copy:'© 2026 WorkTrack. All rights reserved.',
     },
     es: {
-      nav_signin:   'Iniciar sesión →',
-      hero_badge:   '⚡ Gestión de Personal',
-      hero_h1:      'Tu equipo,<br><em>siempre al día</em>',
-      hero_sub:     'Marcaje, horarios, nómina y reportes — todo lo que tu empresa de limpieza necesita, en una sola plataforma.',
-      hero_cta:     'Iniciar sesión en tu cuenta →',
-      stat_time:    'Control de Tiempo',
-      stat_sched:   'Programación',
-      stat_payroll: 'Nómina',
-      stat_multi:   'Multi-ubicación',
-      feat_title:   'Todo lo que necesitas para gestionar tu equipo',
-      feat_sub:     'Hecho para empresas de limpieza. Simple para empleados, poderoso para gerentes.',
-      f1_title:     'Entrada / Salida',
-      f1_desc:      'Los empleados marcan entrada con foto desde su celular. Sin equipos adicionales.',
-      f2_title:     'Programación de Trabajos',
-      f2_desc:      'Asigna trabajos a ubicaciones con horarios. Los empleados ven su agenda al instante.',
-      f3_title:     'Reportes de Nómina',
-      f3_desc:      'Resúmenes de horas por empleado. Exporta a Excel con un clic.',
-      f4_title:     'Multi-ubicación',
-      f4_desc:      'Gestiona múltiples tiendas o ubicaciones desde un solo panel.',
-      f5_title:     'Recordatorios por Email',
-      f5_desc:      'Resúmenes diarios automáticos enviados a los gerentes en los horarios que elijan.',
-      f6_title:     'Panel en Tiempo Real',
-      f6_desc:      'Ve quién está trabajando ahora mismo, en todas tus ubicaciones.',
-      cta_title:    '¿Listo para comenzar?',
-      cta_sub:      'Inicia sesión en tu espacio y gestiona tu equipo hoy.',
-      cta_btn:      'Iniciar sesión →',
-      footer_copy:  '© 2026 WorkTrack. Todos los derechos reservados.',
-      footer_admin: 'Admin del Sistema',
+      nav_features:'Características', nav_how:'Cómo Funciona', nav_why:'Por qué WorkTrack', nav_signin:'Iniciar sesión →',
+      hero_badge:'⚡ Hecho para Empresas de Limpieza',
+      hero_h1:'Gestiona tu equipo<br><em>con confianza</em>',
+      hero_sub:'Marcaje con foto, control de horas por ubicación, nómina automática y tu equipo sincronizado — desde cualquier celular.',
+      hero_cta:'Iniciar sesión en tu cuenta →',
+      proof_1:'Foto en cada turno', proof_2:'Rastreo GPS de dirección', proof_3:'Nómina con 1 clic',
+      float_val1:'8 con turno activo', float_lbl1:'Ahora mismo', float_val2:'Nómina Lista', float_lbl2:'Exportar a Excel →',
+      mock_dashboard:'Panel', mock_total_hours:'Horas Totales', mock_employees:'Empleados', mock_chart:'Horas por Empleado',
+      stat_1:'Turnos registrados', stat_2:'Diseño para móvil', stat_3:'Equipos necesarios', stat_4:'Exportación de nómina',
+      how_tag:'Cómo Funciona', how_title:'Del primer marcaje al día de pago',
+      how_sub:'WorkTrack gestiona el ciclo completo automáticamente — sin papeles, sin seguimiento manual.',
+      step1_h:'El empleado marca entrada', step1_p:'Desde cualquier celular — toca Marcar Entrada, toma una foto. Hora, dirección GPS y evidencia capturadas al instante.',
+      step2_h:'El gerente revisa en tiempo real', step2_p:'El panel muestra quién trabaja, dónde y cuánto tiempo. Revisa turnos, aprueba tarjetas, verifica direcciones en el mapa.',
+      step3_h:'Exporta y paga a tu equipo', step3_p:'Un clic genera el reporte completo de nómina por empleado. Exporta a Excel y paga en minutos, no en horas.',
+      feat_tag:'Características', feat_title:'Todo lo que necesita tu operación',
+      feat_sub:'Hecho para empresas de limpieza. Simple para empleados, poderoso para gerentes.',
+      f1_h:'Entrada / Salida', f1_p:'Los empleados marcan con foto desde cualquier smartphone. Las marcas son automáticas e inalterables.',
+      f2_h:'Rastreo GPS de Dirección', f2_p:'Ve exactamente dónde marcaron entrada y salida en un mapa interactivo. Descarga el reporte de direcciones para verificar cada turno.',
+      f3_h:'Reportes de Nómina', f3_p:'Resúmenes de horas por empleado y ubicación. Exporta a Excel en un clic — nómina en minutos.',
+      f4_h:'Gestión de Equipo', f4_p:'Agrega empleados, asigna ubicaciones, configura tarifas. Gestiona permisos y ve quién está activo ahora.',
+      f5_h:'Programación y Calendario', f5_p:'Programa trabajos por ubicación, asigna empleados y permite que vean su agenda desde el celular.',
+      f6_h:'Facturación a Clientes', f6_p:'Genera facturas profesionales para tus clientes, rastrea pagos y exporta recibos PDF.',
+      why_tag:'Por qué WorkTrack', why_title:'Construido para cómo trabajan los equipos de limpieza',
+      why_sub:'Sin configuración complicada, sin capacitación. Los empleados empiezan en minutos desde cualquier celular.',
+      why1_h:'Sin hardware, sin instalar apps', why1_p:'Los empleados abren un enlace, marcan entrada, listo. Funciona en cualquier navegador de smartphone.',
+      why2_h:'Foto en cada turno', why2_p:'Los empleados suben fotos al marcar. Las disputas se resuelven antes de comenzar.',
+      why3_h:'Soporte bilingüe completo (EN/ES)', why3_p:'Toda la plataforma cambia entre inglés y español con un clic.',
+      why4_h:'Multi-ubicación desde el inicio', why4_p:'Gestiona cada tienda, ubicación de cliente o proyecto desde un solo panel de administración.',
+      why_report:'Reporte Semanal de Horas', why_total:'Horas totales del equipo',
+      cta_tag:'Comenzar', cta_title:'¿Listo para gestionar mejor tu equipo?',
+      cta_sub:'Inicia sesión en tu espacio y pon toda tu operación en piloto automático — nómina, programación y marcaje en un solo lugar.',
+      cta_btn:'Iniciar sesión en WorkTrack →',
+      footer_admin:'Admin del Sistema', footer_copy:'© 2026 WorkTrack. Todos los derechos reservados.',
     }
   };
 
   function applyLang(lang) {
-    const dict = T[lang];
+    const dict = T[lang] || T.en;
     document.documentElement.lang = lang;
     document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.dataset.i18n;
-      if (dict[key] !== undefined) el.textContent = dict[key];
+      const v = dict[el.dataset.i18n];
+      if (v !== undefined) el.textContent = v;
     });
     document.querySelectorAll('[data-i18n-html]').forEach(el => {
-      const key = el.dataset.i18nHtml;
-      if (dict[key] !== undefined) el.innerHTML = dict[key];
+      const v = dict[el.dataset.i18nHtml];
+      if (v !== undefined) el.innerHTML = v;
     });
     document.getElementById('btnEN').classList.toggle('active', lang === 'en');
     document.getElementById('btnES').classList.toggle('active', lang === 'es');
     localStorage.setItem('wt_lang', lang);
   }
+  function setLang(l) { applyLang(l); }
 
-  function setLang(lang) { applyLang(lang); }
-
-  // Load saved preference, fall back to browser language
   const saved = localStorage.getItem('wt_lang');
   const browser = navigator.language?.startsWith('es') ? 'es' : 'en';
   applyLang(saved || browser);
