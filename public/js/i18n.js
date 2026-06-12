@@ -1,0 +1,580 @@
+const TRANSLATIONS = {
+  en: {
+    // Header
+    admin_panel: 'Admin Panel',
+    employee_portal: 'Employee',
+    btn_logout: 'Log Out',
+
+    // Tabs - Admin
+    nav_dashboard: 'Dashboard',
+    nav_timecards: 'Time Cards',
+    nav_projects: 'Extra Projects',
+    nav_employees: 'Employees',
+    nav_stores: 'Stores',
+    nav_payroll: 'Payroll',
+    nav_calendar: 'Calendar',
+    nav_restdays: 'Rest Days',
+    nav_invoices: 'Invoices',
+    nav_map: 'Map',
+    nav_data: 'Data',
+
+    // Tabs - Employee
+    nav_shift: 'Shift',
+    nav_history: 'History',
+    nav_dayoff: 'Day Off',
+
+    // Dashboard
+    total_hours: 'Total Hours',
+    active_employees: 'Active Employees',
+    top_store: 'Top Store',
+    top_employee: 'Top Employee',
+    this_period: 'this period',
+    with_records: 'with records',
+    hours_per_employee: 'Hours per Employee',
+    attendance_by_store: 'Attendance by Store',
+    whos_in_now: '🟢 Who\'s In Now',
+    btn_refresh: '↻ Refresh',
+    nobody_clocked_in: 'Nobody is clocked in right now.',
+    overtime_alerts: '⚠️ Overtime Alerts (≥35h this week)',
+    no_overtime: 'No employees near overtime this week. 🎉',
+
+    // Common
+    loading: 'Loading…',
+    to_label: 'to',
+    btn_filter: '🔍 Filter',
+    btn_apply: '🔍 Apply',
+    btn_add: '+ Add',
+    btn_save: 'Save',
+    btn_cancel: 'Cancel',
+    btn_edit: 'Edit',
+    btn_delete: 'Delete',
+    btn_import_excel: '📥 Import Excel',
+    btn_export_records: '⬇ Export Records',
+    btn_export_excel: '⬇ Export Excel',
+    btn_export: '⬇ Export',
+    all_employees: 'All Employees',
+    all_stores: 'All Stores',
+    select_employee: 'Select Employee',
+    choose_store: '-- Choose a store --',
+    no_records: 'No records found',
+    no_records_projects: 'No extra project records found',
+    select_filters: 'Select filters and click Filter',
+
+    // Columns
+    col_employee: 'Employee',
+    col_store: 'Store',
+    col_date: 'Date',
+    col_in: 'In',
+    col_out: 'Out',
+    col_duration: 'Duration',
+    col_media: 'Media',
+    col_location: 'Location',
+    col_project: 'Project',
+    col_hours: 'Hours',
+    col_notes: 'Notes',
+    col_status: 'Status',
+    col_actions: 'Actions',
+    col_client: 'Client',
+    col_due: 'Due',
+    col_total: 'Total',
+    col_payment_date: 'Payment Date',
+    col_amount: 'Amount',
+    col_reason: 'Reason',
+    col_submitted: 'Submitted',
+
+    // Employees tab
+    employees: 'Employees',
+    no_employees: 'No employees yet',
+    register_employee: 'Add Employee',
+    edit_employee: 'Edit Employee',
+    btn_create_employee: 'Create Employee',
+    btn_update_employee: 'Update Employee',
+    lbl_full_name: 'Full Name',
+    lbl_username: 'Username',
+    lbl_password: 'Password',
+    lbl_email: 'Email',
+    lbl_assign_stores: 'Assign Stores',
+    leave_blank_password: 'Leave blank to keep current password',
+    email_shift_reminders: '(for shift reminders)',
+
+    // Stores tab
+    stores: 'Stores',
+    no_stores: 'No stores yet',
+    no_stores_add_first: 'No stores available. Add stores first.',
+    add_store: 'Add Store',
+    edit_store: 'Edit Store',
+    btn_save_store: 'Save Store',
+    btn_update_store: 'Update Store',
+    lbl_store_name: 'Store Name',
+    lbl_address: 'Address',
+
+    // Payroll tab
+    register_payment: 'Register Payment',
+    payment_history: 'Payment History',
+    annual_summary: 'Annual Summary',
+    no_payments: 'No payments found',
+    btn_register_payment: '+ Register Payment',
+    amount_placeholder: 'Amount ($)',
+    payroll_import_hint: 'Columns required:',
+
+    // Calendar tab
+    all_jobs_month: 'All Jobs This Month',
+    no_jobs: 'No jobs this month.',
+    btn_schedule_job: '+ Schedule Job',
+    scheduled_job: 'Schedule Job',
+    edit_job: 'Edit Job',
+    calendar_access: 'Calendar Access',
+    calendar_access_sub: 'Choose who can see and edit this calendar',
+    btn_grant_access: 'Grant Access',
+    btn_revoke_access: 'Revoke',
+    no_calendar_access: "You don't have calendar access. Ask the admin to grant you access.",
+    lbl_title: 'Title',
+    lbl_job_location: 'Location / Store',
+    lbl_start_time: 'Start Time',
+    lbl_end_time: 'End Time',
+    lbl_assign_employees: 'Assign Employees',
+    lbl_ref_images: 'Reference Images',
+    btn_add_images: '📎 Add Images',
+
+    // Rest Days tab
+    employee_rest_days: 'Employee Rest Days',
+    rest_day_requests: 'Rest Day Requests',
+    no_rest_days: 'No rest days registered yet',
+    no_requests: 'No requests found.',
+    no_requests_yet: 'No requests submitted yet.',
+    btn_approve: 'Approve',
+    btn_deny: 'Deny',
+    status_pending: 'Pending',
+    status_approved: 'Approved',
+    status_denied: 'Denied',
+
+    // Invoices tab
+    invoices: 'Invoices',
+    new_invoice: '+ New Invoice',
+    no_invoices: 'No invoices yet. Create your first one.',
+    total_invoices: 'Total Invoices',
+    inv_pending: 'Pending',
+    inv_paid: 'Paid',
+    inv_draft: 'Draft',
+    inv_sent: 'Sent',
+    invoice_details_section: 'Invoice Details',
+    client_info_section: 'Client Info',
+    line_items_section: 'Line Items',
+    lbl_client_name: 'Client Name *',
+    lbl_client_email: 'Client Email',
+    lbl_client_address: 'Client Address',
+    lbl_invoice_num: 'Invoice #',
+    lbl_po_number: 'PO Number',
+    btn_save_invoice: 'Save Invoice',
+    btn_add_line_item: '+ Add Line Item',
+    shift_evidence: 'Shift Evidence',
+    btn_download_zip: '⬇ Download All Evidence (ZIP)',
+
+    // Map tab
+    clock_in_out_locations: 'Clock-In/Out Locations',
+    clock_in_label: 'Clock In',
+    clock_out_label: 'Clock Out',
+
+    // Settings / Notifications
+    reminder_times: '⏰ Reminder Times',
+    reminder_times_sub: 'What time reminder emails are sent',
+    night_reminder: 'Previous night (work tomorrow)',
+    morning_reminder: 'Morning of same day',
+    midday_reminder: 'Midday of same day',
+    btn_save_times: 'Save times',
+    saved: '✓ Saved',
+    times_note: '🕐 Times in <strong>Chicago time</strong> (CST/CDT). Enter local time as you see it.',
+    daily_summary_recipients: '📧 Daily Summary Recipients',
+    daily_summary_sub: 'Emails that receive the daily summary each morning',
+    placeholder_email: 'email@example.com',
+    placeholder_name_opt: 'Name (optional)',
+    btn_add_recipient: '+ Add',
+    btn_send_test: '📧 Send test',
+    no_recipients: 'No recipients yet.',
+    sending: '⏳ Sending…',
+    sent_to: '✓ Sent to: ',
+    error_saving: 'Error saving: ',
+
+    // Clear Data tab
+    clear_data: '🗑 Clear Data',
+    clear_warning: 'Deletes records from the database. This action <strong>cannot be undone</strong>.',
+    time_punches: 'Time Records',
+    time_punches_sub: 'Clock in/out punches without project',
+    extra_projects_label: 'Extra Projects',
+    extra_projects_sub: 'Entries with an assigned project name',
+    calendar_jobs_label: 'Calendar Jobs',
+    calendar_jobs_sub: 'All shifts and scheduled jobs',
+    payroll_label: 'Payroll Records',
+    payroll_sub: 'All registered payments',
+    btn_delete_all: '🗑 Delete All',
+    btn_delete_row: 'Delete',
+    delete_all_sub: 'Deletes all previous records at once',
+    confirm_delete: 'Are you sure? This action cannot be undone.',
+    records_deleted: 'records deleted',
+    all_deleted: 'All data has been deleted.',
+
+    // Shift tab (Employee)
+    start_shift: 'Start a Shift',
+    end_shift: 'End Shift',
+    extra_project: 'Extra Project',
+    extra_project_hint: "Check this if you're working on a special project instead of a store",
+    lbl_select_store: 'Select Store',
+    lbl_project_name: 'Project Name',
+    photo_video_required: 'Photo / Video (required)',
+    tap_to_take_photo: 'Tap to take photo or video',
+    upload_arrival: 'Upload evidence of your arrival',
+    upload_completed: 'Upload evidence of completed work',
+    btn_clock_in: '▶ Clock In',
+    btn_clock_out: '⏹ Clock Out',
+    btn_start_break: '☕ Start Break',
+    btn_end_break: '▶ End Break',
+    no_active_shift: 'No active shift',
+    status_label: 'Status',
+    on_break_elapsed: 'On break — {mins}m elapsed',
+    take_break_hint: 'Take a break when needed.',
+    break_ended: 'Break ended — {mins} min',
+    notes_optional: 'Notes (optional)',
+    clocked_in_at: 'Clocked in at ',
+
+    // History tab (Employee)
+    my_recent_shifts: 'My Recent Shifts',
+    no_store_shifts: 'No store shifts yet',
+    no_project_records: 'No extra project records yet',
+
+    // Rest Days (Employee)
+    register_day_off: 'Register Day Off',
+    my_rest_days: 'My Rest Days',
+    request_day_off: 'Request a Day Off',
+    my_requests: 'My Requests',
+    lbl_date: 'Date',
+    lbl_stores_not_worked: 'Stores I did NOT work at',
+    lbl_note_optional: 'Note (optional)',
+    lbl_reason_optional: 'Reason (optional)',
+    btn_save_day_off: 'Save Day Off',
+    btn_send_request: 'Send Request',
+    btn_cancel_request: 'Cancel Request',
+    loading_stores: 'Loading stores...',
+    no_rest_days_emp: 'No rest days registered yet',
+
+    // Calendar (Employee)
+    all_jobs_month_emp: 'All Jobs This Month',
+    shift_photos: 'Shift Photos & Videos',
+
+    // Job modal
+    lbl_location: 'Location',
+    lbl_additional_notes: 'Additional notes',
+    lbl_notes: 'Notes',
+    lbl_job_title: 'Title',
+    lbl_job_date: 'Date',
+    in_progress: 'In progress',
+    working: 'Working',
+    force_out: 'Force Out',
+    no_media: 'No media uploaded',
+    failed_to_load: 'Failed to load',
+  },
+
+  es: {
+    // Header
+    admin_panel: 'Panel Admin',
+    employee_portal: 'Empleado',
+    btn_logout: 'Cerrar sesión',
+
+    // Tabs - Admin
+    nav_dashboard: 'Inicio',
+    nav_timecards: 'Fichajes',
+    nav_projects: 'Proyectos extra',
+    nav_employees: 'Empleados',
+    nav_stores: 'Tiendas',
+    nav_payroll: 'Nómina',
+    nav_calendar: 'Calendario',
+    nav_restdays: 'Descansos',
+    nav_invoices: 'Facturas',
+    nav_map: 'Mapa',
+    nav_data: 'Datos',
+
+    // Tabs - Employee
+    nav_shift: 'Turno',
+    nav_history: 'Historial',
+    nav_dayoff: 'Día libre',
+
+    // Dashboard
+    total_hours: 'Horas totales',
+    active_employees: 'Empleados activos',
+    top_store: 'Tienda top',
+    top_employee: 'Empleado top',
+    this_period: 'este período',
+    with_records: 'con registros',
+    hours_per_employee: 'Horas por empleado',
+    attendance_by_store: 'Asistencia por tienda',
+    whos_in_now: '🟢 Quién está trabajando',
+    btn_refresh: '↻ Actualizar',
+    nobody_clocked_in: 'Nadie está fichado en este momento.',
+    overtime_alerts: '⚠️ Alertas de horas extra (≥35h esta semana)',
+    no_overtime: 'Sin empleados cerca del límite esta semana. 🎉',
+
+    // Common
+    loading: 'Cargando…',
+    to_label: 'a',
+    btn_filter: '🔍 Filtrar',
+    btn_apply: '🔍 Aplicar',
+    btn_add: '+ Agregar',
+    btn_save: 'Guardar',
+    btn_cancel: 'Cancelar',
+    btn_edit: 'Editar',
+    btn_delete: 'Eliminar',
+    btn_import_excel: '📥 Importar Excel',
+    btn_export_records: '⬇ Exportar registros',
+    btn_export_excel: '⬇ Exportar Excel',
+    btn_export: '⬇ Exportar',
+    all_employees: 'Todos los empleados',
+    all_stores: 'Todas las tiendas',
+    select_employee: 'Seleccionar empleado',
+    choose_store: '-- Elegir tienda --',
+    no_records: 'Sin registros',
+    no_records_projects: 'Sin registros de proyectos extra',
+    select_filters: 'Selecciona filtros y haz clic en Filtrar',
+
+    // Columns
+    col_employee: 'Empleado',
+    col_store: 'Tienda',
+    col_date: 'Fecha',
+    col_in: 'Entrada',
+    col_out: 'Salida',
+    col_duration: 'Duración',
+    col_media: 'Fotos',
+    col_location: 'Ubicación',
+    col_project: 'Proyecto',
+    col_hours: 'Horas',
+    col_notes: 'Notas',
+    col_status: 'Estado',
+    col_actions: 'Acciones',
+    col_client: 'Cliente',
+    col_due: 'Vence',
+    col_total: 'Total',
+    col_payment_date: 'Fecha de pago',
+    col_amount: 'Monto',
+    col_reason: 'Motivo',
+    col_submitted: 'Enviado',
+
+    // Employees tab
+    employees: 'Empleados',
+    no_employees: 'Sin empleados aún',
+    register_employee: 'Agregar empleado',
+    edit_employee: 'Editar empleado',
+    btn_create_employee: 'Crear empleado',
+    btn_update_employee: 'Actualizar empleado',
+    lbl_full_name: 'Nombre completo',
+    lbl_username: 'Usuario',
+    lbl_password: 'Contraseña',
+    lbl_email: 'Correo',
+    lbl_assign_stores: 'Asignar tiendas',
+    leave_blank_password: 'Dejar en blanco para mantener la contraseña actual',
+    email_shift_reminders: '(para recordatorios de turno)',
+
+    // Stores tab
+    stores: 'Tiendas',
+    no_stores: 'Sin tiendas aún',
+    no_stores_add_first: 'Sin tiendas disponibles. Agrega tiendas primero.',
+    add_store: 'Agregar tienda',
+    edit_store: 'Editar tienda',
+    btn_save_store: 'Guardar tienda',
+    btn_update_store: 'Actualizar tienda',
+    lbl_store_name: 'Nombre de tienda',
+    lbl_address: 'Dirección',
+
+    // Payroll tab
+    register_payment: 'Registrar pago',
+    payment_history: 'Historial de pagos',
+    annual_summary: 'Resumen anual',
+    no_payments: 'Sin pagos encontrados',
+    btn_register_payment: '+ Registrar pago',
+    amount_placeholder: 'Monto ($)',
+    payroll_import_hint: 'Columnas requeridas:',
+
+    // Calendar tab
+    all_jobs_month: 'Todos los trabajos del mes',
+    no_jobs: 'Sin trabajos este mes.',
+    btn_schedule_job: '+ Programar trabajo',
+    scheduled_job: 'Programar trabajo',
+    edit_job: 'Editar trabajo',
+    calendar_access: 'Acceso al calendario',
+    calendar_access_sub: 'Elige quién puede ver y editar este calendario',
+    btn_grant_access: 'Dar acceso',
+    btn_revoke_access: 'Revocar',
+    no_calendar_access: 'No tienes acceso al calendario. Pídele al administrador que te dé acceso.',
+    lbl_title: 'Título',
+    lbl_job_location: 'Ubicación / Tienda',
+    lbl_start_time: 'Hora inicio',
+    lbl_end_time: 'Hora fin',
+    lbl_assign_employees: 'Asignar empleados',
+    lbl_ref_images: 'Imágenes de referencia',
+    btn_add_images: '📎 Agregar imágenes',
+
+    // Rest Days tab
+    employee_rest_days: 'Descansos de empleados',
+    rest_day_requests: 'Solicitudes de descanso',
+    no_rest_days: 'Sin días de descanso registrados',
+    no_requests: 'Sin solicitudes.',
+    no_requests_yet: 'Sin solicitudes enviadas aún.',
+    btn_approve: 'Aprobar',
+    btn_deny: 'Rechazar',
+    status_pending: 'Pendiente',
+    status_approved: 'Aprobado',
+    status_denied: 'Rechazado',
+
+    // Invoices tab
+    invoices: 'Facturas',
+    new_invoice: '+ Nueva factura',
+    no_invoices: 'Sin facturas aún. Crea la primera.',
+    total_invoices: 'Total facturas',
+    inv_pending: 'Pendiente',
+    inv_paid: 'Pagado',
+    inv_draft: 'Borrador',
+    inv_sent: 'Enviado',
+    invoice_details_section: 'Detalles de factura',
+    client_info_section: 'Info del cliente',
+    line_items_section: 'Líneas de detalle',
+    lbl_client_name: 'Nombre del cliente *',
+    lbl_client_email: 'Correo del cliente',
+    lbl_client_address: 'Dirección del cliente',
+    lbl_invoice_num: 'Factura #',
+    lbl_po_number: 'N° de orden',
+    btn_save_invoice: 'Guardar factura',
+    btn_add_line_item: '+ Agregar línea',
+    shift_evidence: 'Evidencia del turno',
+    btn_download_zip: '⬇ Descargar toda la evidencia (ZIP)',
+
+    // Map tab
+    clock_in_out_locations: 'Ubicaciones de entrada/salida',
+    clock_in_label: 'Entrada',
+    clock_out_label: 'Salida',
+
+    // Settings / Notifications
+    reminder_times: '⏰ Horarios de recordatorio',
+    reminder_times_sub: 'A qué hora se envían los emails de recordatorio',
+    night_reminder: 'Noche anterior (mañana hay trabajo)',
+    morning_reminder: 'Mañana del mismo día',
+    midday_reminder: 'Mediodía del mismo día',
+    btn_save_times: 'Guardar horarios',
+    saved: '✓ Guardado',
+    times_note: '🕐 Horarios en <strong>hora de Chicago</strong> (CST/CDT). Ingresa la hora local tal como la ves.',
+    daily_summary_recipients: '📧 Destinatarios del resumen diario',
+    daily_summary_sub: 'Correos que reciben el resumen diario cada mañana',
+    placeholder_email: 'correo@ejemplo.com',
+    placeholder_name_opt: 'Nombre (opcional)',
+    btn_add_recipient: '+ Agregar',
+    btn_send_test: '📧 Enviar prueba',
+    no_recipients: 'No hay destinatarios aún.',
+    sending: '⏳ Enviando…',
+    sent_to: '✓ Enviado a: ',
+    error_saving: 'Error al guardar: ',
+
+    // Clear Data tab
+    clear_data: '🗑 Borrar datos',
+    clear_warning: 'Elimina registros de la base de datos. Esta acción <strong>no se puede deshacer</strong>.',
+    time_punches: 'Registros de marcaje',
+    time_punches_sub: 'Fichajes de entrada/salida sin proyecto',
+    extra_projects_label: 'Proyectos extra',
+    extra_projects_sub: 'Entradas con nombre de proyecto asignado',
+    calendar_jobs_label: 'Trabajos del calendario',
+    calendar_jobs_sub: 'Todos los turnos y trabajos programados',
+    payroll_label: 'Registros de nómina',
+    payroll_sub: 'Todos los pagos registrados',
+    btn_delete_all: '🗑 Eliminar todo',
+    btn_delete_row: 'Eliminar',
+    delete_all_sub: 'Borra todos los registros anteriores de una sola vez',
+    confirm_delete: '¿Estás seguro? Esta acción no se puede deshacer.',
+    records_deleted: 'registros eliminados',
+    all_deleted: 'Todos los datos han sido eliminados.',
+
+    // Shift tab (Employee)
+    start_shift: 'Iniciar turno',
+    end_shift: 'Finalizar turno',
+    extra_project: 'Proyecto extra',
+    extra_project_hint: 'Marca esto si estás trabajando en un proyecto especial en lugar de una tienda',
+    lbl_select_store: 'Seleccionar tienda',
+    lbl_project_name: 'Nombre del proyecto',
+    photo_video_required: 'Foto / Video (requerido)',
+    tap_to_take_photo: 'Toca para tomar foto o video',
+    upload_arrival: 'Sube evidencia de tu llegada',
+    upload_completed: 'Sube evidencia del trabajo terminado',
+    btn_clock_in: '▶ Fichar entrada',
+    btn_clock_out: '⏹ Fichar salida',
+    btn_start_break: '☕ Iniciar descanso',
+    btn_end_break: '▶ Terminar descanso',
+    no_active_shift: 'Sin turno activo',
+    status_label: 'Estado',
+    on_break_elapsed: 'En descanso — {mins}m transcurridos',
+    take_break_hint: 'Toma un descanso cuando lo necesites.',
+    break_ended: 'Descanso terminado — {mins} min',
+    notes_optional: 'Notas (opcional)',
+    clocked_in_at: 'Entrada fichada a las ',
+
+    // History tab (Employee)
+    my_recent_shifts: 'Mis turnos recientes',
+    no_store_shifts: 'Sin turnos en tiendas aún',
+    no_project_records: 'Sin registros de proyectos extra aún',
+
+    // Rest Days (Employee)
+    register_day_off: 'Registrar día libre',
+    my_rest_days: 'Mis días de descanso',
+    request_day_off: 'Solicitar día libre',
+    my_requests: 'Mis solicitudes',
+    lbl_date: 'Fecha',
+    lbl_stores_not_worked: 'Tiendas donde NO trabajé',
+    lbl_note_optional: 'Nota (opcional)',
+    lbl_reason_optional: 'Motivo (opcional)',
+    btn_save_day_off: 'Guardar día libre',
+    btn_send_request: 'Enviar solicitud',
+    btn_cancel_request: 'Cancelar solicitud',
+    loading_stores: 'Cargando tiendas...',
+    no_rest_days_emp: 'Sin días de descanso registrados aún',
+
+    // Calendar (Employee)
+    all_jobs_month_emp: 'Todos los trabajos del mes',
+    shift_photos: 'Fotos y videos del turno',
+
+    // Job modal
+    lbl_location: 'Ubicación',
+    lbl_additional_notes: 'Notas adicionales',
+    lbl_notes: 'Notas',
+    lbl_job_title: 'Título',
+    lbl_job_date: 'Fecha',
+    in_progress: 'En progreso',
+    working: 'Trabajando',
+    force_out: 'Forzar salida',
+    no_media: 'Sin archivos subidos',
+    failed_to_load: 'Error al cargar',
+  }
+};
+
+function t(key) {
+  const lang = localStorage.getItem('lang') || 'en';
+  return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS['en'][key] || key;
+}
+
+function setLang(lang) {
+  localStorage.setItem('lang', lang);
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const val = t(key);
+    if (el.tagName === 'INPUT' && el.type !== 'submit' && el.type !== 'button') {
+      el.placeholder = val;
+    } else if (el.tagName === 'OPTION') {
+      el.textContent = val;
+    } else {
+      el.innerHTML = val;
+    }
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = t(el.getAttribute('data-i18n-ph'));
+  });
+  document.querySelectorAll('.lang-toggle').forEach(btn => {
+    btn.textContent = lang === 'en' ? 'ES' : 'EN';
+  });
+}
+
+function initLang() {
+  setLang(localStorage.getItem('lang') || 'en');
+}

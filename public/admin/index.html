@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Admin Panel — WorkTrack</title>
   <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/i18n.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <style>
     .logo-img { width: 32px; height: 32px; border-radius: 6px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
@@ -16,6 +17,8 @@
     .btn-export:hover { background: #218838; }
     .btn-download { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); border-radius: 6px; padding: 4px 8px; font-size: .8rem; cursor: pointer; margin-left: 4px; }
     .btn-download:hover { background: var(--primary); color: #fff; }
+    .btn-lang { background: transparent; color: #fff; border: 1.5px solid rgba(255,255,255,0.4); border-radius: 6px; padding: 6px 12px; font-size: .85rem; font-weight: 600; cursor: pointer; margin-right: 6px; }
+    .btn-lang:hover { background: rgba(255,255,255,0.15); }
   </style>
 </head>
 <body>
@@ -24,25 +27,26 @@
     <div class="container" style="max-width:100%">
       <div>
         <h1><img id="companyLogo" src="/images/WhatsApp%20Image%202026-03-15%20at%2015.01.42.jpeg" alt="Company logo" class="logo-img" style="display:none"> <span id="companyName">WorkTrack</span></h1>
-        <div class="header-sub">Admin Panel</div>
+        <div class="header-sub" data-i18n="admin_panel">Admin Panel</div>
       </div>
-      <button class="btn-logout" id="logoutBtn">Log Out</button>
+      <button class="btn-lang lang-toggle" onclick="setLang(localStorage.getItem('lang')==='es'?'en':'es')">ES</button>
+      <button class="btn-logout" id="logoutBtn" data-i18n="btn_logout">Log Out</button>
     </div>
   </header>
 
   <!-- TABS -->
   <div class="tab-bar">
-    <button class="tab-btn" data-tab="dashboard">📊 Dashboard</button>
-    <button class="tab-btn active" data-tab="records">📋 Time Cards</button>
-    <button class="tab-btn" data-tab="projects">🗂 Extra Projects</button>
-    <button class="tab-btn" data-tab="employees">👥 Employees</button>
-    <button class="tab-btn" data-tab="stores">🏪 Stores</button>
-    <button class="tab-btn" data-tab="payroll">💰 Payroll</button>
-    <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
-    <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
-    <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
-    <button class="tab-btn" data-tab="map">📍 Map</button>
-    <button class="tab-btn" data-tab="cleardata">🗑 Datos</button>
+    <button class="tab-btn" data-tab="dashboard">📊 <span data-i18n="nav_dashboard">Dashboard</span></button>
+    <button class="tab-btn active" data-tab="records">📋 <span data-i18n="nav_timecards">Time Cards</span></button>
+    <button class="tab-btn" data-tab="projects">🗂 <span data-i18n="nav_projects">Extra Projects</span></button>
+    <button class="tab-btn" data-tab="employees">👥 <span data-i18n="nav_employees">Employees</span></button>
+    <button class="tab-btn" data-tab="stores">🏪 <span data-i18n="nav_stores">Stores</span></button>
+    <button class="tab-btn" data-tab="payroll">💰 <span data-i18n="nav_payroll">Payroll</span></button>
+    <button class="tab-btn" data-tab="calendar">📅 <span data-i18n="nav_calendar">Calendar</span></button>
+    <button class="tab-btn" data-tab="restdays">🗓 <span data-i18n="nav_restdays">Rest Days</span></button>
+    <button class="tab-btn" data-tab="invoices">🧾 <span data-i18n="nav_invoices">Invoices</span></button>
+    <button class="tab-btn" data-tab="map">📍 <span data-i18n="nav_map">Map</span></button>
+    <button class="tab-btn" data-tab="cleardata">🗑 <span data-i18n="nav_data">Data</span></button>
   </div>
 
   <!-- ── DASHBOARD TAB ───────────────────────────────────────────── -->
@@ -61,22 +65,22 @@
       <!-- Summary cards -->
       <div class="dash-cards">
         <div class="dash-card">
-          <div class="dash-card-label">Total Hours</div>
+          <div class="dash-card-label" data-i18n="total_hours">Total Hours</div>
           <div class="dash-card-value" id="dashTotalHours">—</div>
-          <div class="dash-card-sub">this period</div>
+          <div class="dash-card-sub" data-i18n="this_period">this period</div>
         </div>
         <div class="dash-card">
-          <div class="dash-card-label">Active Employees</div>
+          <div class="dash-card-label" data-i18n="active_employees">Active Employees</div>
           <div class="dash-card-value" id="dashActiveEmployees">—</div>
-          <div class="dash-card-sub">with records</div>
+          <div class="dash-card-sub" data-i18n="with_records">with records</div>
         </div>
         <div class="dash-card">
-          <div class="dash-card-label">Top Store</div>
+          <div class="dash-card-label" data-i18n="top_store">Top Store</div>
           <div class="dash-card-value dash-card-value--sm" id="dashTopStore">—</div>
           <div class="dash-card-sub" id="dashTopStoreHours"></div>
         </div>
         <div class="dash-card">
-          <div class="dash-card-label">Top Employee</div>
+          <div class="dash-card-label" data-i18n="top_employee">Top Employee</div>
           <div class="dash-card-value dash-card-value--sm" id="dashTopEmployee">—</div>
           <div class="dash-card-sub" id="dashTopEmployeeHours"></div>
         </div>
@@ -84,7 +88,7 @@
 
       <!-- Hours per Employee chart -->
       <div class="card" style="margin-top:16px">
-        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)">Hours per Employee</h3>
+        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)" data-i18n="hours_per_employee">Hours per Employee</h3>
         <div style="position:relative;height:260px">
           <canvas id="dashEmpChart"></canvas>
         </div>
@@ -92,7 +96,7 @@
 
       <!-- Hours by Store chart -->
       <div class="card" style="margin-top:16px">
-        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)">Attendance by Store</h3>
+        <h3 style="margin:0 0 16px;font-size:1rem;font-weight:600;color:var(--text)" data-i18n="attendance_by_store">Attendance by Store</h3>
         <div style="position:relative;height:220px">
           <canvas id="dashStoreChart"></canvas>
         </div>
@@ -101,8 +105,8 @@
       <!-- Who's In Now -->
       <div class="card" style="margin-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <h3 style="margin:0;font-size:1rem;font-weight:600;color:var(--text)">🟢 Who's In Now</h3>
-          <button class="btn btn-primary" style="padding:6px 14px;font-size:.82rem" id="refreshWhoIsIn">↻ Refresh</button>
+          <h3 style="margin:0;font-size:1rem;font-weight:600;color:var(--text)" data-i18n="whos_in_now">🟢 Who's In Now</h3>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:.82rem" id="refreshWhoIsIn" data-i18n="btn_refresh">↻ Refresh</button>
         </div>
         <div id="whoIsInGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px">
           <div style="color:var(--muted);font-size:.9rem">Loading…</div>
@@ -111,7 +115,7 @@
 
       <!-- Overtime Alerts -->
       <div class="card" style="margin-top:16px;margin-bottom:24px">
-        <h3 style="margin:0 0 14px;font-size:1rem;font-weight:600;color:var(--text)">⚠️ Overtime Alerts (≥35h this week)</h3>
+        <h3 style="margin:0 0 14px;font-size:1rem;font-weight:600;color:var(--text)" data-i18n="overtime_alerts">⚠️ Overtime Alerts (≥35h this week)</h3>
         <div id="overtimeList">
           <div style="color:var(--muted);font-size:.9rem">Loading…</div>
         </div>
@@ -129,22 +133,20 @@
           <span style="align-self:center;color:var(--muted);font-size:.85rem">to</span>
           <input type="date" id="filterDateTo" class="form-control" title="End date">
           <select id="filterEmployee" class="form-control">
-            <option value="">All Employees</option>
+            <option value="" data-i18n="all_employees">All Employees</option>
           </select>
           <select id="filterStore" class="form-control">
-            <option value="">All Stores</option>
+            <option value="" data-i18n="all_stores">All Stores</option>
           </select>
         </div>
-        <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="filterBtn">
-          🔍 Filter
-        </button>
+        <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="filterBtn" data-i18n="btn_filter">🔍 Filter</button>
         <!-- Export -->
         <div class="export-row">
           <select id="exportFormat">
             <option value="csv">CSV</option>
             <option value="excel">Excel (.xlsx)</option>
           </select>
-          <button class="btn-export" id="exportBtn">⬇ Export Records</button>
+          <button class="btn-export" id="exportBtn" data-i18n="btn_export_records">⬇ Export Records</button>
         </div>
       </div>
 
@@ -153,14 +155,14 @@
           <table>
             <thead>
               <tr>
-                <th>Employee</th>
-                <th>Store</th>
-                <th>Date</th>
-                <th>In</th>
-                <th>Out</th>
-                <th>Duration</th>
-                <th>Media</th>
-                <th>Location</th>
+                <th data-i18n="col_employee">Employee</th>
+                <th data-i18n="col_store">Store</th>
+                <th data-i18n="col_date">Date</th>
+                <th data-i18n="col_in">In</th>
+                <th data-i18n="col_out">Out</th>
+                <th data-i18n="col_duration">Duration</th>
+                <th data-i18n="col_media">Media</th>
+                <th data-i18n="col_location">Location</th>
               </tr>
             </thead>
             <tbody id="recordsBody">
@@ -181,14 +183,12 @@
           <span style="align-self:center;color:var(--muted);font-size:.85rem">to</span>
           <input type="date" id="projFilterDateTo" class="form-control" title="End date">
           <select id="projFilterEmployee" class="form-control">
-            <option value="">All Employees</option>
+            <option value="" data-i18n="all_employees">All Employees</option>
           </select>
         </div>
-        <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="projFilterBtn">
-          🔍 Filter
-        </button>
+        <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="projFilterBtn" data-i18n="btn_filter">🔍 Filter</button>
         <div class="export-row">
-          <button class="btn-export" id="projExportBtn">⬇ Export Excel</button>
+          <button class="btn-export" id="projExportBtn" data-i18n="btn_export_excel">⬇ Export Excel</button>
         </div>
       </div>
 
@@ -197,14 +197,14 @@
           <table>
             <thead>
               <tr>
-                <th>Employee</th>
-                <th>Project</th>
-                <th>Date</th>
-                <th>In</th>
-                <th>Out</th>
-                <th>Duration</th>
-                <th>Media</th>
-                <th>Location</th>
+                <th data-i18n="col_employee">Employee</th>
+                <th data-i18n="col_project">Project</th>
+                <th data-i18n="col_date">Date</th>
+                <th data-i18n="col_in">In</th>
+                <th data-i18n="col_out">Out</th>
+                <th data-i18n="col_duration">Duration</th>
+                <th data-i18n="col_media">Media</th>
+                <th data-i18n="col_location">Location</th>
               </tr>
             </thead>
             <tbody id="projectsBody">
@@ -221,10 +221,10 @@
     <div class="container">
       <div class="card" style="margin-top:16px">
         <div class="section-header">
-          <h2>Employees</h2>
+          <h2 data-i18n="employees">Employees</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" id="newEmployeeBtn">+ Add</button>
-            <button class="btn btn-sm btn-outline" id="importEmployeesBtn">📥 Import Excel</button>
+            <button class="btn btn-primary btn-sm" id="newEmployeeBtn" data-i18n="btn_add">+ Add</button>
+            <button class="btn btn-sm btn-outline" id="importEmployeesBtn" data-i18n="btn_import_excel">📥 Import Excel</button>
             <input type="file" id="employeeImportInput" accept=".xlsx" style="display:none">
           </div>
         </div>
@@ -243,10 +243,10 @@
     <div class="container">
       <div class="card" style="margin-top:16px">
         <div class="section-header">
-          <h2>Stores</h2>
+          <h2 data-i18n="stores">Stores</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary btn-sm" id="newStoreBtn">+ Add</button>
-            <button class="btn btn-sm btn-outline" id="importStoresBtn">📥 Import Excel</button>
+            <button class="btn btn-primary btn-sm" id="newStoreBtn" data-i18n="btn_add">+ Add</button>
+            <button class="btn btn-sm btn-outline" id="importStoresBtn" data-i18n="btn_import_excel">📥 Import Excel</button>
             <input type="file" id="storeImportInput" accept=".xlsx" style="display:none">
           </div>
         </div>
@@ -266,19 +266,19 @@
       <!-- Register Payment -->
       <div class="card" style="margin-top:16px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Register Payment</h2>
+          <h2 data-i18n="register_payment">Register Payment</h2>
         </div>
         <form id="payrollForm">
           <div class="filter-row">
             <select id="payrollEmployee" class="form-control" required>
-              <option value="">Select Employee</option>
+              <option value="" data-i18n="select_employee">Select Employee</option>
             </select>
             <input type="date" id="payrollDate" class="form-control" required>
             <input type="number" id="payrollAmount" class="form-control"
                    placeholder="Amount ($)" min="0.01" step="0.01" required
                    style="max-width:160px">
             <button type="submit" class="btn btn-primary" style="padding:10px 16px;white-space:nowrap"
-                    id="payrollSubmitBtn">+ Register Payment</button>
+                    id="payrollSubmitBtn" data-i18n="btn_register_payment">+ Register Payment</button>
           </div>
           <div class="alert alert-error"   id="payrollError"   style="margin-top:8px"></div>
           <div class="alert alert-success" id="payrollSuccess" style="margin-top:8px"></div>
@@ -295,29 +295,27 @@
       <!-- Payment History -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Payment History</h2>
+          <h2 data-i18n="payment_history">Payment History</h2>
           <div class="export-row" style="margin-top:0">
             <select id="payrollYearExport" class="form-control" style="width:auto;padding:8px 36px 8px 10px"></select>
-            <button class="btn-export" id="payrollExportBtn">⬇ Export Excel</button>
+            <button class="btn-export" id="payrollExportBtn" data-i18n="btn_export_excel">⬇ Export Excel</button>
           </div>
         </div>
         <div class="filter-row">
           <select id="payrollFilterEmployee" class="form-control">
-            <option value="">All Employees</option>
+            <option value="" data-i18n="all_employees">All Employees</option>
           </select>
           <select id="payrollFilterYear" class="form-control" style="width:auto"></select>
-          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="payrollFilterBtn">
-            🔍 Filter
-          </button>
+          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="payrollFilterBtn" data-i18n="btn_filter">🔍 Filter</button>
         </div>
         <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
           <div class="table-wrapper">
             <table>
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Payment Date</th>
-                  <th>Amount</th>
+                  <th data-i18n="col_employee">Employee</th>
+                  <th data-i18n="col_payment_date">Payment Date</th>
+                  <th data-i18n="col_amount">Amount</th>
                 </tr>
               </thead>
               <tbody id="payrollBody">
@@ -331,7 +329,7 @@
       <!-- Annual Summary -->
       <div class="card" style="margin-top:12px;margin-bottom:24px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Annual Summary</h2>
+          <h2 data-i18n="annual_summary">Annual Summary</h2>
           <select id="summaryYear" class="form-control" style="width:auto;padding:8px 36px 8px 10px"></select>
         </div>
         <div id="summaryBody">
@@ -381,15 +379,15 @@
         </div>
       </div>
       <div class="card" style="margin-top:12px">
-        <h3 style="margin:0 0 12px">All Jobs This Month</h3>
+        <h3 style="margin:0 0 12px" data-i18n="all_jobs_month">All Jobs This Month</h3>
         <div id="calJobList"></div>
       </div>
 
       <!-- Calendar Access -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Calendar Access</h2>
-          <span style="font-size:.85rem;color:var(--muted)">Choose who can see and edit this calendar</span>
+          <h2 data-i18n="calendar_access">Calendar Access</h2>
+          <span style="font-size:.85rem;color:var(--muted)" data-i18n="calendar_access_sub">Choose who can see and edit this calendar</span>
         </div>
         <div id="calAccessList" style="color:var(--muted);font-size:.9rem">Loading...</div>
       </div>
@@ -397,39 +395,39 @@
       <!-- Email Reminder Times -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>⏰ Horarios de Recordatorio</h2>
-          <span style="font-size:.85rem;color:var(--muted)">A qué hora se envían los emails de recordatorio</span>
+          <h2 data-i18n="reminder_times">⏰ Reminder Times</h2>
+          <span style="font-size:.85rem;color:var(--muted)" data-i18n="reminder_times_sub">What time reminder emails are sent</span>
         </div>
         <div style="display:grid;gap:12px;max-width:360px">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
-            Noche anterior (mañana hay trabajo)
+            <span data-i18n="night_reminder">Previous night (work tomorrow)</span>
             <input type="time" id="smsTimeNight" class="form-control" style="width:140px">
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
-            Mañana del mismo día
+            <span data-i18n="morning_reminder">Morning of same day</span>
             <input type="time" id="smsTimeMorning" class="form-control" style="width:140px">
           </label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:.9rem;font-weight:500">
-            Mediodía del mismo día
+            <span data-i18n="midday_reminder">Midday of same day</span>
             <input type="time" id="smsTimeMidday" class="form-control" style="width:140px">
           </label>
-          <button class="btn btn-primary btn-sm" id="saveSmsTimesBtn" style="width:fit-content;margin-top:4px">Guardar horarios</button>
-          <span id="smsTimesSaved" style="font-size:.82rem;color:#16a34a;display:none">✓ Guardado</span>
-          <p style="font-size:.8rem;color:var(--muted);margin:8px 0 0">🕐 Horarios en <strong>hora de Chicago</strong> (CST/CDT). Ingresa la hora local tal como la ves.</p>
+          <button class="btn btn-primary btn-sm" id="saveSmsTimesBtn" style="width:fit-content;margin-top:4px" data-i18n="btn_save_times">Save times</button>
+          <span id="smsTimesSaved" style="font-size:.82rem;color:#16a34a;display:none" data-i18n="saved">✓ Saved</span>
+          <p style="font-size:.8rem;color:var(--muted);margin:8px 0 0" data-i18n="times_note">🕐 Times in <strong>Chicago time</strong> (CST/CDT). Enter local time as you see it.</p>
         </div>
       </div>
 
       <!-- Admin Email Recipients -->
       <div class="card" style="margin-top:12px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>📧 Destinatarios del Resumen Diario</h2>
-          <span style="font-size:.85rem;color:var(--muted)">Emails que reciben el resumen diario cada mañana</span>
+          <h2 data-i18n="daily_summary_recipients">📧 Daily Summary Recipients</h2>
+          <span style="font-size:.85rem;color:var(--muted)" data-i18n="daily_summary_sub">Emails that receive the daily summary each morning</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-          <input type="email" id="adminRecipientEmail" placeholder="correo@ejemplo.com" class="form-control" style="width:220px">
-          <input type="text" id="adminRecipientLabel" placeholder="Nombre (opcional)" class="form-control" style="width:160px">
-          <button class="btn btn-primary btn-sm" id="addAdminRecipientBtn">+ Agregar</button>
-          <button class="btn btn-sm btn-outline" id="testEmailBtn" style="margin-left:4px">📧 Enviar prueba</button>
+          <input type="email" id="adminRecipientEmail" data-i18n-ph="placeholder_email" placeholder="email@example.com" class="form-control" style="width:220px">
+          <input type="text" id="adminRecipientLabel" data-i18n-ph="placeholder_name_opt" placeholder="Name (optional)" class="form-control" style="width:160px">
+          <button class="btn btn-primary btn-sm" id="addAdminRecipientBtn" data-i18n="btn_add_recipient">+ Add</button>
+          <button class="btn btn-sm btn-outline" id="testEmailBtn" style="margin-left:4px" data-i18n="btn_send_test">📧 Send test</button>
           <span id="testEmailResult" style="font-size:.82rem;display:none"></span>
         </div>
         <div id="adminRecipientList" style="font-size:.9rem;color:var(--muted)">Cargando...</div>
@@ -442,7 +440,7 @@
     <div class="container">
       <div class="card" style="margin-top:16px">
         <div class="section-header" style="margin-bottom:12px">
-          <h2>Descansos Empleados</h2>
+          <h2 data-i18n="employee_rest_days">Employee Rest Days</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn-export" id="exportRestDaysBtn" style="font-size:.85rem;padding:8px 14px">⬇ Excel</button>
             <button class="btn-export" id="exportRestDaysPdfBtn" style="font-size:.85rem;padding:8px 14px">⬇ PDF</button>
@@ -451,15 +449,15 @@
         <div class="filter-row">
           <input type="month" id="rdFilterMonth" class="form-control" style="width:auto">
           <select id="rdFilterEmployee" class="form-control">
-            <option value="">All Employees</option>
+            <option value="" data-i18n="all_employees">All Employees</option>
           </select>
-          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="rdFilterBtn">🔍 Filter</button>
+          <button class="btn btn-primary" style="padding:10px;font-size:.9rem" id="rdFilterBtn" data-i18n="btn_filter">🔍 Filter</button>
         </div>
         <div style="padding:0;overflow:hidden;margin-top:12px;border:1.5px solid var(--border);border-radius:10px">
           <div class="table-wrapper">
             <table>
               <thead>
-                <tr><th>Employee</th><th>Date</th><th>Stores</th><th>Note</th></tr>
+                <tr><th data-i18n="col_employee">Employee</th><th data-i18n="col_date">Date</th><th data-i18n="nav_stores">Stores</th><th data-i18n="col_notes">Note</th></tr>
               </thead>
               <tbody id="rdBody"></tbody>
             </table>
@@ -470,18 +468,18 @@
       <!-- Rest Day Requests (pending approvals) -->
       <div class="card" style="margin-top:16px;margin-bottom:24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-          <h2 style="margin:0;font-size:1rem;font-weight:600">Solicitudes de Descanso</h2>
-          <button class="btn btn-primary" style="padding:6px 14px;font-size:.82rem" id="refreshRestRequests">↻ Refresh</button>
+          <h2 style="margin:0;font-size:1rem;font-weight:600" data-i18n="rest_day_requests">Rest Day Requests</h2>
+          <button class="btn btn-primary" style="padding:6px 14px;font-size:.82rem" id="refreshRestRequests" data-i18n="btn_refresh">↻ Refresh</button>
         </div>
         <div style="overflow-x:auto;border:1.5px solid var(--border);border-radius:10px">
           <table style="width:100%;border-collapse:collapse;font-size:.88rem">
             <thead>
               <tr style="background:var(--surface)">
-                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase">Employee</th>
-                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase">Date</th>
-                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase">Reason</th>
-                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase">Status</th>
-                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase">Submitted</th>
+                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase" data-i18n="col_employee">Employee</th>
+                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase" data-i18n="col_date">Date</th>
+                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase" data-i18n="col_reason">Reason</th>
+                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase" data-i18n="col_status">Status</th>
+                <th style="padding:10px 12px;text-align:left;font-size:.75rem;font-weight:600;color:var(--muted);text-transform:uppercase" data-i18n="col_submitted">Submitted</th>
                 <th style="padding:10px 12px"></th>
               </tr>
             </thead>
@@ -501,22 +499,22 @@
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px;margin-bottom:16px">
         <div class="card" style="padding:16px 20px">
           <div style="font-size:1.6rem;font-weight:700;color:var(--primary)" id="invStatTotal">—</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Total Invoices</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px" data-i18n="total_invoices">Total Invoices</div>
         </div>
         <div class="card" style="padding:16px 20px">
           <div style="font-size:1.6rem;font-weight:700;color:#d97706" id="invStatPending">—</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Pending</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px" data-i18n="inv_pending">Pending</div>
         </div>
         <div class="card" style="padding:16px 20px">
           <div style="font-size:1.6rem;font-weight:700;color:#059669" id="invStatPaid">—</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">Paid</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px" data-i18n="inv_paid">Paid</div>
         </div>
       </div>
 
       <div class="card" style="overflow:hidden;padding:0">
         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
-          <h2 style="margin:0;font-size:1rem;font-weight:600">Invoices</h2>
-          <button class="btn btn-primary btn-sm" id="newInvoiceBtn" style="padding:8px 16px">+ New Invoice</button>
+          <h2 style="margin:0;font-size:1rem;font-weight:600" data-i18n="invoices">Invoices</h2>
+          <button class="btn btn-primary btn-sm" id="newInvoiceBtn" style="padding:8px 16px" data-i18n="new_invoice">+ New Invoice</button>
         </div>
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:.88rem">
@@ -621,7 +619,7 @@
     <div class="container">
       <div class="card" style="margin-top:16px">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
-          <h2 style="margin:0;font-size:1rem;font-weight:600">Clock-In/Out Locations</h2>
+          <h2 style="margin:0;font-size:1rem;font-weight:600" data-i18n="clock_in_out_locations">Clock-In/Out Locations</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <input type="date" id="mapDateFrom" class="form-control" style="width:auto">
             <span style="color:var(--muted);font-size:.85rem">to</span>
@@ -645,46 +643,46 @@
     <div class="container">
       <div class="card" style="margin-top:16px;max-width:560px">
         <div class="section-header" style="margin-bottom:4px">
-          <h2>🗑 Borrar Datos</h2>
+          <h2 data-i18n="clear_data">🗑 Clear Data</h2>
         </div>
-        <p style="color:var(--muted);font-size:.82rem;margin:0 0 16px">Elimina registros de la base de datos. Esta acción <strong>no se puede deshacer</strong>.</p>
+        <p style="color:var(--muted);font-size:.82rem;margin:0 0 16px" data-i18n="clear_warning">Deletes records from the database. This action <strong>cannot be undone</strong>.</p>
 
         <div style="display:grid;gap:8px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
             <div>
-              <div style="font-size:.9rem;font-weight:600">Registros de Marcaje</div>
-              <div style="font-size:.78rem;color:var(--muted);margin-top:1px">Clock in/out punches sin proyecto</div>
+              <div style="font-size:.9rem;font-weight:600" data-i18n="time_punches">Time Records</div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:1px" data-i18n="time_punches_sub">Clock in/out punches without project</div>
             </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearTimeRecordsBtn">Eliminar</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearTimeRecordsBtn" data-i18n="btn_delete_row">Delete</button>
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
             <div>
-              <div style="font-size:.9rem;font-weight:600">Proyectos Extra</div>
-              <div style="font-size:.78rem;color:var(--muted);margin-top:1px">Entradas con nombre de proyecto asignado</div>
+              <div style="font-size:.9rem;font-weight:600" data-i18n="extra_projects_label">Extra Projects</div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:1px" data-i18n="extra_projects_sub">Entries with an assigned project name</div>
             </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearProjectsBtn">Eliminar</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearProjectsBtn" data-i18n="btn_delete_row">Delete</button>
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
             <div>
-              <div style="font-size:.9rem;font-weight:600">Trabajos del Calendario</div>
-              <div style="font-size:.78rem;color:var(--muted);margin-top:1px">Todos los turnos y jobs programados</div>
+              <div style="font-size:.9rem;font-weight:600" data-i18n="calendar_jobs_label">Calendar Jobs</div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:1px" data-i18n="calendar_jobs_sub">All shifts and scheduled jobs</div>
             </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearCalendarBtn">Eliminar</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearCalendarBtn" data-i18n="btn_delete_row">Delete</button>
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
             <div>
-              <div style="font-size:.9rem;font-weight:600">Registros de Nómina</div>
-              <div style="font-size:.78rem;color:var(--muted);margin-top:1px">Todos los pagos registrados</div>
+              <div style="font-size:.9rem;font-weight:600" data-i18n="payroll_label">Payroll Records</div>
+              <div style="font-size:.78rem;color:var(--muted);margin-top:1px" data-i18n="payroll_sub">All registered payments</div>
             </div>
-            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearPayrollBtn">Eliminar</button>
+            <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger);flex-shrink:0" id="clearPayrollBtn" data-i18n="btn_delete_row">Delete</button>
           </div>
 
           <div style="margin-top:4px;padding:12px;border:1.5px solid var(--danger);border-radius:8px;background:#fff5f5">
-            <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Borra todos los registros anteriores de una sola vez</div>
-            <button class="btn btn-sm btn-primary" style="background:var(--danger);border-color:var(--danger);width:100%;font-size:.85rem" id="clearAllBtn">🗑 Eliminar Todo</button>
+            <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px" data-i18n="delete_all_sub">Deletes all previous records at once</div>
+            <button class="btn btn-sm btn-primary" style="background:var(--danger);border-color:var(--danger);width:100%;font-size:.85rem" id="clearAllBtn" data-i18n="btn_delete_all">🗑 Delete All</button>
           </div>
         </div>
         <div id="clearDataResult" style="margin-top:12px;font-size:.85rem;display:none"></div>
@@ -897,7 +895,7 @@
 
     // ── Helpers ───────────────────────────────────────────────────
     function formatTime(iso) {
-      if (!iso) return '<span style="color:var(--warning)">In progress</span>';
+      if (!iso) return `<span style="color:var(--warning)">${t('in_progress')}</span>`;
       return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
     }
     function formatDate(d) {
@@ -929,12 +927,12 @@
 
     async function loadRecords() {
       const tbody = document.getElementById('recordsBody');
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">${t('loading')}</td></tr>`;
 
       try {
         const records = await api('/admin/records?' + getFilterParams());
         if (!records.length) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No records found</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">${t('no_records')}</td></tr>`;
           return;
         }
         tbody.innerHTML = records.map(r => `
@@ -952,7 +950,7 @@
               <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
                 ⬇ ZIP
               </button>
-              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'records')" title="Force clock out this shift">⏹ Force Out</button>` : ''}
+              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'records')" title="Force clock out this shift">⏹ ${t('force_out')}</button>` : ''}
             </td>
             <td style="max-width:220px">
               ${r.clock_in_address  ? `<div style="font-size:.8rem"><span style="color:var(--muted)">In:</span> ${escHtml(r.clock_in_address)}</div>`  : ''}
@@ -1013,11 +1011,11 @@
 
     async function loadProjects() {
       const tbody = document.getElementById('projectsBody');
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading...</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">${t('loading')}</td></tr>`;
       try {
         const records = await api('/admin/projects?' + getProjectFilterParams());
         if (!records.length) {
-          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">No extra project records found</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">${t('no_records_projects')}</td></tr>`;
           return;
         }
         tbody.innerHTML = records.map(r => `
@@ -1035,7 +1033,7 @@
               <button class="btn-download" title="Download evidence ZIP" onclick="downloadEvidence(${r.id})">
                 ⬇ ZIP
               </button>
-              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'projects')" title="Force clock out this shift">⏹ Force Out</button>` : ''}
+              ${!r.clock_out ? `<button class="btn btn-sm btn-warning" style="margin-left:4px" onclick="forceClockOut(${r.id},'projects')" title="Force clock out this shift">⏹ ${t('force_out')}</button>` : ''}
             </td>
             <td style="max-width:220px">
               ${r.clock_in_address  ? `<div style="font-size:.8rem"><span style="color:var(--muted)">In:</span> ${escHtml(r.clock_in_address)}</div>`  : ''}
@@ -1181,7 +1179,7 @@
       try {
         employees = await api('/admin/employees');
         if (!employees.length) {
-          el.innerHTML = '<div class="empty-state"><span class="empty-icon">👥</span><p>No employees yet</p></div>';
+          el.innerHTML = `<div class="empty-state"><span class="empty-icon">👥</span><p>${t('no_employees')}</p></div>`;
           return;
         }
         el.innerHTML = employees.map(e => `
@@ -1334,7 +1332,7 @@
       try {
         const stores = await api('/admin/stores');
         if (!stores.length) {
-          el.innerHTML = '<div class="empty-state"><span class="empty-icon">🏪</span><p>No stores yet</p></div>';
+          el.innerHTML = `<div class="empty-state"><span class="empty-icon">🏪</span><p>${t('no_stores')}</p></div>`;
           return;
         }
         el.innerHTML = stores.map(s => `
@@ -1713,7 +1711,7 @@
 
         // Job list below
         const listEl = document.getElementById('calJobList');
-        if (!calJobs.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px 0">No jobs this month.</p>'; return; }
+        if (!calJobs.length) { listEl.innerHTML = `<p style="color:var(--muted);text-align:center;padding:16px 0">${t('no_jobs')}</p>`; return; }
         listEl.innerHTML = calJobs.map(j => {
           const assignedNames = Array.isArray(j.assigned_to) && j.assigned_to.length
             ? calEmployees.filter(e => j.assigned_to.includes(e.id)).map(e => escHtml(e.name))
@@ -1885,19 +1883,19 @@
       const btn = document.getElementById('testEmailBtn');
       const res = document.getElementById('testEmailResult');
       btn.disabled = true;
-      btn.textContent = '⏳ Enviando...';
+      btn.textContent = t('sending');
       res.style.display = 'none';
       try {
         const data = await api('/admin/test-email', { method: 'POST', body: '{}' });
-        res.textContent = `✓ Enviado a: ${data.sent_to.join(', ')}`;
+        res.textContent = t('sent_to') + data.sent_to.join(', ');
         res.style.color = '#16a34a';
       } catch(ex) {
-        res.textContent = '✗ Error: ' + ex.message;
+        res.textContent = '✗ ' + ex.message;
         res.style.color = 'var(--danger)';
       }
       res.style.display = 'inline';
       btn.disabled = false;
-      btn.textContent = '📧 Enviar prueba';
+      btn.textContent = t('btn_send_test');
     });
 
     // ── Reminder Settings ─────────────────────────────────────────
@@ -1923,7 +1921,7 @@
         const saved = document.getElementById('smsTimesSaved');
         saved.style.display = 'inline';
         setTimeout(() => { saved.style.display = 'none'; }, 2500);
-      } catch(ex) { alert('Error al guardar: ' + ex.message); }
+      } catch(ex) { alert(t('error_saving') + ex.message); }
     });
 
     // ── Admin Email Recipients ────────────────────────────────────
@@ -1931,7 +1929,7 @@
       const el = document.getElementById('adminRecipientList');
       try {
         const rows = await api('/admin/admin-recipients');
-        if (!rows.length) { el.innerHTML = '<span style="color:var(--muted)">No hay destinatarios aún.</span>'; return; }
+        if (!rows.length) { el.innerHTML = `<span style="color:var(--muted)">${t('no_recipients')}</span>`; return; }
         el.innerHTML = rows.map(r =>
           `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-alt,#f3f4f6);border-radius:8px;margin-bottom:6px">
             <div>
@@ -2046,7 +2044,7 @@
       try {
         const rows = await api('/admin/rest-requests');
         if (!rows.length) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">No requests found.</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">${t('no_requests')}</td></tr>`;
           return;
         }
         tbody.innerHTML = rows.map(r => {
@@ -2059,13 +2057,13 @@
             <td style="padding:10px 12px;white-space:nowrap">${r.date}</td>
             <td style="padding:10px 12px;color:var(--muted);font-size:.85rem;max-width:200px;overflow:hidden;text-overflow:ellipsis">${escHtml(r.reason || '—')}</td>
             <td style="padding:10px 12px">
-              <span style="background:${sb};color:${sc};font-size:.75rem;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${r.status.toUpperCase()}</span>
+              <span style="background:${sb};color:${sc};font-size:.75rem;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap">${t('status_'+r.status) || r.status.toUpperCase()}</span>
             </td>
             <td style="padding:10px 12px;font-size:.82rem;color:var(--muted);white-space:nowrap">${submitted}</td>
             <td style="padding:10px 12px;white-space:nowrap">
               ${pending ? `
-                <button onclick="reviewRequest(${r.id},'approved')" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.78rem;font-weight:600;cursor:pointer;margin-right:4px">✓ Approve</button>
-                <button onclick="reviewRequest(${r.id},'denied')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.78rem;font-weight:600;cursor:pointer">✗ Deny</button>
+                <button onclick="reviewRequest(${r.id},'approved')" style="background:#10b981;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.78rem;font-weight:600;cursor:pointer;margin-right:4px">✓ ${t('btn_approve')}</button>
+                <button onclick="reviewRequest(${r.id},'denied')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:.78rem;font-weight:600;cursor:pointer">✗ ${t('btn_deny')}</button>
               ` : `<span style="font-size:.8rem;color:var(--muted)">${r.reviewer_name ? 'by ' + escHtml(r.reviewer_name) : '—'}</span>`}
             </td>
           </tr>`;
@@ -2104,8 +2102,8 @@
                 <span style="margin-left:8px;font-size:.8rem;color:${has?'#16a34a':'var(--muted)'}">${has?'✓ Can view & edit calendar':'No access'}</span>
               </div>
               ${has
-                ? `<button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="revokeCalAccess(${e.id})">Revoke</button>`
-                : `<button class="btn btn-sm btn-outline" style="flex-shrink:0" onclick="grantCalAccess(${e.id})">Grant Access</button>`}
+                ? `<button class="btn btn-sm btn-outline" style="color:var(--danger);flex-shrink:0" onclick="revokeCalAccess(${e.id})">${t('btn_revoke_access')}</button>`
+                : `<button class="btn btn-sm btn-outline" style="flex-shrink:0" onclick="grantCalAccess(${e.id})">${t('btn_grant_access')}</button>`}
             </div>`;
           }).join('') + '</div>';
       } catch(ex) { el.textContent = 'Error loading: ' + ex.message; }
@@ -2170,7 +2168,7 @@
       try {
         const rows = await api('/admin/who-is-in');
         if (!rows.length) {
-          grid.innerHTML = '<div style="color:var(--muted);font-size:.9rem;grid-column:1/-1">Nobody is clocked in right now.</div>';
+          grid.innerHTML = `<div style="color:var(--muted);font-size:.9rem;grid-column:1/-1">${t('nobody_clocked_in')}</div>`;
           return;
         }
         grid.innerHTML = rows.map(r => {
@@ -2180,8 +2178,8 @@
             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
               <strong style="font-size:.95rem;line-height:1.3">${escHtml(r.employee_name)}</strong>
               ${onBreak
-                ? `<span style="background:#fef3c7;color:#92400e;font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap">On Break ${breakMins}m</span>`
-                : `<span style="background:#d1fae5;color:#065f46;font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap">Working</span>`}
+                ? `<span style="background:#fef3c7;color:#92400e;font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap">${t('btn_start_break')} ${breakMins}m</span>`
+                : `<span style="background:#d1fae5;color:#065f46;font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap">${t('working')}</span>`}
             </div>
             <div style="font-size:.82rem;color:var(--muted);margin-top:5px">📍 ${escHtml(r.location_name || '—')}</div>
             <div style="font-size:.82rem;color:var(--muted);margin-top:3px">⏱ ${fmtElapsed(parseFloat(r.hours_elapsed))}</div>
@@ -2197,7 +2195,7 @@
       try {
         const rows = await api('/admin/overtime');
         if (!rows.length) {
-          el.innerHTML = '<div style="color:var(--muted);font-size:.9rem">No employees near overtime this week. 🎉</div>';
+          el.innerHTML = `<div style="color:var(--muted);font-size:.9rem">${t('no_overtime')}</div>`;
           return;
         }
         el.innerHTML = `<div style="display:flex;flex-direction:column;gap:8px">` +
@@ -2393,7 +2391,6 @@
 
     // ── Clear Test Data ───────────────────────────────────────────
     (function() {
-      const MSG = '¿Estás seguro? Esta acción no se puede deshacer.';
       const resultEl = document.getElementById('clearDataResult');
 
       function showResult(msg, ok) {
@@ -2402,45 +2399,45 @@
         resultEl.style.display = 'block';
       }
 
-      async function clearData(endpoint, label, btn) {
-        if (!confirm(MSG)) return;
+      async function clearData(endpoint, labelKey, btn) {
+        if (!confirm(t('confirm_delete'))) return;
         btn.disabled = true;
         const prev = btn.textContent;
         btn.textContent = '⏳...';
         try {
           const data = await api('/admin/clear/' + endpoint, { method: 'DELETE', body: '{}' });
-          showResult(`✓ ${label}: ${data.deleted != null ? data.deleted + ' registros eliminados' : 'completado'}`, true);
+          showResult(`✓ ${t(labelKey)}: ${data.deleted != null ? data.deleted + ' ' + t('records_deleted') : 'OK'}`, true);
         } catch(ex) {
-          showResult(`✗ Error al eliminar ${label}: ${ex.message}`, false);
+          showResult(`✗ ${ex.message}`, false);
         }
         btn.disabled = false;
         btn.textContent = prev;
       }
 
       document.getElementById('clearTimeRecordsBtn').addEventListener('click', function() {
-        clearData('time-records', 'Marcajes', this);
+        clearData('time-records', 'time_punches', this);
       });
       document.getElementById('clearProjectsBtn').addEventListener('click', function() {
-        clearData('projects', 'Proyectos extra', this);
+        clearData('projects', 'extra_projects_label', this);
       });
       document.getElementById('clearCalendarBtn').addEventListener('click', function() {
-        clearData('calendar-jobs', 'Trabajos del calendario', this);
+        clearData('calendar-jobs', 'calendar_jobs_label', this);
       });
       document.getElementById('clearPayrollBtn').addEventListener('click', function() {
-        clearData('payroll', 'Nómina', this);
+        clearData('payroll', 'payroll_label', this);
       });
       document.getElementById('clearAllBtn').addEventListener('click', async function() {
-        if (!confirm('⚠️ Esto eliminará TODOS los registros (marcajes, proyectos, calendario, nómina).\n\n' + MSG)) return;
+        if (!confirm('⚠️ ' + t('confirm_delete'))) return;
         this.disabled = true;
-        this.textContent = '⏳ Eliminando...';
+        this.textContent = '⏳...';
         try {
           await api('/admin/clear/all', { method: 'DELETE', body: '{}' });
-          showResult('✓ Todos los datos han sido eliminados.', true);
+          showResult('✓ ' + t('all_deleted'), true);
         } catch(ex) {
-          showResult('✗ Error: ' + ex.message, false);
+          showResult('✗ ' + ex.message, false);
         }
         this.disabled = false;
-        this.textContent = '🗑 Eliminar Todo';
+        this.textContent = t('btn_delete_all');
       });
     })();
 
@@ -2458,7 +2455,7 @@
         invCache = await api('/admin/invoices');
         updateInvStats();
         if (!invCache.length) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No invoices yet. Create your first one.</td></tr>';
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">${t('no_invoices')}</td></tr>`;
           return;
         }
         tbody.innerHTML = invCache.map(inv => `
@@ -2473,7 +2470,7 @@
             <td style="text-align:right;font-weight:700">${fmtMoney(inv.total)}</td>
             <td>
               <span style="display:inline-block;border-radius:20px;padding:3px 10px;font-size:.75rem;font-weight:600;${inv.status === 'paid' ? 'background:#D1FAE5;color:#065F46' : 'background:#FEF3C7;color:#92400E'}">
-                ${inv.status === 'paid' ? '✓ Paid' : '⏳ Pending'}
+                ${inv.status === 'paid' ? `✓ ${t('inv_paid')}` : `⏳ ${t('inv_pending')}`}
               </span>
             </td>
             <td>
@@ -2678,6 +2675,8 @@
         loadInvoices();
       } catch (err) { alert(err.message); }
     };
+
+    initLang();
 
   })();
   </script>
