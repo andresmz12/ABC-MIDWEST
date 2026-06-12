@@ -994,4 +994,101 @@ router.post('/test-email', async (req, res) => {
   } catch (err) { console.error('[TestEmail] Error:', err.message); res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
+// ─── Who's In Now ─────────────────────────────────────────────────────────────
+
+router.get('/who-is-in', async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT wr.id, wr.clock_in, wr.user_id,
+             u.name as employee_name,
+             COALESCE(s.name, wr.project_name) as location_name,
+             EXTRACT(EPOCH FROM (NOW() - wr.clock_in))/3600 as hours_elapsed,
+             b.id as active_break_id,
+             b.start_time as break_start
+      FROM work_records wr
+      JOIN users u ON u.id = wr.user_id
+      LEFT JOIN stores s ON s.id = wr.store_id
+      LEFT JOIN breaks b ON b.work_record_id = wr.id AND b.end_time IS NULL
+      WHERE wr.company_id = $1 AND wr.clock_out IS NULL
+      ORDER BY wr.clock_in DESC
+    `, [req.companyId]);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Overtime Alerts ──────────────────────────────────────────────────────────
+
+router.get('/overtime', async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT u.id, u.name,
+             ROUND(SUM(
+               EXTRACT(EPOCH FROM (COALESCE(wr.clock_out, NOW()) - wr.clock_in)) / 3600.0
+               - COALESCE((
+                   SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(b.end_time, NOW()) - b.start_time)) / 3600.0)
+                   FROM breaks b WHERE b.work_record_id = wr.id
+               ), 0)
+             )::numeric, 2) AS hours_this_week
+      FROM work_records wr
+      JOIN users u ON u.id = wr.user_id
+      WHERE wr.company_id = $1
+        AND wr.clock_in >= date_trunc('week', NOW())
+      GROUP BY u.id, u.name
+      HAVING SUM(
+               EXTRACT(EPOCH FROM (COALESCE(wr.clock_out, NOW()) - wr.clock_in)) / 3600.0
+               - COALESCE((
+                   SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(b.end_time, NOW()) - b.start_time)) / 3600.0)
+                   FROM breaks b WHERE b.work_record_id = wr.id
+               ), 0)
+             ) >= 35
+      ORDER BY hours_this_week DESC
+    `, [req.companyId]);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Rest Day Requests (admin) ────────────────────────────────────────────────
+
+router.get('/rest-requests', async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT rdr.*, u.name as employee_name,
+             rv.name as reviewer_name
+      FROM rest_day_requests rdr
+      JOIN users u ON u.id = rdr.user_id
+      LEFT JOIN users rv ON rv.id = rdr.reviewed_by
+      WHERE rdr.company_id = $1
+      ORDER BY rdr.created_at DESC
+    `, [req.companyId]);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.patch('/rest-requests/:id', async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['approved', 'denied'].includes(status)) return res.status(400).json({ error: 'status must be approved or denied' });
+
+    const { rows } = await query(
+      `UPDATE rest_day_requests SET status=$1, reviewed_by=$2, reviewed_at=NOW()
+       WHERE id=$3 AND company_id=$4 AND status='pending'
+       RETURNING *`,
+      [status, req.user.id, req.params.id, req.companyId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Request not found or already reviewed' });
+
+    if (status === 'approved') {
+      const r = rows[0];
+      await query(
+        `INSERT INTO rest_days (company_id, user_id, date, store_ids, note)
+         VALUES ($1, $2, $3, '{}', $4)
+         ON CONFLICT (user_id, date) DO UPDATE SET note=$4`,
+        [r.company_id, r.user_id, r.date, r.reason || null]
+      );
+    }
+
+    res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 module.exports = router;

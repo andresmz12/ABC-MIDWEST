@@ -258,4 +258,96 @@ router.delete('/calendar/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// ─── Breaks ───────────────────────────────────────────────────────────────────
+
+async function getOpenRecord(userId) {
+  const { rows } = await query(
+    'SELECT id FROM work_records WHERE user_id = $1 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1',
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+async function getActiveBreak(recordId) {
+  const { rows } = await query(
+    'SELECT * FROM breaks WHERE work_record_id = $1 AND end_time IS NULL LIMIT 1',
+    [recordId]
+  );
+  return rows[0] || null;
+}
+
+router.get('/break/active', async (req, res) => {
+  try {
+    const record = await getOpenRecord(req.user.id);
+    if (!record) return res.json(null);
+    const brk = await getActiveBreak(record.id);
+    res.json(brk || null);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/break/start', async (req, res) => {
+  try {
+    const record = await getOpenRecord(req.user.id);
+    if (!record) return res.status(400).json({ error: 'No active shift' });
+    const existing = await getActiveBreak(record.id);
+    if (existing) return res.status(400).json({ error: 'Break already active' });
+    const { rows } = await query(
+      'INSERT INTO breaks (work_record_id, company_id, user_id) VALUES ($1, $2, $3) RETURNING *',
+      [record.id, req.companyId, req.user.id]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/break/end', async (req, res) => {
+  try {
+    const record = await getOpenRecord(req.user.id);
+    if (!record) return res.status(400).json({ error: 'No active shift' });
+    const brk = await getActiveBreak(record.id);
+    if (!brk) return res.status(400).json({ error: 'No active break' });
+    const now = new Date();
+    await query('UPDATE breaks SET end_time = $1 WHERE id = $2', [now, brk.id]);
+    const mins = Math.round((now - new Date(brk.start_time)) / 60000);
+    res.json({ duration_mins: mins });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ─── Rest Day Requests ────────────────────────────────────────────────────────
+
+router.get('/rest-requests', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT * FROM rest_day_requests WHERE user_id = $1 ORDER BY date DESC`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/rest-requests', async (req, res) => {
+  try {
+    const { date, reason } = req.body;
+    if (!date) return res.status(400).json({ error: 'Date is required' });
+    const { rows } = await query(
+      `INSERT INTO rest_day_requests (company_id, user_id, date, reason)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (user_id, date) DO UPDATE SET reason = EXCLUDED.reason, status = 'pending', reviewed_by = NULL, reviewed_at = NULL
+       RETURNING *`,
+      [req.companyId, req.user.id, date, reason?.trim() || null]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.delete('/rest-requests/:id', async (req, res) => {
+  try {
+    const result = await query(
+      `DELETE FROM rest_day_requests WHERE id = $1 AND user_id = $2 AND status = 'pending'`,
+      [req.params.id, req.user.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Request not found or already reviewed' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 module.exports = router;

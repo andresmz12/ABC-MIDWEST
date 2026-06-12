@@ -79,6 +79,14 @@
         </button>
       </div>
 
+      <!-- BREAK CONTROLS (visible while clocked in) -->
+      <div id="breakSection" class="card" style="display:none;text-align:center">
+        <div id="breakStatusText" style="font-size:.9rem;color:var(--muted);margin-bottom:10px"></div>
+        <button class="btn" id="breakBtn" style="font-size:1rem;padding:12px 28px;border-radius:12px;font-weight:600;width:100%">
+          ☕ Start Break
+        </button>
+      </div>
+
       <!-- CLOCK OUT FORM -->
       <div id="clockOutSection" class="card" style="display:none">
         <h3 style="margin-bottom:16px;font-size:1rem">End Shift</h3>
@@ -152,6 +160,31 @@
       <div class="card" style="margin-top:12px">
         <h2 style="margin:0 0 12px">My Rest Days</h2>
         <div id="rdEmpList">
+          <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- Request Day Off -->
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 14px">Request a Day Off</h2>
+        <div class="alert alert-error"   id="reqError"></div>
+        <div class="alert alert-success" id="reqSuccess"></div>
+        <form id="reqForm">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="reqDate" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Reason (optional)</label>
+            <input type="text" id="reqReason" class="form-control" placeholder="Why do you need this day off?">
+          </div>
+          <button type="submit" class="btn btn-primary" id="reqSubmitBtn">Send Request</button>
+        </form>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h2 style="margin:0 0 12px">My Requests</h2>
+        <div id="reqList">
           <div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>
         </div>
       </div>
@@ -336,11 +369,12 @@
     }
 
     function renderShiftState() {
-      const statusBox   = document.getElementById('shiftStatus');
-      const clockInSec  = document.getElementById('clockInSection');
-      const clockOutSec = document.getElementById('clockOutSection');
-      const statusStore = document.getElementById('statusStoreName');
-      const timeLabel   = document.getElementById('statusClockIn');
+      const statusBox    = document.getElementById('shiftStatus');
+      const clockInSec   = document.getElementById('clockInSection');
+      const clockOutSec  = document.getElementById('clockOutSection');
+      const breakSec     = document.getElementById('breakSection');
+      const statusStore  = document.getElementById('statusStoreName');
+      const timeLabel    = document.getElementById('statusClockIn');
 
       if (currentRecord) {
         statusBox.classList.remove('inactive');
@@ -349,14 +383,70 @@
         timeLabel.textContent = 'Clocked in at ' + ci.toLocaleTimeString();
         clockInSec.style.display  = 'none';
         clockOutSec.style.display = '';
+        breakSec.style.display    = '';
+        refreshBreakState();
       } else {
         statusBox.classList.add('inactive');
         statusStore.textContent = 'No active shift';
         timeLabel.textContent = '';
         clockInSec.style.display  = '';
         clockOutSec.style.display = 'none';
+        breakSec.style.display    = 'none';
       }
     }
+
+    // ── Break tracking ────────────────────────────────────────────
+    let activeBreak = null;
+    let breakTimerInterval = null;
+
+    async function refreshBreakState() {
+      try {
+        activeBreak = await api('/employee/break/active');
+      } catch { activeBreak = null; }
+      renderBreakState();
+    }
+
+    function renderBreakState() {
+      const btn        = document.getElementById('breakBtn');
+      const statusText = document.getElementById('breakStatusText');
+      clearInterval(breakTimerInterval);
+      if (activeBreak) {
+        btn.textContent = '▶ End Break';
+        btn.style.background = '#10b981';
+        btn.style.color = '#fff';
+        btn.style.border = 'none';
+        breakTimerInterval = setInterval(() => {
+          const mins = Math.round((Date.now() - new Date(activeBreak.start_time)) / 60000);
+          statusText.textContent = `On break — ${mins}m elapsed`;
+        }, 10000);
+        const mins = Math.round((Date.now() - new Date(activeBreak.start_time)) / 60000);
+        statusText.textContent = `On break — ${mins}m elapsed`;
+      } else {
+        btn.textContent = '☕ Start Break';
+        btn.style.background = '#f59e0b';
+        btn.style.color = '#fff';
+        btn.style.border = 'none';
+        statusText.textContent = 'Take a break when needed.';
+      }
+    }
+
+    document.getElementById('breakBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('breakBtn');
+      btn.disabled = true;
+      try {
+        if (activeBreak) {
+          const result = await api('/employee/break/end', { method: 'POST', body: JSON.stringify({}) });
+          activeBreak = null;
+          document.getElementById('breakStatusText').textContent = `Break ended — ${result.duration_mins} min`;
+        } else {
+          activeBreak = await api('/employee/break/start', { method: 'POST', body: JSON.stringify({}) });
+        }
+        renderBreakState();
+      } catch (err) {
+        alert(err.message);
+      }
+      btn.disabled = false;
+    });
 
     // ── File upload helpers ───────────────────────────────────────
     function setupUploadArea(areaId, inputId, previewId) {
@@ -729,9 +819,11 @@
         }
         // Default date = today
         document.getElementById('rdDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('reqDate').value = new Date().toISOString().split('T')[0];
         rdTabInit = true;
       }
       loadMyRestDays();
+      loadMyRequests();
     }
 
     async function loadMyRestDays() {
@@ -790,6 +882,73 @@
         loadMyRestDays();
       } catch(ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
       finally { btn.disabled = false; btn.textContent = 'Save Day Off'; }
+    });
+
+    // ── Rest Day Requests ─────────────────────────────────────────
+    const REQ_STATUS_STYLE = {
+      pending:  { bg: '#fef3c7', color: '#92400e' },
+      approved: { bg: '#d1fae5', color: '#065f46' },
+      denied:   { bg: '#fee2e2', color: '#991b1b' }
+    };
+
+    async function loadMyRequests() {
+      const el = document.getElementById('reqList');
+      el.innerHTML = '<div class="empty-state"><span class="empty-icon">⏳</span><p>Loading...</p></div>';
+      try {
+        const rows = await api('/employee/rest-requests');
+        if (!rows.length) {
+          el.innerHTML = '<div class="empty-state"><span class="empty-icon">📋</span><p>No requests submitted yet.</p></div>';
+          return;
+        }
+        el.innerHTML = rows.map(r => {
+          const st = REQ_STATUS_STYLE[r.status] || { bg: '#f3f4f6', color: '#374151' };
+          const canDelete = r.status === 'pending';
+          return `<div class="list-item" style="align-items:flex-start;flex-direction:column;gap:6px">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
+              <strong>${r.date}</strong>
+              <span style="background:${st.bg};color:${st.color};font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap">${r.status.toUpperCase()}</span>
+            </div>
+            ${r.reason ? `<div style="font-size:.83rem;color:var(--muted)">${r.reason}</div>` : ''}
+            ${canDelete ? `<button class="btn btn-sm btn-outline" style="color:var(--danger);font-size:.78rem;margin-top:2px" onclick="cancelRequest(${r.id})">Cancel Request</button>` : ''}
+          </div>`;
+        }).join('');
+      } catch (ex) {
+        el.innerHTML = `<div class="empty-state"><p style="color:var(--danger)">${ex.message}</p></div>`;
+      }
+    }
+
+    window.cancelRequest = async function(id) {
+      if (!confirm('Cancel this request?')) return;
+      try {
+        await api(`/employee/rest-requests/${id}`, { method: 'DELETE' });
+        loadMyRequests();
+      } catch (ex) { alert(ex.message); }
+    };
+
+    document.getElementById('reqForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const errEl = document.getElementById('reqError');
+      const sucEl = document.getElementById('reqSuccess');
+      errEl.classList.remove('show');
+      sucEl.classList.remove('show');
+      const btn = document.getElementById('reqSubmitBtn');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Sending...';
+      try {
+        await api('/employee/rest-requests', {
+          method: 'POST',
+          body: JSON.stringify({
+            date:   document.getElementById('reqDate').value,
+            reason: document.getElementById('reqReason').value.trim()
+          })
+        });
+        sucEl.textContent = 'Request submitted! Your manager will review it.';
+        sucEl.classList.add('show');
+        document.getElementById('reqDate').value   = '';
+        document.getElementById('reqReason').value = '';
+        setTimeout(() => sucEl.classList.remove('show'), 4000);
+        loadMyRequests();
+      } catch (ex) { errEl.textContent = ex.message; errEl.classList.add('show'); }
+      finally { btn.disabled = false; btn.textContent = 'Send Request'; }
     });
 
     // ── Employee Calendar ─────────────────────────────────────────

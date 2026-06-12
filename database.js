@@ -183,6 +183,35 @@ async function initDb() {
     )
   `);
 
+  // ── Breaks ────────────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS breaks (
+      id SERIAL PRIMARY KEY,
+      work_record_id INTEGER NOT NULL REFERENCES work_records(id) ON DELETE CASCADE,
+      company_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      start_time TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      end_time TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // ── Rest Day Requests ──────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rest_day_requests (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      reason TEXT,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','denied')),
+      reviewed_by INTEGER REFERENCES users(id),
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, date)
+    )
+  `);
+
   // ── Legacy Invoice tables (kept for data safety) ───────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS invoices (

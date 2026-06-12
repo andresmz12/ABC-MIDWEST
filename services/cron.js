@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const { query } = require('../database');
-const { sendAdminSummary } = require('./email');
+const { sendAdminSummary, sendEmployeeReminder } = require('./email');
 
 // Current time as HH:MM (24h) in a given timezone
 function currentHHMM(timezone) {
@@ -74,6 +74,38 @@ async function getJobsWithEmployees(companyId, dateStr) {
   return rows;
 }
 
+// Send shift reminders to employees assigned to jobs starting in ~2 hours
+async function runShiftReminders(company, tz) {
+  const now = new Date();
+  const target = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+  const targetDateStr = target.toLocaleDateString('en-CA', { timeZone: tz });
+  const targetHHMM = target.toLocaleTimeString('en-US', { timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false }).replace(/^24/, '00');
+
+  const { rows: jobs } = await query(`
+    SELECT j.id, j.title, j.location, j.notes, j.start_time, j.end_time, j.assigned_to
+    FROM scheduled_jobs j
+    WHERE j.company_id = $1 AND j.scheduled_date = $2 AND j.start_time = $3
+  `, [company.id, targetDateStr, targetHHMM]);
+
+  if (!jobs.length) return;
+
+  const allUserIds = [...new Set(jobs.flatMap(j => Array.isArray(j.assigned_to) ? j.assigned_to : []))];
+  if (!allUserIds.length) return;
+
+  const { rows: employees } = await query(
+    `SELECT id, name, email FROM users WHERE id = ANY($1) AND email IS NOT NULL`,
+    [allUserIds]
+  );
+  if (!employees.length) return;
+
+  for (const emp of employees) {
+    const empJobs = jobs.filter(j => Array.isArray(j.assigned_to) && j.assigned_to.includes(emp.id));
+    if (!empJobs.length) continue;
+    await sendEmployeeReminder(emp, empJobs, 'Turno próximo', targetDateStr, company.name);
+  }
+  console.log(`[Cron][${company.name}] Shift reminders sent to ${employees.length} employee(s) for ${targetDateStr} ${targetHHMM}`);
+}
+
 // Send admin summary for one company
 async function runAdminSummary(company, dateStr, label) {
   const adminEmails = await getAdminEmails(company.id);
@@ -116,6 +148,8 @@ function initCron() {
           console.log(`[Cron][${company.name}] → MIDDAY reminder`);
           await runAdminSummary(company, today, 'Recordatorio del mediodía');
         }
+
+        await runShiftReminders(company, tz);
       }
     } catch (err) {
       console.error('[Cron] Error:', err.message, err.stack);
