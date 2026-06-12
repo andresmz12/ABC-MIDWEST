@@ -41,6 +41,7 @@
     <button class="tab-btn" data-tab="calendar">📅 Calendar</button>
     <button class="tab-btn" data-tab="restdays">🗓 Descansos</button>
     <button class="tab-btn" data-tab="invoices">🧾 Invoices</button>
+    <button class="tab-btn" data-tab="map">📍 Map</button>
     <button class="tab-btn" data-tab="cleardata">🗑 Datos</button>
   </div>
 
@@ -615,6 +616,30 @@
     </div>
   </div>
 
+  <!-- ── MAP TAB ─────────────────────────────────────────────────── -->
+  <div id="tab-map" class="content" style="display:none">
+    <div class="container">
+      <div class="card" style="margin-top:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+          <h2 style="margin:0;font-size:1rem;font-weight:600">Clock-In/Out Locations</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input type="date" id="mapDateFrom" class="form-control" style="width:auto">
+            <span style="color:var(--muted);font-size:.85rem">to</span>
+            <input type="date" id="mapDateTo" class="form-control" style="width:auto">
+            <select id="mapEmployee" class="form-control" style="width:auto"></select>
+            <button class="btn btn-primary" style="padding:8px 16px;font-size:.88rem" id="mapFilterBtn">🔍 Filter</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:.8rem;margin-bottom:10px;flex-wrap:wrap">
+          <span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:50%;margin-right:4px;vertical-align:middle"></span>Clock In</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:50%;margin-right:4px;vertical-align:middle"></span>Clock Out</span>
+        </div>
+        <div id="mapContainer" style="height:520px;border-radius:10px;overflow:hidden;border:1.5px solid var(--border)"></div>
+        <div id="mapStatus" style="font-size:.85rem;color:var(--muted);margin-top:8px;text-align:center"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── CLEAR DATA TAB ───────────────────────────────────────────── -->
   <div id="tab-cleardata" class="content" style="display:none">
     <div class="container">
@@ -702,6 +727,12 @@
           <div class="form-group">
             <label>Notes</label>
             <textarea id="jobNotes" class="form-control" rows="2" placeholder="Additional notes or instructions"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Assign Employees</label>
+            <div id="jobAssignees" style="display:flex;flex-wrap:wrap;gap:8px;min-height:32px;padding:6px 0">
+              <span style="color:var(--muted);font-size:.85rem">Loading…</span>
+            </div>
           </div>
         <div class="form-group" id="jobImagesGroup" style="display:none">
             <label>Reference Images</label>
@@ -843,7 +874,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices', cleardata: 'tab-cleardata' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices', map: 'tab-map', cleardata: 'tab-cleardata' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -860,6 +891,7 @@
         if (tab === 'calendar')  initCalendarTab();
         if (tab === 'restdays')  { loadRestDays(); loadRestRequests(); }
         if (tab === 'invoices')  loadInvoices();
+        if (tab === 'map')       initMapTab();
       });
     });
 
@@ -1682,20 +1714,25 @@
         // Job list below
         const listEl = document.getElementById('calJobList');
         if (!calJobs.length) { listEl.innerHTML = '<p style="color:var(--muted);text-align:center;padding:16px 0">No jobs this month.</p>'; return; }
-        listEl.innerHTML = calJobs.map(j => `
-          <div class="list-item" style="align-items:flex-start">
+        listEl.innerHTML = calJobs.map(j => {
+          const assignedNames = Array.isArray(j.assigned_to) && j.assigned_to.length
+            ? calEmployees.filter(e => j.assigned_to.includes(e.id)).map(e => escHtml(e.name))
+            : [];
+          return `<div class="list-item" style="align-items:flex-start">
             <div style="flex:1">
               <strong>${escHtml(j.title)}</strong>
               <span style="color:var(--muted);font-size:.82rem;margin-left:8px">${j.scheduled_date}</span>
               ${j.location ? `<div style="font-size:.82rem;color:var(--muted)">📍 ${escHtml(j.location)}</div>` : ''}
               ${(j.start_time || j.end_time) ? `<div style="font-size:.82rem;color:var(--muted)">🕐 ${escHtml(j.start_time||'?')}${j.end_time ? ' — ' + escHtml(j.end_time) : ''}</div>` : ''}
+              ${assignedNames.length ? `<div style="font-size:.82rem;color:var(--muted);margin-top:2px">👷 ${assignedNames.join(', ')}</div>` : ''}
               ${j.notes ? `<div style="font-size:.82rem;color:var(--muted)">${escHtml(j.notes)}</div>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
               <button class="btn btn-sm btn-outline" onclick="calEditJob(${j.id})">Edit</button>
               <button class="btn btn-sm btn-outline" style="color:var(--danger)" onclick="calDeleteJob(${j.id})">Delete</button>
             </div>
-          </div>`).join('');
+          </div>`;
+        }).join('');
       } catch(ex) {
         calError.textContent = 'Could not load calendar: ' + ex.message;
         calError.classList.add('show');
@@ -1717,6 +1754,7 @@
       document.getElementById('jobImagesGroup').style.display = 'none';
       document.getElementById('jobImagesList').innerHTML = '';
       document.getElementById('jobImgUploadStatus').textContent = '';
+      renderAssigneeCheckboxes([]);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1732,11 +1770,11 @@
       document.getElementById('jobEndTime').value    = job.end_time || '';
       document.getElementById('jobNotes').value      = job.notes || '';
       document.getElementById('jobError').classList.remove('show');
-      // Show existing images
       const imageUrls = Array.isArray(job.image_urls) ? job.image_urls : [];
       document.getElementById('jobImagesGroup').style.display = '';
       renderJobImages(imageUrls);
       document.getElementById('jobImgUploadStatus').textContent = '';
+      renderAssigneeCheckboxes(Array.isArray(job.assigned_to) ? job.assigned_to : []);
       document.getElementById('jobModal').classList.add('open');
     };
 
@@ -1809,7 +1847,7 @@
         start_time: document.getElementById('jobStartTime').value || null,
         end_time: document.getElementById('jobEndTime').value || null,
         notes: document.getElementById('jobNotes').value.trim(),
-        assigned_to: []
+        assigned_to: getAssignedIds()
       });
       try {
         if (calEditId) {
@@ -1837,7 +1875,7 @@
     async function initCalendarTab() {
       const now = new Date();
       if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
-      await renderCalendar();
+      await Promise.all([renderCalendar(), loadCalEmployees()]);
       loadCalendarAccess();
       loadReminderSettings();
       loadAdminRecipients();
@@ -2215,6 +2253,139 @@
           }
         }
       });
+    }
+
+    // ── Map ────────────────────────────────────────────────────────
+    let _leafletMap = null, _leafletLoaded = false;
+
+    async function loadLeaflet() {
+      if (_leafletLoaded) return;
+      await new Promise((res, rej) => {
+        const css  = document.createElement('link');
+        css.rel    = 'stylesheet';
+        css.href   = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(css);
+        const js   = document.createElement('script');
+        js.src     = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        js.onload  = res;
+        js.onerror = rej;
+        document.head.appendChild(js);
+      });
+      _leafletLoaded = true;
+    }
+
+    async function initMapTab() {
+      // Pre-fill employee filter if not already done
+      const mapEmpSel = document.getElementById('mapEmployee');
+      if (!mapEmpSel.options.length) {
+        const today = new Date().toISOString().split('T')[0];
+        const week  = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0];
+        document.getElementById('mapDateFrom').value = week;
+        document.getElementById('mapDateTo').value   = today;
+        try {
+          const emps = await api('/admin/employees');
+          mapEmpSel.innerHTML = '<option value="">All Employees</option>' +
+            emps.map(e => `<option value="${e.id}">${escHtml(e.name)}</option>`).join('');
+        } catch {}
+        document.getElementById('mapFilterBtn').addEventListener('click', loadMapRecords);
+      }
+      loadMapRecords();
+    }
+
+    async function loadMapRecords() {
+      const statusEl = document.getElementById('mapStatus');
+      statusEl.textContent = 'Loading…';
+      const from = document.getElementById('mapDateFrom').value;
+      const to   = document.getElementById('mapDateTo').value;
+      const emp  = document.getElementById('mapEmployee').value;
+      const p = [];
+      if (from) p.push('date_from=' + from);
+      if (to)   p.push('date_to='   + to);
+      if (emp)  p.push('employee_id=' + emp);
+      try {
+        const rows = await api('/admin/map-records' + (p.length ? '?' + p.join('&') : ''));
+        await loadLeaflet();
+
+        if (_leafletMap) { _leafletMap.remove(); _leafletMap = null; }
+        _leafletMap = L.map('mapContainer');
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(_leafletMap);
+
+        const markers = [];
+
+        rows.forEach(r => {
+          const fmtTime = t => t ? new Date(t).toLocaleString() : '—';
+          if (r.clock_in_lat && r.clock_in_lng) {
+            const m = L.circleMarker([r.clock_in_lat, r.clock_in_lng], {
+              radius: 8, fillColor: '#10b981', color: '#fff',
+              weight: 2, opacity: 1, fillOpacity: 0.9
+            });
+            m.bindPopup(`<strong>${escHtml(r.employee_name)}</strong><br>
+              <b>Clock In</b><br>
+              📅 ${r.date}<br>
+              🕐 ${fmtTime(r.clock_in)}<br>
+              📍 ${escHtml(r.clock_in_address || r.location_name || '—')}`);
+            m.addTo(_leafletMap);
+            markers.push([r.clock_in_lat, r.clock_in_lng]);
+          }
+          if (r.clock_out_lat && r.clock_out_lng) {
+            const m = L.circleMarker([r.clock_out_lat, r.clock_out_lng], {
+              radius: 8, fillColor: '#ef4444', color: '#fff',
+              weight: 2, opacity: 1, fillOpacity: 0.9
+            });
+            m.bindPopup(`<strong>${escHtml(r.employee_name)}</strong><br>
+              <b>Clock Out</b><br>
+              📅 ${r.date}<br>
+              🕐 ${fmtTime(r.clock_out)}<br>
+              📍 ${escHtml(r.clock_out_address || r.location_name || '—')}`);
+            m.addTo(_leafletMap);
+            markers.push([r.clock_out_lat, r.clock_out_lng]);
+          }
+        });
+
+        if (markers.length) {
+          _leafletMap.fitBounds(markers, { padding: [30, 30] });
+        } else {
+          _leafletMap.setView([39.5, -98.35], 4);
+        }
+        statusEl.textContent = `${rows.length} record${rows.length !== 1 ? 's' : ''} — ${markers.length} location point${markers.length !== 1 ? 's' : ''}`;
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    // ── Employee Scheduling (Calendar) ─────────────────────────────
+    let calEmployees = [];
+
+    async function loadCalEmployees() {
+      if (calEmployees.length) return;
+      try { calEmployees = await api('/admin/employees'); } catch {}
+      renderAssigneeCheckboxes([]);
+    }
+
+    function renderAssigneeCheckboxes(assignedIds) {
+      const el = document.getElementById('jobAssignees');
+      if (!calEmployees.length) {
+        el.innerHTML = '<span style="color:var(--muted);font-size:.85rem">No employees found.</span>';
+        return;
+      }
+      el.innerHTML = calEmployees
+        .filter(e => e.role === 'employee')
+        .map(e => {
+          const checked = assignedIds.includes(e.id) ? 'checked' : '';
+          return `<label style="display:flex;align-items:center;gap:6px;font-size:.88rem;cursor:pointer;
+                    background:var(--surface);border:1.5px solid var(--border);border-radius:8px;
+                    padding:6px 10px;user-select:none">
+            <input type="checkbox" class="job-assignee-cb" value="${e.id}" ${checked}
+                   style="accent-color:var(--primary);width:14px;height:14px">
+            ${escHtml(e.name)}
+          </label>`;
+        }).join('');
+    }
+
+    function getAssignedIds() {
+      return [...document.querySelectorAll('.job-assignee-cb:checked')].map(cb => parseInt(cb.value));
     }
 
     // ── Init ──────────────────────────────────────────────────────

@@ -994,6 +994,37 @@ router.post('/test-email', async (req, res) => {
   } catch (err) { console.error('[TestEmail] Error:', err.message); res.status(500).json({ error: err.message || 'Server error' }); }
 });
 
+// ─── Map Records ──────────────────────────────────────────────────────────────
+
+router.get('/map-records', async (req, res) => {
+  try {
+    const { date_from, date_to, employee_id } = req.query;
+    const params = [req.companyId];
+    let sql = `
+      SELECT wr.id, wr.user_id, u.name AS employee_name, wr.date,
+             wr.clock_in, wr.clock_out,
+             wr.clock_in_lat::float  AS clock_in_lat,
+             wr.clock_in_lng::float  AS clock_in_lng,
+             wr.clock_in_address,
+             wr.clock_out_lat::float AS clock_out_lat,
+             wr.clock_out_lng::float AS clock_out_lng,
+             wr.clock_out_address,
+             COALESCE(s.name, wr.project_name) AS location_name
+      FROM work_records wr
+      JOIN users u ON u.id = wr.user_id
+      LEFT JOIN stores s ON s.id = wr.store_id
+      WHERE wr.company_id = $1
+        AND (wr.clock_in_lat IS NOT NULL OR wr.clock_out_lat IS NOT NULL)
+    `;
+    if (date_from)   { params.push(date_from);   sql += ` AND wr.date >= $${params.length}`; }
+    if (date_to)     { params.push(date_to);     sql += ` AND wr.date <= $${params.length}`; }
+    if (employee_id) { params.push(employee_id); sql += ` AND wr.user_id = $${params.length}`; }
+    sql += ' ORDER BY wr.clock_in DESC LIMIT 1000';
+    const { rows } = await query(sql, params);
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
 // ─── Who's In Now ─────────────────────────────────────────────────────────────
 
 router.get('/who-is-in', async (req, res) => {
