@@ -29,22 +29,13 @@
   <div class="auth-form-panel">
     <div class="auth-card">
       <h2>Sign In</h2>
-      <p class="auth-card-sub" id="loginSub">Enter your credentials to continue.</p>
+      <p class="auth-card-sub">Enter your credentials to continue.</p>
 
-      <!-- Company chip (return visit) -->
+      <!-- Company chip (shown when slug is saved in localStorage) -->
       <div class="auth-company-chip" id="companyChip" style="display:none">
         <div style="font-size:1.3rem">🏢</div>
         <div class="auth-company-chip-name" id="chipName"></div>
         <button class="auth-company-chip-change" id="chipChange" type="button">Change</button>
-      </div>
-
-      <!-- Slug field (first visit / manual) -->
-      <div class="auth-field" id="slugField" style="display:none">
-        <label for="slugInput">Company slug</label>
-        <input type="text" id="slugInput" class="auth-input"
-               placeholder="your-company-slug"
-               autocapitalize="none" autocorrect="off" autocomplete="off">
-        <div class="auth-inline-msg" id="slugMsg"></div>
       </div>
 
       <div class="auth-error" id="loginError"></div>
@@ -107,98 +98,21 @@
   tickClock();
   setInterval(tickClock, 1000);
 
-  // ── Slug state ────────────────────────────────────────────────────────────
-  let resolvedSlug = null;
-  let slugCheckTimer = null;
+  // ── Company chip ──────────────────────────────────────────────────────────
+  (function initChip() {
+    const slug = localStorage.getItem('wt_slug');
+    const name = localStorage.getItem('wt_company_name');
+    if (slug && name) {
+      document.getElementById('chipName').textContent = 'Signing in to ' + name;
+      document.getElementById('companyChip').style.display = 'flex';
+    }
+  })();
 
-  function showChip(slug, companyName) {
-    resolvedSlug = slug;
-    document.getElementById('chipName').textContent = 'Signing in to ' + companyName;
-    document.getElementById('companyChip').style.display = 'flex';
-    document.getElementById('slugField').style.display   = 'none';
-    document.getElementById('loginSub').textContent = 'Enter your credentials to continue.';
-  }
-
-  function showSlugField() {
-    resolvedSlug = null;
-    document.getElementById('companyChip').style.display = 'none';
-    document.getElementById('slugField').style.display   = '';
-    document.getElementById('loginSub').textContent = 'Enter your company slug to get started.';
-  }
-
-  // Chip "Change" button
   document.getElementById('chipChange').addEventListener('click', () => {
     localStorage.removeItem('wt_slug');
     localStorage.removeItem('wt_company_name');
-    document.getElementById('slugInput').value = '';
-    document.getElementById('slugMsg').textContent = '';
-    document.getElementById('slugInput').className = 'auth-input';
-    showSlugField();
-    document.getElementById('slugInput').focus();
+    document.getElementById('companyChip').style.display = 'none';
   });
-
-  // Slug inline check (debounced)
-  document.getElementById('slugInput').addEventListener('input', e => {
-    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    e.target.value = val;
-    clearTimeout(slugCheckTimer);
-    const msg = document.getElementById('slugMsg');
-    const inp = document.getElementById('slugInput');
-    inp.classList.remove('is-valid', 'is-invalid');
-    msg.className = 'auth-inline-msg';
-    msg.textContent = '';
-    resolvedSlug = null;
-    if (!val || val.length < 2) return;
-    msg.className = 'auth-inline-msg info';
-    msg.textContent = '⏳ Checking…';
-    slugCheckTimer = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/auth/company-info?slug=${encodeURIComponent(val)}`);
-        const d = await r.json();
-        if (r.ok) {
-          inp.classList.add('is-valid');
-          msg.className = 'auth-inline-msg ok';
-          msg.textContent = '✓ ' + d.name;
-          resolvedSlug = val;
-          localStorage.setItem('wt_slug', val);
-          localStorage.setItem('wt_company_name', d.name);
-        } else {
-          inp.classList.add('is-invalid');
-          msg.className = 'auth-inline-msg err';
-          msg.textContent = '✗ Company not found';
-        }
-      } catch {
-        msg.className = 'auth-inline-msg info';
-        msg.textContent = '';
-      }
-    }, 600);
-  });
-
-  // On load: check localStorage or try auto-detect
-  (async function initSlugState() {
-    const savedSlug = localStorage.getItem('wt_slug');
-    const savedName = localStorage.getItem('wt_company_name');
-    if (savedSlug && savedName) {
-      showChip(savedSlug, savedName);
-      return;
-    }
-    // Try auto-detect (single-company instance)
-    try {
-      const r = await fetch('/api/auth/companies/default');
-      if (r.ok) {
-        const d = await r.json();
-        const info = await fetch(`/api/auth/company-info?slug=${encodeURIComponent(d.slug)}`);
-        if (info.ok) {
-          const company = await info.json();
-          localStorage.setItem('wt_slug', d.slug);
-          localStorage.setItem('wt_company_name', company.name);
-          showChip(d.slug, company.name);
-          return;
-        }
-      }
-    } catch {}
-    showSlugField();
-  })();
 
   // ── Password toggle ───────────────────────────────────────────────────────
   document.getElementById('pwToggle').addEventListener('click', () => {
@@ -236,6 +150,12 @@
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('user',  JSON.stringify(data.user));
+
+      // Save company slug so chip shows on next visit
+      if (data.company_slug) {
+        localStorage.setItem('wt_slug',         data.company_slug);
+        localStorage.setItem('wt_company_name', data.company_name || data.company_slug);
+      }
 
       if      (data.user.role === 'super_admin') location.href = '/superadmin/';
       else if (data.user.role === 'admin')       location.href = '/admin/';

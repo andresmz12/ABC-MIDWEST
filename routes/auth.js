@@ -18,7 +18,8 @@ router.post('/login', async (req, res) => {
 
     // Look up user by username across all active companies (super_admin excluded)
     const { rows } = await query(
-      `SELECT u.* FROM users u
+      `SELECT u.*, c.slug AS company_slug, c.name AS company_name
+       FROM users u
        JOIN companies c ON c.id = u.company_id
        WHERE u.username = $1 AND u.role != 'super_admin' AND c.active = TRUE`,
       [username]
@@ -58,7 +59,9 @@ router.post('/login', async (req, res) => {
         name: user.name,
         role: user.role,
         company_id: user.company_id ?? null
-      }
+      },
+      company_slug: user.company_slug || null,
+      company_name: user.company_name || null
     });
   } catch (err) {
     console.error(err);
