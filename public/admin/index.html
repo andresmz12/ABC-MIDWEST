@@ -452,7 +452,7 @@
           <button class="btn btn-primary btn-sm" id="newJobBtn">+ Schedule Job</button>
         </div>
         <div class="alert alert-error" id="calError" style="margin-top:8px"></div>
-        <div id="calGrid" style="margin-top:16px;display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center">
+        <div id="calGrid" style="margin-top:16px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center;overflow:hidden">
           <!-- filled by JS -->
         </div>
       </div>
@@ -1906,10 +1906,10 @@
           const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
           const dayJobs = jobsByDate[dateStr] || [];
           const isToday = dateStr === todayStr;
-          html += `<div style="min-height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;font-size:.78rem;cursor:pointer;background:${isToday?'#eff6ff':'#fff'}"
+          html += `<div style="min-height:64px;border:1px solid var(--border);border-radius:6px;padding:4px;font-size:.78rem;cursor:pointer;background:${isToday?'#eff6ff':'#fff'};overflow:hidden;min-width:0"
                         onclick="calOpenDay('${dateStr}')">
             <div style="font-weight:${isToday?'700':'400'};color:${isToday?'var(--primary)':'inherit'};margin-bottom:2px">${d}</div>
-            ${dayJobs.map(j => { const t = j.start_time ? ` ${escHtml(j.start_time)}${j.end_time ? '-'+escHtml(j.end_time) : ''}` : ''; return `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${escHtml(j.title)}${t}">${escHtml(j.title)}${t}</div>`; }).join('')}
+            ${dayJobs.map(j => { const t = j.start_time ? ` ${escHtml(j.start_time)}${j.end_time ? '-'+escHtml(j.end_time) : ''}` : ''; return `<div style="background:var(--primary);color:#fff;border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:100%" title="${escHtml(j.title)}${t}">${escHtml(j.title)}${t}</div>`; }).join('')}
           </div>`;
         }
         grid.innerHTML = html;
