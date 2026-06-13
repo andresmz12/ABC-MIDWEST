@@ -109,6 +109,45 @@ router.delete('/companies/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// ── Delete demo company (hard delete all data) ───────────────────────────────
+
+router.delete('/seed-demo', async (req, res) => {
+  const SLUG = 'midwest-clean-demo';
+  try {
+    const { rows } = await query('SELECT id FROM companies WHERE slug = $1', [SLUG]);
+    if (!rows.length) return res.json({ success: false, message: 'Demo company not found.' });
+    const cid = rows[0].id;
+
+    await withTransaction(async client => {
+      const { rows: recs } = await client.query('SELECT id FROM work_records WHERE company_id = $1', [cid]);
+      if (recs.length) {
+        const rids = recs.map(r => r.id);
+        await client.query(`DELETE FROM media WHERE record_id = ANY($1)`, [rids]);
+      }
+      const { rows: urows } = await client.query('SELECT id FROM users WHERE company_id = $1', [cid]);
+      if (urows.length) {
+        const uids = urows.map(u => u.id);
+        await client.query(`DELETE FROM user_stores       WHERE user_id = ANY($1)`, [uids]);
+        await client.query(`DELETE FROM calendar_access   WHERE user_id = ANY($1)`, [uids]);
+      }
+      await client.query(`DELETE FROM work_records        WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM invoices            WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM payroll             WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM scheduled_jobs      WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM rest_days           WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM notification_settings WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM stores              WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM users               WHERE company_id = $1`, [cid]);
+      await client.query(`DELETE FROM companies           WHERE id = $1`, [cid]);
+    });
+
+    res.json({ success: true, message: 'Demo company and all its data deleted.' });
+  } catch (err) {
+    console.error('Delete demo error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Seed demo company ─────────────────────────────────────────────────────────
 
 router.post('/seed-demo', async (req, res) => {

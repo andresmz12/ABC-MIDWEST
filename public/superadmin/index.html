@@ -459,6 +459,7 @@
     </div>
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div id="seedResult" style="font-size:.82rem;display:none"></div>
+      <button class="btn" id="deleteDemoBtn" onclick="deleteDemo()" style="background:#FEF2F2;color:var(--red);border:1px solid #FECACA">🗑️ Delete Demo</button>
       <button class="btn btn-primary" id="seedDemoBtn" onclick="seedDemo()">🌱 Seed Demo Company</button>
     </div>
   </div>
@@ -766,6 +767,32 @@
       btn.textContent = 'Save';
     }
   });
+
+  async function deleteDemo() {
+    if (!confirm('Delete ALL demo data (Midwest Clean Pro)? This cannot be undone.')) return;
+    const btn = document.getElementById('deleteDemoBtn');
+    const result = document.getElementById('seedResult');
+    btn.disabled = true;
+    btn.textContent = '⏳ Deleting…';
+    result.style.display = 'none';
+    try {
+      const res = await fetch('/api/superadmin/seed-demo', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      const data = await res.json();
+      if (data.success) {
+        result.innerHTML = `<span style="color:var(--green);font-weight:600">✅ ${data.message}</span>`;
+        loadStats();
+        loadCompanies();
+      } else {
+        result.innerHTML = `<span style="color:var(--amber);font-weight:600">ℹ️ ${data.message}</span>`;
+      }
+      result.style.display = 'block';
+    } catch (e) {
+      result.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+      result.style.display = 'block';
+    }
+    btn.disabled = false;
+    btn.textContent = '🗑️ Delete Demo';
+  }
 
   async function seedDemo() {
     const btn = document.getElementById('seedDemoBtn');
