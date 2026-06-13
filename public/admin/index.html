@@ -2888,10 +2888,22 @@
       const overlay  = document.getElementById('sidebarOverlay');
       const toggle   = document.getElementById('sidebarToggle');
 
+      const layout = document.querySelector('.app-layout');
+
       function openSidebar()  { sidebar.classList.add('mobile-open');  overlay.classList.add('open'); }
       function closeSidebar() { sidebar.classList.remove('mobile-open'); overlay.classList.remove('open'); }
 
-      if (toggle)  toggle.addEventListener('click', openSidebar);
+      // Restore desktop sidebar preference
+      if (localStorage.getItem('sidebarHidden') === '1') layout.classList.add('sidebar-hidden');
+
+      if (toggle) toggle.addEventListener('click', () => {
+        if (window.innerWidth >= 1024) {
+          const hidden = layout.classList.toggle('sidebar-hidden');
+          localStorage.setItem('sidebarHidden', hidden ? '1' : '0');
+        } else {
+          openSidebar();
+        }
+      });
       if (overlay) overlay.addEventListener('click', closeSidebar);
 
       // Close sidebar when a tab is selected on mobile

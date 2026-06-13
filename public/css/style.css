@@ -907,9 +907,13 @@ tbody tr:hover { background: var(--surface); }
    DESKTOP (1024px+): Show sidebar, hide tab bar
    ══════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
-  .sidebar { display: flex; }
+  .sidebar { display: flex; transition: width .22s ease, min-width .22s ease, opacity .22s ease; }
   .tab-bar { display: none; }
-  .sidebar-toggle { display: none; }
+  .sidebar-toggle { display: flex; }
+
+  /* Desktop: collapsed sidebar */
+  .app-layout.sidebar-hidden .sidebar { width: 0; min-width: 0; opacity: 0; overflow: hidden; pointer-events: none; }
+  .app-layout.sidebar-hidden .main-area { width: 100%; }
 
   .header-inner { padding: 0 32px; height: 56px; }
   .container { padding: 0 32px; max-width: 100%; }
