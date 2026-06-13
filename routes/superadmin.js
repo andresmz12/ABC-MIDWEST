@@ -157,6 +157,40 @@ router.post('/seed-demo', async (req, res) => {
       { title: 'Deep Clean — Schaumburg',         loc: 'Schaumburg Business Center',  s: '08:00', e: '16:00' },
       { title: 'Move-In Prep — Oak Park',         loc: 'Oak Park Townhomes',          s: '08:00', e: '14:00' },
     ];
+    const INVOICES_DATA = [
+      { n:'MWCP-DEMO-001', di:-45, dd:-15, da:-10, po:'PO-5501',
+        cli:'Willis Tower Management',       ca:'233 S Wacker Dr, Chicago, IL 60606',      ce:'facilities@willistower.example',
+        items:[{description:'Deep Clean — Lobby & Common Areas',quantity:1,unit_price:850},{description:'Window Cleaning (Floors 1-3)',quantity:3,unit_price:120}],
+        sub:1210.00,tax:108.90,tot:1318.90, note:'Payment due within 30 days.', st:'paid' },
+      { n:'MWCP-DEMO-002', di:-38, dd:-8,  da:-4,  po:'PO-5502',
+        cli:'Naperville Corporate Suites',   ca:'55 W Shuman Blvd, Naperville, IL 60563',  ce:'accounting@napervillecorp.example',
+        items:[{description:'Monthly Office Cleaning',quantity:1,unit_price:620},{description:'Carpet Steam Cleaning',quantity:2,unit_price:185}],
+        sub:990.00,tax:89.10,tot:1079.10, note:'', st:'paid' },
+      { n:'MWCP-DEMO-003', di:-28, dd:-1,  da:-2,  po:'PO-5503',
+        cli:'Schaumburg Tech Park LLC',      ca:'1700 E Golf Rd, Schaumburg, IL 60173',    ce:'ap@schaumburgtech.example',
+        items:[{description:'Bi-Weekly Office Clean',quantity:2,unit_price:380},{description:'Restroom Sanitation Service',quantity:1,unit_price:95}],
+        sub:855.00,tax:76.95,tot:931.95, note:'', st:'paid' },
+      { n:'MWCP-DEMO-004', di:-20, dd:10,  da:-5,  po:null,
+        cli:'Lincoln Park Realty Group',     ca:'2001 N Clark St, Chicago, IL 60614',      ce:'billing@lprgchicago.example',
+        items:[{description:'Move-Out Clean — 3BR Unit',quantity:1,unit_price:475},{description:'Fridge & Oven Deep Clean',quantity:2,unit_price:65}],
+        sub:605.00,tax:0,tot:605.00, note:'Tax exempt per IL ST-587.', st:'paid' },
+      { n:'MWCP-DEMO-005', di:-14, dd:16,  da:null, po:'PO-5505',
+        cli:'Wicker Park Residential LLC',   ca:'1601 N Milwaukee Ave, Chicago, IL 60647', ce:'manager@wpresidential.example',
+        items:[{description:'Weekly Apartment Common Area Clean',quantity:4,unit_price:210},{description:'Hallway & Stairwell Clean',quantity:4,unit_price:55}],
+        sub:1060.00,tax:95.40,tot:1155.40, note:'', st:'pending' },
+      { n:'MWCP-DEMO-006', di:-10, dd:20,  da:null, po:'PO-5506',
+        cli:'River North Property Mgmt',     ca:'350 W Hubbard St, Chicago, IL 60654',     ce:'finance@rivernorthpm.example',
+        items:[{description:'Office Suite Deep Clean',quantity:1,unit_price:790},{description:'Post-Event Cleanup',quantity:1,unit_price:225}],
+        sub:1015.00,tax:91.35,tot:1106.35, note:'Net 30.', st:'pending' },
+      { n:'MWCP-DEMO-007', di:-5,  dd:25,  da:null, po:'PO-5507',
+        cli:'Evanston Hospitality Group',    ca:'1717 Ridge Ave, Evanston, IL 60201',      ce:'ops@evanstonhospitality.example',
+        items:[{description:'Hotel Room Turnover',quantity:10,unit_price:85},{description:'Lobby & Reception Deep Clean',quantity:1,unit_price:320}],
+        sub:1170.00,tax:105.30,tot:1275.30, note:'', st:'pending' },
+      { n:'MWCP-DEMO-008', di:-2,  dd:28,  da:null, po:null,
+        cli:'Oak Park HOA',                  ca:'1010 Lake St, Oak Park, IL 60301',        ce:'board@oakparkhoa.example',
+        items:[{description:'Community Clubhouse Clean',quantity:1,unit_price:285},{description:'Pool Area Cleaning',quantity:1,unit_price:195},{description:'Parking Lot Sweeping',quantity:1,unit_price:125}],
+        sub:605.00,tax:54.45,tot:659.45, note:'', st:'pending' },
+    ];
 
     // ── Helpers ─────────────────────────────────────────────────────────────
     const jt = (base, d = 0.0015) => parseFloat((base + (Math.random() - 0.5) * d * 2).toFixed(7));
@@ -314,12 +348,26 @@ router.post('/seed-demo', async (req, res) => {
         } catch (_) {}
       }
 
-      return { company_id: cid, work_records: recCount };
+      // Invoices — clean up any orphaned demo invoices, then insert 8
+      await client.query(`DELETE FROM invoices WHERE invoice_number LIKE 'MWCP-DEMO-%'`);
+      for (const inv of INVOICES_DATA) {
+        const invDate = ds(offsetDate(today, inv.di));
+        const dueDate = ds(offsetDate(today, inv.dd));
+        const paidAt  = inv.da != null ? chicagoTs(ds(offsetDate(today, inv.da)), 12) : null;
+        await client.query(
+          `INSERT INTO invoices (company_id,invoice_number,invoice_date,due_date,po_number,client_name,client_address,client_email,items,subtotal,tax,total,notes,status,paid_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+          [cid, inv.n, invDate, dueDate, inv.po, inv.cli, inv.ca, inv.ce,
+           JSON.stringify(inv.items), inv.sub, inv.tax, inv.tot, inv.note||null, inv.st, paidAt]
+        );
+      }
+
+      return { company_id: cid, work_records: recCount, invoices: INVOICES_DATA.length };
     });
 
     res.json({
       success: true,
-      message: `Demo company "Midwest Clean Pro" seeded! ${stats.work_records} work records created.`,
+      message: `Demo company "Midwest Clean Pro" seeded! ${stats.work_records} work records, ${stats.invoices} invoices created.`,
       login: { username: 'admin.demo', password: 'Demo2024!' },
       employee_password: 'Demo2024!',
     });
