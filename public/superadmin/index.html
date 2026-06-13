@@ -448,6 +448,21 @@
     </div>
   </div>
 
+  <!-- Demo Seed -->
+  <div class="section-header" style="margin-bottom:10px">
+    <h2 class="section-title">Demo Data</h2>
+  </div>
+  <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px">
+    <div>
+      <div style="font-size:.9rem;font-weight:600;margin-bottom:4px">Midwest Clean Pro — Illinois Demo</div>
+      <div style="font-size:.82rem;color:var(--muted)">8 employees · 5 Chicago-area stores · 30 days of shifts · payroll · calendar</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div id="seedResult" style="font-size:.82rem;display:none"></div>
+      <button class="btn btn-primary" id="seedDemoBtn" onclick="seedDemo()">🌱 Seed Demo Company</button>
+    </div>
+  </div>
+
   <!-- Companies table -->
   <div class="section-header">
     <h2 class="section-title">Companies</h2>
@@ -751,6 +766,32 @@
       btn.textContent = 'Save';
     }
   });
+
+  async function seedDemo() {
+    const btn = document.getElementById('seedDemoBtn');
+    const result = document.getElementById('seedResult');
+    btn.disabled = true;
+    btn.textContent = '⏳ Seeding…';
+    result.style.display = 'none';
+    try {
+      const res = await fetch('/api/superadmin/seed-demo', { method: 'POST', headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+      const data = await res.json();
+      if (data.success) {
+        result.innerHTML = `<span style="color:var(--green);font-weight:600">✅ ${data.message}</span><br><span style="color:var(--muted)">Login: <b>${data.login.username}</b> / <b>${data.login.password}</b></span>`;
+        loadStats();
+        loadCompanies();
+      } else {
+        result.innerHTML = `<span style="color:var(--amber);font-weight:600">ℹ️ ${data.message}</span>`;
+      }
+      result.style.display = 'block';
+      btn.textContent = '🌱 Seed Demo Company';
+    } catch (e) {
+      result.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+      result.style.display = 'block';
+      btn.textContent = '🌱 Seed Demo Company';
+    }
+    btn.disabled = false;
+  }
 
   loadStats();
   loadCompanies();
