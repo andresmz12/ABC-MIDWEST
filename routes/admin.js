@@ -852,12 +852,12 @@ router.get('/dashboard', async (req, res) => {
 
     const summary = summaryRes.rows[0];
     res.json({
-      totalHours:      parseFloat(summary.total_hours),
-      activeEmployees: parseInt(summary.active_employees, 10),
-      topEmployee:     empRes.rows[0] || null,
-      topStore:        storeRes.rows[0] || null,
-      hoursPerEmployee: empRes.rows,
-      hoursByStore:     storeRes.rows
+      totalHours:       parseFloat(summary.total_hours),
+      activeEmployees:  parseInt(summary.active_employees, 10),
+      topEmployee:      empRes.rows[0]   ? { name: empRes.rows[0].name,   hours: parseFloat(empRes.rows[0].hours)   } : null,
+      topStore:         storeRes.rows[0] ? { name: storeRes.rows[0].name, hours: parseFloat(storeRes.rows[0].hours) } : null,
+      hoursPerEmployee: empRes.rows.map(r   => ({ name: r.name, hours: parseFloat(r.hours) })),
+      hoursByStore:     storeRes.rows.map(r => ({ name: r.name, hours: parseFloat(r.hours) })),
     });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
