@@ -977,63 +977,125 @@
       });
     });
 
-    // ── Map download — printable address report ────────────────────
+    // ── Map download — new window: live map + "Download PNG" button ─
     document.getElementById('downloadMapBtn').addEventListener('click', () => {
-      if (!_mapRows.length) {
-        alert('No data to export. Apply a filter first.');
-        return;
-      }
+      if (!_mapRows.length) { alert('No data. Apply a filter first.'); return; }
+
       const company = document.getElementById('companyName').textContent;
       const from    = document.getElementById('mapDateFrom').value || '—';
       const to      = document.getElementById('mapDateTo').value   || '—';
-      const fmt = iso => iso
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const fmt     = iso => iso
         ? new Date(iso).toLocaleString(undefined, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })
         : '—';
 
-      const tableRows = _mapRows.map(r => `
-        <tr>
-          <td>${escHtml(r.employee_name || '—')}</td>
-          <td>${r.date || '—'}</td>
-          <td>${fmt(r.clock_in)}</td>
-          <td>${escHtml(r.clock_in_address  || r.location_name || '—')}</td>
-          <td>${fmt(r.clock_out)}</td>
-          <td>${escHtml(r.clock_out_address || '—')}</td>
-        </tr>`).join('');
+      // Build table HTML (safe — escHtml already applied)
+      const tblRows = _mapRows.map(r =>
+        '<tr>' +
+        '<td>' + escHtml(r.employee_name || '—') + '</td>' +
+        '<td>' + escHtml(r.date || '—') + '</td>' +
+        '<td>' + fmt(r.clock_in) + '</td>' +
+        '<td class="a">' + escHtml(r.clock_in_address  || r.location_name || '—') + '</td>' +
+        '<td>' + fmt(r.clock_out) + '</td>' +
+        '<td class="a">' + escHtml(r.clock_out_address || '—') + '</td>' +
+        '</tr>'
+      ).join('');
 
-      const html = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>WorkTrack — Location Report</title>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#0F172A;padding:32px;font-size:13px}
-  h1{font-size:1.3rem;font-weight:800;margin-bottom:4px;letter-spacing:-.03em}
-  .meta{color:#64748B;font-size:.8rem;margin-bottom:24px}
-  table{width:100%;border-collapse:collapse}
-  th{background:#0F172A;color:#fff;padding:10px 12px;text-align:left;font-weight:600;font-size:.78rem;letter-spacing:.03em;text-transform:uppercase}
-  td{padding:10px 12px;border-bottom:1px solid #E2E8F0;vertical-align:top;line-height:1.4}
-  tr:nth-child(even) td{background:#F8FAFC}
-  .addr{color:#2563EB;font-weight:500}
-  @media print{body{padding:0}button{display:none}}
-</style>
-</head>
-<body>
-<h1>${escHtml(company)} — Clock-in/out Location Report</h1>
-<p class="meta">Period: ${from} → ${to} &nbsp;·&nbsp; ${_mapRows.length} record(s) &nbsp;·&nbsp; Generated: ${new Date().toLocaleString()}</p>
-<table>
-  <thead><tr>
-    <th>Employee</th><th>Date</th>
-    <th>Clock In</th><th>Clock-in Address</th>
-    <th>Clock Out</th><th>Clock-out Address</th>
-  </tr></thead>
-  <tbody>${tableRows}</tbody>
-</table>
-<script>window.addEventListener('load',()=>window.print());<\/script>
-</body></html>`;
+      // Encode map data as base64 so it's safe to embed in any string context
+      const mapData = JSON.stringify(_mapRows.map(r => ({
+        n:   r.employee_name || '', d: r.date || '',
+        cit: r.clock_in  || '', cila: r.clock_in_lat,  cilg: r.clock_in_lng,
+        cia: r.clock_in_address  || r.location_name || '',
+        cot: r.clock_out || '', cola: r.clock_out_lat, colg: r.clock_out_lng,
+        coa: r.clock_out_address || ''
+      })));
+      const dataB64  = btoa(encodeURIComponent(mapData));
+      const coJson   = JSON.stringify(company);
+      const fromJson = JSON.stringify(from);
+      const toJson   = JSON.stringify(to);
+      const dstrJson = JSON.stringify(dateStr);
+
+      // Inner script — built as string to avoid template-literal escaping issues
+      const innerJS = [
+        'var ROWS=JSON.parse(decodeURIComponent(atob(' + JSON.stringify(dataB64) + ')));',
+        'var CO=' + coJson + ',FROM=' + fromJson + ',TO=' + toJson + ',DSTR=' + dstrJson + ';',
+        'var map=L.map("map",{preferCanvas:true});',
+        'L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap contributors",crossOrigin:"anonymous"}).addTo(map);',
+        'var pts=[];',
+        'function fT(i){return i?new Date(i).toLocaleString(undefined,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"—";}',
+        'ROWS.forEach(function(r){',
+        '  if(r.cila&&r.cilg){',
+        '    L.circleMarker([r.cila,r.cilg],{radius:8,fillColor:"#10b981",color:"#fff",weight:2,opacity:1,fillOpacity:.9})',
+        '     .bindPopup("<b>"+r.n+"</b><br>In: "+fT(r.cit)+"<br>"+(r.cia||"—")).addTo(map);',
+        '    pts.push([r.cila,r.cilg]);',
+        '  }',
+        '  if(r.cola&&r.colg){',
+        '    L.circleMarker([r.cola,r.colg],{radius:8,fillColor:"#ef4444",color:"#fff",weight:2,opacity:1,fillOpacity:.9})',
+        '     .bindPopup("<b>"+r.n+"</b><br>Out: "+fT(r.cot)+"<br>"+(r.coa||"—")).addTo(map);',
+        '    pts.push([r.cola,r.colg]);',
+        '  }',
+        '});',
+        'if(pts.length)map.fitBounds(pts,{padding:[30,30]});else map.setView([39.5,-98.35],4);',
+        'document.getElementById("dl").addEventListener("click",async function(){',
+        '  var btn=this; btn.disabled=true; btn.textContent="⏳ Rendering…";',
+        '  try{',
+        '    var mc=await html2canvas(document.getElementById("map"),{useCORS:true,allowTaint:false,scale:1.5,logging:false});',
+        '    var tc=await html2canvas(document.getElementById("tbl"),{scale:1.5,logging:false,backgroundColor:"#ffffff"});',
+        '    var W=Math.max(mc.width,tc.width),H=mc.height+tc.height;',
+        '    var out=document.createElement("canvas"); out.width=W; out.height=H;',
+        '    var ctx=out.getContext("2d");',
+        '    ctx.fillStyle="#fff"; ctx.fillRect(0,0,W,H);',
+        '    ctx.drawImage(mc,0,0);',
+        '    ctx.drawImage(tc,0,mc.height);',
+        '    var a=document.createElement("a");',
+        '    a.download="worktrack-map-"+DSTR+".png";',
+        '    a.href=out.toDataURL("image/png"); a.click();',
+        '  }catch(e){alert("Export error: "+e.message);}',
+        '  btn.disabled=false; btn.textContent="📥 Download PNG";',
+        '});'
+      ].join('\n');
+
+      const html =
+        '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+        '<title>WorkTrack Map — ' + dateStr + '</title>' +
+        '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">' +
+        '<style>' +
+        '*{box-sizing:border-box;margin:0;padding:0}' +
+        'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#0F172A}' +
+        '#hdr{padding:12px 20px;background:#0F172A;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}' +
+        '.ht h1{font-size:.88rem;font-weight:700;margin-bottom:2px}' +
+        '.ht p{font-size:.7rem;color:#94A3B8}' +
+        '#dl{background:#2563EB;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;flex-shrink:0}' +
+        '#dl:disabled{opacity:.6;cursor:not-allowed}' +
+        '#leg{padding:7px 20px;background:#F8FAFC;border-bottom:1px solid #E2E8F0;font-size:.76rem;display:flex;gap:14px}' +
+        '.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;vertical-align:middle}' +
+        '#map{height:480px}' +
+        '#tbl{width:100%;border-collapse:collapse;font-size:.79rem}' +
+        'th{background:#1E293B;color:#fff;padding:8px 11px;text-align:left;font-weight:600;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em}' +
+        'td{padding:7px 11px;border-bottom:1px solid #E2E8F0;vertical-align:top}' +
+        'tr:nth-child(even) td{background:#F8FAFC}' +
+        '.a{color:#2563EB;font-weight:500}' +
+        '</style></head><body>' +
+        '<div id="hdr">' +
+        '<div class="ht"><h1>WorkTrack — ' + escHtml(company) + ' &nbsp;&middot;&nbsp; Location Report</h1>' +
+        '<p>Period: ' + escHtml(from) + ' &rarr; ' + escHtml(to) + ' &nbsp;&middot;&nbsp; ' + _mapRows.length + ' records &nbsp;&middot;&nbsp; ' + dateStr + '</p></div>' +
+        '<button id="dl">&#128442; Download PNG</button></div>' +
+        '<div id="leg">' +
+        '<span><span class="dot" style="background:#10b981"></span>Clock In</span>' +
+        '<span><span class="dot" style="background:#ef4444"></span>Clock Out</span></div>' +
+        '<div id="map"></div>' +
+        '<table id="tbl"><thead><tr>' +
+        '<th>Employee</th><th>Date</th><th>Clock In</th><th>Clock-in Address</th><th>Clock Out</th><th>Clock-out Address</th>' +
+        '</tr></thead><tbody>' + tblRows + '</tbody></table>' +
+        '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>' +
+        '<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"><\/script>' +
+        '<script>' + innerJS + '<\/script>' +
+        '</body></html>';
 
       const blob = new Blob([html], { type: 'text/html' });
       const url  = URL.createObjectURL(blob);
       window.open(url, '_blank');
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setTimeout(() => URL.revokeObjectURL(url), 120000);
     });
 
     // ── Helpers ───────────────────────────────────────────────────
