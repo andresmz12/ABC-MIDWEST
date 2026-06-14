@@ -493,6 +493,25 @@ async function initDb() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_date     ON scheduled_jobs(scheduled_date)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_stores_company_id       ON stores(company_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_users_company_id        ON users(company_id)`);
+
+  // ── Documents ──────────────────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS documents (
+      id            SERIAL PRIMARY KEY,
+      company_id    INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      name          TEXT NOT NULL,
+      category      TEXT NOT NULL DEFAULT 'other' CHECK(category IN ('insurance','irs','contract','license','hr','other')),
+      filename      TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type     TEXT NOT NULL,
+      url           TEXT,
+      size          INTEGER,
+      uploaded_by   INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      notes         TEXT,
+      created_at    TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_company_id ON documents(company_id)`);
 }
 
 module.exports = { query, withTransaction, initDb };

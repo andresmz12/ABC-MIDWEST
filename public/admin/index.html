@@ -73,6 +73,10 @@
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
         <span data-i18n="nav_invoices">Invoices</span>
       </button>
+      <button class="tab-btn sidebar-item" data-tab="documents">
+        <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+        <span data-i18n="nav_documents">Documentos</span>
+      </button>
       <button class="tab-btn sidebar-item" data-tab="cleardata">
         <svg class="sb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
         <span data-i18n="nav_data">Data</span>
@@ -718,6 +722,78 @@
   </div>
 
   <!-- ── CLEAR DATA TAB ───────────────────────────────────────────── -->
+  <!-- ── DOCUMENTS TAB ────────────────────────────────────────────── -->
+  <div id="tab-documents" class="content" style="display:none">
+    <div class="container">
+
+      <!-- Header + Upload button -->
+      <div class="section-header" style="margin-top:16px;margin-bottom:0">
+        <h2 style="margin:0;font-size:1.1rem;font-weight:700" data-i18n="nav_documents">Documentos</h2>
+        <button class="btn btn-primary btn-sm" id="uploadDocBtn">+ Subir documento</button>
+      </div>
+      <p style="font-size:.83rem;color:var(--muted);margin:4px 0 16px" data-i18n="docs_sub">Organiza certificados de aseguranza, IRS, contratos y más.</p>
+
+      <!-- Category filter pills -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+        <button class="doc-filter-btn active" data-cat="all"   style="border:1.5px solid var(--primary);background:var(--primary);color:#fff;border-radius:20px;padding:5px 14px;font-size:.8rem;font-weight:600;cursor:pointer">Todos</button>
+        <button class="doc-filter-btn" data-cat="insurance"    style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">🛡️ Aseguranza</button>
+        <button class="doc-filter-btn" data-cat="irs"          style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">🏛️ IRS / Taxes</button>
+        <button class="doc-filter-btn" data-cat="contract"     style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">📋 Contratos</button>
+        <button class="doc-filter-btn" data-cat="license"      style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">🪪 Licencias</button>
+        <button class="doc-filter-btn" data-cat="hr"           style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">👥 RRHH</button>
+        <button class="doc-filter-btn" data-cat="other"        style="border:1.5px solid var(--border);background:#fff;color:var(--text);border-radius:20px;padding:5px 14px;font-size:.8rem;cursor:pointer">📂 Otros</button>
+      </div>
+
+      <!-- Document list -->
+      <div id="docList">
+        <div style="text-align:center;padding:48px;color:var(--muted)">Cargando…</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Upload Document Modal -->
+  <div class="modal-overlay" id="docModal">
+    <div class="modal" style="max-width:480px">
+      <div class="modal-header">
+        <h3 id="docModalTitle">Subir documento</h3>
+        <button class="modal-close" id="closeDocModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-error" id="docModalError"></div>
+        <div class="form-group">
+          <label>Nombre del documento *</label>
+          <input type="text" id="docName" class="form-control" placeholder="Ej: Certificado de Aseguranza 2024">
+        </div>
+        <div class="form-group">
+          <label>Categoría</label>
+          <select id="docCategory" class="form-control">
+            <option value="insurance">🛡️ Aseguranza / Insurance</option>
+            <option value="irs">🏛️ IRS / Taxes</option>
+            <option value="contract">📋 Contrato / Contract</option>
+            <option value="license">🪪 Licencia / License</option>
+            <option value="hr">👥 Recursos Humanos / HR</option>
+            <option value="other" selected>📂 Otro / Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notas <span style="color:var(--muted);font-weight:400">(opcional)</span></label>
+          <input type="text" id="docNotes" class="form-control" placeholder="Vigencia, número de póliza, etc.">
+        </div>
+        <div class="form-group">
+          <label>Archivo * <span style="color:var(--muted);font-weight:400;font-size:.8rem">PDF, Word, Excel, imágenes — máx 25MB</span></label>
+          <div id="docDropZone" style="border:2px dashed var(--border);border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color .15s;background:var(--surface)">
+            <div style="font-size:2rem;margin-bottom:8px">📁</div>
+            <div style="font-size:.88rem;color:var(--muted)">Arrastra el archivo aquí o <span style="color:var(--primary);font-weight:600">haz click para seleccionar</span></div>
+            <div id="docFileName" style="margin-top:10px;font-size:.82rem;color:var(--primary);font-weight:600;display:none"></div>
+            <input type="file" id="docFileInput" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.webp,.gif">
+          </div>
+        </div>
+        <button class="btn btn-primary" id="docUploadBtn" style="width:100%">Subir documento</button>
+      </div>
+    </div>
+  </div>
+
   <div id="tab-cleardata" class="content" style="display:none">
     <div class="container">
       <div class="card" style="margin-top:16px;max-width:560px">
@@ -955,7 +1031,7 @@
     })();
 
     // ── Tabs ─────────────────────────────────────────────────────
-    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices', map: 'tab-map', cleardata: 'tab-cleardata' };
+    const TAB_IDS = { dashboard: 'tab-dashboard', records: 'tab-records', projects: 'tab-projects', employees: 'tab-employees', stores: 'tab-stores', payroll: 'tab-payroll', calendar: 'tab-calendar', restdays: 'tab-restdays', invoices: 'tab-invoices', documents: 'tab-documents', map: 'tab-map', cleardata: 'tab-cleardata' };
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -973,6 +1049,7 @@
         if (tab === 'calendar')  initCalendarTab();
         if (tab === 'restdays')  { loadRestDays(); loadRestRequests(); }
         if (tab === 'invoices')  loadInvoices();
+        if (tab === 'documents') initDocsTab();
         if (tab === 'map')       initMapTab();
       });
     });
@@ -2456,6 +2533,164 @@
           }
         }
       });
+    }
+
+    // ── Documents ─────────────────────────────────────────────────
+    let _docCat = 'all', _docsInited = false;
+
+    const DOC_CATS = {
+      insurance: '🛡️ Aseguranza',
+      irs:       '🏛️ IRS / Taxes',
+      contract:  '📋 Contrato',
+      license:   '🪪 Licencia',
+      hr:        '👥 RRHH',
+      other:     '📂 Otro',
+    };
+
+    function docIcon(mime) {
+      if (!mime) return '📄';
+      if (mime === 'application/pdf') return '📕';
+      if (mime.includes('word'))  return '📝';
+      if (mime.includes('excel') || mime.includes('spreadsheet')) return '📊';
+      if (mime.includes('powerpoint') || mime.includes('presentation')) return '📊';
+      if (mime.startsWith('image/')) return '🖼️';
+      return '📄';
+    }
+
+    function docSize(bytes) {
+      if (!bytes) return '';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(0) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    async function loadDocs() {
+      const list = document.getElementById('docList');
+      list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)">Cargando…</div>';
+      try {
+        const url = _docCat === 'all' ? '/api/admin/documents' : `/api/admin/documents?category=${_docCat}`;
+        const docs = await api(url);
+        if (!docs.length) {
+          list.innerHTML = `<div style="text-align:center;padding:56px 16px;color:var(--muted)">
+            <div style="font-size:2.5rem;margin-bottom:12px">📂</div>
+            <div style="font-size:.95rem;font-weight:500">No hay documentos en esta categoría</div>
+            <div style="font-size:.82rem;margin-top:4px">Sube tu primer documento con el botón "+ Subir documento"</div>
+          </div>`;
+          return;
+        }
+        list.innerHTML = docs.map(d => `
+          <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:14px">
+            <div style="font-size:2rem;flex-shrink:0;line-height:1">${docIcon(d.mime_type)}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.name)}</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap">
+                <span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:10px;background:#EFF6FF;color:#1D4ED8">${DOC_CATS[d.category] || d.category}</span>
+                <span style="font-size:.75rem;color:var(--muted)">${docSize(d.size)}</span>
+                <span style="font-size:.75rem;color:var(--muted)">${new Date(d.created_at).toLocaleDateString()}</span>
+                ${d.uploader_name ? `<span style="font-size:.75rem;color:var(--muted)">↑ ${escHtml(d.uploader_name)}</span>` : ''}
+              </div>
+              ${d.notes ? `<div style="font-size:.78rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(d.notes)}</div>` : ''}
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0">
+              ${d.url ? `<a href="${escHtml(d.url)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline" style="text-decoration:none">⬇ Ver</a>` : ''}
+              <button class="btn btn-sm btn-outline" style="color:var(--danger);border-color:var(--danger)" onclick="deleteDoc(${d.id})">Eliminar</button>
+            </div>
+          </div>
+        `).join('');
+      } catch(e) {
+        list.innerHTML = `<div style="color:var(--danger);padding:16px">${e.message}</div>`;
+      }
+    }
+
+    window.deleteDoc = async function(id) {
+      if (!confirm('¿Eliminar este documento? Esta acción no se puede deshacer.')) return;
+      try {
+        await api(`/api/admin/documents/${id}`, { method: 'DELETE' });
+        loadDocs();
+      } catch(e) { alert(e.message); }
+    };
+
+    function initDocsTab() {
+      if (_docsInited) { loadDocs(); return; }
+      _docsInited = true;
+
+      // Category filter
+      document.querySelectorAll('.doc-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.doc-filter-btn').forEach(b => {
+            b.style.background = '#fff'; b.style.color = 'var(--text)'; b.style.borderColor = 'var(--border)';
+            b.classList.remove('active');
+          });
+          btn.style.background = 'var(--primary)'; btn.style.color = '#fff'; btn.style.borderColor = 'var(--primary)';
+          btn.classList.add('active');
+          _docCat = btn.dataset.cat;
+          loadDocs();
+        });
+      });
+
+      // Open modal
+      document.getElementById('uploadDocBtn').addEventListener('click', () => {
+        document.getElementById('docName').value = '';
+        document.getElementById('docNotes').value = '';
+        document.getElementById('docCategory').value = 'other';
+        document.getElementById('docFileName').style.display = 'none';
+        document.getElementById('docFileName').textContent = '';
+        document.getElementById('docFileInput').value = '';
+        document.getElementById('docModalError').classList.remove('show');
+        document.getElementById('docModal').classList.add('open');
+      });
+      document.getElementById('closeDocModal').addEventListener('click', () => document.getElementById('docModal').classList.remove('open'));
+
+      // Drop zone
+      const dz = document.getElementById('docDropZone');
+      const fi = document.getElementById('docFileInput');
+      dz.addEventListener('click', () => fi.click());
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.style.borderColor = 'var(--primary)'; });
+      dz.addEventListener('dragleave', () => dz.style.borderColor = 'var(--border)');
+      dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.style.borderColor = 'var(--border)';
+        if (e.dataTransfer.files[0]) { fi.files = e.dataTransfer.files; showFileName(e.dataTransfer.files[0].name); }
+      });
+      fi.addEventListener('change', () => { if (fi.files[0]) showFileName(fi.files[0].name); });
+
+      function showFileName(name) {
+        const fn = document.getElementById('docFileName');
+        fn.textContent = '📎 ' + name;
+        fn.style.display = 'block';
+        dz.style.borderColor = 'var(--primary)';
+      }
+
+      // Upload
+      document.getElementById('docUploadBtn').addEventListener('click', async () => {
+        const errEl = document.getElementById('docModalError');
+        errEl.classList.remove('show');
+        const name = document.getElementById('docName').value.trim();
+        const file = document.getElementById('docFileInput').files[0];
+        if (!name) { errEl.textContent = 'El nombre es obligatorio.'; errEl.classList.add('show'); return; }
+        if (!file) { errEl.textContent = 'Selecciona un archivo.'; errEl.classList.add('show'); return; }
+
+        const btn = document.getElementById('docUploadBtn');
+        btn.disabled = true; btn.textContent = '⏳ Subiendo…';
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          fd.append('name', name);
+          fd.append('category', document.getElementById('docCategory').value);
+          fd.append('notes', document.getElementById('docNotes').value.trim());
+          const res = await fetch('/api/admin/documents', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+            body: fd
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Upload failed');
+          document.getElementById('docModal').classList.remove('open');
+          loadDocs();
+        } catch(e) { errEl.textContent = e.message; errEl.classList.add('show'); }
+        btn.disabled = false; btn.textContent = 'Subir documento';
+      });
+
+      loadDocs();
     }
 
     // ── Map ────────────────────────────────────────────────────────
