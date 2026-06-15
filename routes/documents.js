@@ -41,7 +41,7 @@ router.post('/', uploadDoc.single('file'), async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [req.companyId, name.trim(), category || 'other', filename,
        req.file.originalname, req.file.mimetype, url,
-       req.file.size || null, req.userId, notes?.trim() || null]
+       req.file.size || null, req.user.id, notes?.trim() || null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
@@ -52,6 +52,7 @@ router.post('/', uploadDoc.single('file'), async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, category, notes } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Document name is required' });
     const { rows } = await query(
       `UPDATE documents SET name=$1,category=$2,notes=$3 WHERE id=$4 AND company_id=$5 RETURNING *`,
       [name?.trim(), category, notes?.trim() || null, req.params.id, req.companyId]

@@ -30,6 +30,9 @@ app.use('/api/auth/superadmin-login', superAdminLimiter);
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: { error: 'Too many registration attempts' } });
 app.use('/api/auth/register', registerLimiter);
 
+const docUploadLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 50, message: { error: 'Too many document uploads' } });
+app.use('/api/admin/documents', docUploadLimiter);
+
 // Routes
 app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/admin',           require('./routes/admin'));

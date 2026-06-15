@@ -2536,7 +2536,7 @@
     }
 
     // ── Documents ─────────────────────────────────────────────────
-    let _docCat = 'all', _docsInited = false;
+    let _docCat = 'all', _docsInited = false, _docCache = null;
 
     const DOC_CATS = {
       insurance: '🛡️ Aseguranza',
@@ -2564,12 +2564,14 @@
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    async function loadDocs() {
+    async function loadDocs(forceRefresh = false) {
       const list = document.getElementById('docList');
-      list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)">Cargando…</div>';
       try {
-        const url = _docCat === 'all' ? '/api/admin/documents' : `/api/admin/documents?category=${_docCat}`;
-        const docs = await api(url);
+        if (!_docCache || forceRefresh) {
+          list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)">Cargando…</div>';
+          _docCache = await api('/api/admin/documents');
+        }
+        const docs = _docCat === 'all' ? _docCache : _docCache.filter(d => d.category === _docCat);
         if (!docs.length) {
           list.innerHTML = `<div style="text-align:center;padding:56px 16px;color:var(--muted)">
             <div style="font-size:2.5rem;margin-bottom:12px">📂</div>
@@ -2598,7 +2600,7 @@
           </div>
         `).join('');
       } catch(e) {
-        list.innerHTML = `<div style="color:var(--danger);padding:16px">${e.message}</div>`;
+        list.innerHTML = `<div style="color:var(--danger);padding:16px">${escHtml(e.message)}</div>`;
       }
     }
 
@@ -2606,12 +2608,12 @@
       if (!confirm('¿Eliminar este documento? Esta acción no se puede deshacer.')) return;
       try {
         await api(`/api/admin/documents/${id}`, { method: 'DELETE' });
-        loadDocs();
+        loadDocs(true);
       } catch(e) { alert(e.message); }
     };
 
     function initDocsTab() {
-      if (_docsInited) { loadDocs(); return; }
+      if (_docsInited) { loadDocs(false); return; }
       _docsInited = true;
 
       // Category filter
@@ -2685,7 +2687,7 @@
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Upload failed');
           document.getElementById('docModal').classList.remove('open');
-          loadDocs();
+          loadDocs(true);
         } catch(e) { errEl.textContent = e.message; errEl.classList.add('show'); }
         btn.disabled = false; btn.textContent = 'Subir documento';
       });

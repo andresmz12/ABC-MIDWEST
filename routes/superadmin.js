@@ -243,6 +243,8 @@ router.post('/seed-demo', async (req, res) => {
       return new Date(Date.UTC(y, mo2 - 1, dy, h + utcOffset, m, 0)).toISOString();
     };
 
+    const demoHash = await bcrypt.hash('Demo2024!', 10);
+
     const stats = await withTransaction(async client => {
       // Company
       const { rows: [co] } = await client.query(
@@ -258,14 +260,13 @@ router.post('/seed-demo', async (req, res) => {
       );
 
       // Admin user
-      const adminHash = bcrypt.hashSync('Demo2024!', 10);
       await client.query(
         `INSERT INTO users (company_id,name,username,password,role,email) VALUES ($1,'Demo Admin','admin.demo',$2,'admin','admin@midwestcleanpro.demo')`,
-        [cid, adminHash]
+        [cid, demoHash]
       );
 
       // Employees
-      const empHash = bcrypt.hashSync('Demo2024!', 10);
+      const empHash = demoHash;
       const empIds = [];
       for (const e of EMPLOYEES_DATA) {
         const { rows: [u] } = await client.query(

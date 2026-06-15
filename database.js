@@ -1,5 +1,8 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
 const bcrypt = require('bcryptjs');
+
+// Parse PostgreSQL NUMERIC as JS number (default is string)
+types.setTypeParser(1700, parseFloat);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
