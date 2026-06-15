@@ -15,8 +15,10 @@ const TRANSLATIONS = {
     nav_calendar: 'Calendar',
     nav_restdays: 'Rest Days',
     nav_invoices: 'Invoices',
+    nav_documents: 'Documents',
     nav_map: 'Map',
     nav_data: 'Data',
+    docs_sub: 'Organize insurance certificates, IRS, contracts and more.',
 
     // Tabs - Employee
     nav_shift: 'Shift',
@@ -289,8 +291,10 @@ const TRANSLATIONS = {
     nav_calendar: 'Calendario',
     nav_restdays: 'Descansos',
     nav_invoices: 'Facturas',
+    nav_documents: 'Documentos',
     nav_map: 'Mapa',
     nav_data: 'Datos',
+    docs_sub: 'Organiza certificados de aseguranza, IRS, contratos y más.',
 
     // Tabs - Employee
     nav_shift: 'Turno',

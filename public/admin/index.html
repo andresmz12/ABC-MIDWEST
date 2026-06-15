@@ -2569,7 +2569,7 @@
       try {
         if (!_docCache || forceRefresh) {
           list.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)">Cargando…</div>';
-          _docCache = await api('/api/admin/documents');
+          _docCache = await api('/admin/documents');
         }
         const docs = _docCat === 'all' ? _docCache : _docCache.filter(d => d.category === _docCat);
         if (!docs.length) {
@@ -2607,7 +2607,7 @@
     window.deleteDoc = async function(id) {
       if (!confirm('¿Eliminar este documento? Esta acción no se puede deshacer.')) return;
       try {
-        await api(`/api/admin/documents/${id}`, { method: 'DELETE' });
+        await api(`/admin/documents/${id}`, { method: 'DELETE' });
         loadDocs(true);
       } catch(e) { alert(e.message); }
     };
