@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -127,7 +127,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({ success: true, company_slug: slug });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -166,7 +166,7 @@ router.post('/superadmin-login', async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -178,7 +178,7 @@ router.get('/companies/count', async (req, res) => {
     res.json({ total: parseInt(rows[0].total, 10) });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -191,7 +191,7 @@ router.get('/companies/default', async (req, res) => {
     res.json({ slug: rows[0].slug });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -211,7 +211,7 @@ router.get('/company-info', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

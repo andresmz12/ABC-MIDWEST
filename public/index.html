@@ -369,6 +369,14 @@
       transition: background .15s, transform .1s;
     }
     .btn-cta:hover { background: var(--primary-dk); transform: translateY(-2px); }
+    .btn-cta-secondary {
+      background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.5);
+      padding: 13px 32px; border-radius: 10px; font-size: 1rem; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 8px;
+      transition: border-color .15s, background .15s, transform .1s;
+    }
+    .btn-cta-secondary:hover { border-color: #fff; background: rgba(255,255,255,.1); transform: translateY(-2px); }
+    .cta-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
     .cta-note { margin-top: 20px; font-size: .8rem; color: #475569; }
 
     /* ── Footer ──────────────────────────────────────────── */
@@ -499,7 +507,7 @@
     <p class="hero-sub fade-in fade-in-3" data-i18n="hero_sub">Clock-in with photo evidence, track hours by GPS, generate payroll, and keep your whole team in sync — all from any phone.</p>
     <div class="hero-actions fade-in fade-in-3">
       <a href="/login/" class="btn-primary" data-i18n="hero_cta">Sign In to your account →</a>
-      <a href="#how" class="btn-secondary" data-i18n="hero_cta2">See how it works</a>
+      <a href="/register/" class="btn-secondary" data-i18n="hero_register">Create free account</a>
     </div>
     <div class="hero-proof fade-in fade-in-3">
       <div class="proof-item">
@@ -845,37 +853,37 @@
   </div>
   <div class="faq-list">
     <div class="faq-item">
-      <button class="faq-question">
+      <button class="faq-question" aria-expanded="false">
         <span data-i18n="faq1_q">Do employees need to download an app?</span>
         <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-body"><div class="faq-body-inner" data-i18n="faq1_a">No. Employees access WorkTrack through a regular web browser — any phone, any browser, no download required. You share a link, they open it and clock in.</div></div>
     </div>
     <div class="faq-item">
-      <button class="faq-question">
+      <button class="faq-question" aria-expanded="false">
         <span data-i18n="faq2_q">How does GPS tracking work?</span>
         <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-body"><div class="faq-body-inner" data-i18n="faq2_a">When an employee clocks in or out, their browser captures their GPS coordinates and converts them to a human-readable address. You can view all punch locations on an interactive map and download a combined map + address report as a PNG image.</div></div>
     </div>
     <div class="faq-item">
-      <button class="faq-question">
+      <button class="faq-question" aria-expanded="false">
         <span data-i18n="faq3_q">Can I export payroll to Excel or my accounting software?</span>
         <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-body"><div class="faq-body-inner" data-i18n="faq3_a">Yes. The payroll report exports to Excel (.xlsx) with one click. It includes hours per employee, hourly rates, and total pay broken down by pay period. You can import this directly into most payroll and accounting tools.</div></div>
     </div>
     <div class="faq-item">
-      <button class="faq-question">
+      <button class="faq-question" aria-expanded="false">
         <span data-i18n="faq4_q">Can I manage multiple locations or clients?</span>
         <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-body"><div class="faq-body-inner" data-i18n="faq4_a">Absolutely. WorkTrack supports unlimited locations (called Stores). You can assign employees to specific locations, filter time cards and payroll by location, and see all activity from a single admin dashboard.</div></div>
     </div>
     <div class="faq-item">
-      <button class="faq-question">
+      <button class="faq-question" aria-expanded="false">
         <span data-i18n="faq5_q">Is the platform available in Spanish?</span>
-        <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap: round; stroke-linejoin: round"><polyline points="6 9 12 15 18 9"/></svg>
+        <svg class="faq-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round""><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-body"><div class="faq-body-inner" data-i18n="faq5_a">Yes — the entire platform is fully bilingual. Both the admin dashboard and the employee portal switch between English and Spanish instantly. No configuration needed.</div></div>
     </div>
@@ -890,6 +898,7 @@
     <p data-i18n="cta_sub">Sign in to your workspace and put your whole operation on autopilot — payroll, scheduling, GPS tracking, and invoicing in one place.</p>
     <div class="cta-actions">
       <a href="/login/" class="btn-cta" data-i18n="cta_btn">Sign In to WorkTrack →</a>
+      <a href="/register/" class="btn-cta-secondary" data-i18n="cta_register">Create free account</a>
     </div>
     <p class="cta-note" data-i18n="cta_note">No hardware required · Works on any phone · EN / ES bilingual</p>
   </div>
@@ -937,7 +946,8 @@
 
 <script>
   /* ── Redirect logged-in users ─────────────────────────────────────────── */
-  const _u = JSON.parse(localStorage.getItem('user') || 'null');
+  let _u;
+  try { _u = JSON.parse(localStorage.getItem('user') || 'null'); } catch(_) {}
   const _t = localStorage.getItem('token');
   if (_t && _u) {
     if      (_u.role === 'super_admin') location.href = '/superadmin/';
@@ -953,6 +963,7 @@
       hero_h1:'Run your team<br><em>with confidence</em>',
       hero_sub:'Clock-in with photo evidence, track hours by GPS, generate payroll, and keep your whole team in sync — all from any phone.',
       hero_cta:'Sign In to your account →',
+      hero_register:'Create free account',
       hero_cta2:'See how it works',
       proof_1:'Photo on every shift', proof_2:'GPS address tracking', proof_3:'1-click payroll export',
       float_val1:'8 Clocked In', float_lbl1:'Active right now',
@@ -1007,6 +1018,7 @@
       cta_tag:'Get Started', cta_title:'Ready to run your team smarter?',
       cta_sub:'Sign in to your workspace and put your whole operation on autopilot — payroll, scheduling, GPS tracking, and invoicing in one place.',
       cta_btn:'Sign In to WorkTrack →',
+      cta_register:'Create free account',
       cta_note:'No hardware required · Works on any phone · EN / ES bilingual',
       footer_desc:'Workforce management built for cleaning companies — clock-in, payroll, GPS, and scheduling in one platform.',
       footer_product:'Product', footer_access:'Access', footer_support:'Support',
@@ -1020,6 +1032,7 @@
       hero_h1:'Gestiona tu equipo<br><em>con confianza</em>',
       hero_sub:'Marcaje con foto, control de horas por GPS, nómina automática y tu equipo sincronizado — desde cualquier celular.',
       hero_cta:'Iniciar sesión en tu cuenta →',
+      hero_register:'Crear cuenta gratuita',
       hero_cta2:'Ver cómo funciona',
       proof_1:'Foto en cada turno', proof_2:'Rastreo GPS de dirección', proof_3:'Nómina con 1 clic',
       float_val1:'8 con turno activo', float_lbl1:'Ahora mismo',
@@ -1074,6 +1087,7 @@
       cta_tag:'Comenzar', cta_title:'¿Listo para gestionar mejor tu equipo?',
       cta_sub:'Inicia sesión en tu espacio y pon toda tu operación en piloto automático — nómina, programación, GPS y facturación en un solo lugar.',
       cta_btn:'Iniciar sesión en WorkTrack →',
+      cta_register:'Crear cuenta gratuita',
       cta_note:'Sin hardware · Funciona en cualquier celular · Bilingüe EN / ES',
       footer_desc:'Gestión de equipos para empresas de limpieza — marcaje, nómina, GPS y programación en una sola plataforma.',
       footer_product:'Producto', footer_access:'Acceso', footer_support:'Soporte',
@@ -1096,10 +1110,10 @@
     });
     document.getElementById('btnEN').classList.toggle('active', lang === 'en');
     document.getElementById('btnES').classList.toggle('active', lang === 'es');
-    localStorage.setItem('wt_lang', lang);
+    localStorage.setItem('lang', lang);
   }
   function setLang(l) { applyLang(l); }
-  const saved = localStorage.getItem('wt_lang');
+  const saved = localStorage.getItem('lang');
   const browser = navigator.language?.startsWith('es') ? 'es' : 'en';
   applyLang(saved || browser);
 
@@ -1122,8 +1136,14 @@
     btn.addEventListener('click', () => {
       const item = btn.closest('.faq-item');
       const isOpen = item.classList.contains('open');
-      document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
-      if (!isOpen) item.classList.add('open');
+      document.querySelectorAll('.faq-item.open').forEach(i => {
+        i.classList.remove('open');
+        i.querySelector('.faq-question').setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        item.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
     });
   });
 

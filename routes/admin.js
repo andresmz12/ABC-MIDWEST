@@ -70,25 +70,29 @@ router.post('/employees', async (req, res) => {
       return res.status(400).json({ error: 'One or more stores not found' });
     }
 
-    const hash = bcrypt.hashSync(password, 10);
-    const { rows } = await query(
-      'INSERT INTO users (company_id, name, username, password, email, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [req.companyId, name, username, hash, email || null, 'employee']
-    );
-    const userId = rows[0].id;
-    for (const storeId of store_ids) {
-      await query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [userId, storeId]);
-    }
+    const hash = await bcrypt.hash(password, 10);
+    const userId = await withTransaction(async client => {
+      const { rows } = await client.query(
+        'INSERT INTO users (company_id, name, username, password, email, role) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+        [req.companyId, name, username, hash, email || null, 'employee']
+      );
+      const uid = rows[0].id;
+      for (const storeId of store_ids) {
+        await client.query('INSERT INTO user_stores (user_id, store_id) VALUES ($1, $2)', [uid, storeId]);
+      }
+      return uid;
+    });
     res.status(201).json({ id: userId, name, username, email: email || null });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/employees/:id', async (req, res) => {
   try {
-    await query(
+    const result = await query(
       "DELETE FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
       [req.params.id, req.companyId]
     );
+    if (!result.rowCount) return res.status(404).json({ error: 'Employee not found' });
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -228,17 +232,19 @@ router.put('/stores/:id', async (req, res) => {
   try {
     const { name, address } = req.body;
     if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
-    await query(
+    const result = await query(
       'UPDATE stores SET name = $1, address = $2 WHERE id = $3 AND company_id = $4',
       [name, address, req.params.id, req.companyId]
     );
+    if (!result.rowCount) return res.status(404).json({ error: 'Store not found' });
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 router.delete('/stores/:id', async (req, res) => {
   try {
-    await query('DELETE FROM stores WHERE id = $1 AND company_id = $2', [req.params.id, req.companyId]);
+    const result = await query('DELETE FROM stores WHERE id = $1 AND company_id = $2', [req.params.id, req.companyId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Store not found' });
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -254,20 +260,21 @@ router.post('/stores/import', memUpload.single('file'), async (req, res) => {
     const ws = wb.worksheets[0];
     if (!ws) return res.status(400).json({ error: 'Empty or invalid Excel file' });
 
-    const names = [];
+    const stores = [];
     ws.eachRow((row, rowNum) => {
       if (rowNum === 1) return;
-      const val = String(row.getCell(1).value ?? '').trim();
-      if (val) names.push(val);
+      const name    = String(row.getCell(1).value ?? '').trim();
+      const address = String(row.getCell(2).value ?? '').trim();
+      if (name && address) stores.push({ name, address });
     });
 
-    if (!names.length) return res.json({ imported: 0, errors: [] });
+    if (!stores.length) return res.json({ imported: 0, errors: [] });
 
     let imported = 0;
     const errors = [];
-    for (const name of names) {
+    for (const { name, address } of stores) {
       try {
-        await query('INSERT INTO stores (company_id, name, address) VALUES ($1, $2, $3)', [req.companyId, name, '']);
+        await query('INSERT INTO stores (company_id, name, address) VALUES ($1, $2, $3)', [req.companyId, name, address]);
         imported++;
       } catch (err) {
         console.error(err);
@@ -284,13 +291,13 @@ function buildRecordsQuery(companyId, reqQuery) {
   const { date_from, date_to, employee_id, store_id } = reqQuery;
   let sql = `
     SELECT wr.id, u.name as employee, s.name as store, s.address,
-           wr.date, wr.clock_in, wr.clock_out, wr.notes,
+           wr.project_name, wr.date, wr.clock_in, wr.clock_out, wr.notes,
            wr.clock_in_lat, wr.clock_in_lng, wr.clock_out_lat, wr.clock_out_lng,
            wr.clock_in_address, wr.clock_out_address,
            COUNT(m.id) as media_count
     FROM work_records wr
     JOIN users u ON u.id = wr.user_id
-    JOIN stores s ON s.id = wr.store_id
+    LEFT JOIN stores s ON s.id = wr.store_id
     LEFT JOIN media m ON m.record_id = wr.id
     WHERE wr.company_id = $1
   `;
@@ -300,7 +307,7 @@ function buildRecordsQuery(companyId, reqQuery) {
   if (date_to)     { sql += ` AND wr.date <= $${i++}`;    params.push(date_to); }
   if (employee_id) { sql += ` AND wr.user_id = $${i++}`;  params.push(employee_id); }
   if (store_id)    { sql += ` AND wr.store_id = $${i++}`; params.push(store_id); }
-  sql += ' GROUP BY wr.id, u.name, s.name, s.address, wr.clock_in_address, wr.clock_out_address ORDER BY wr.date DESC, wr.clock_in DESC';
+  sql += ' GROUP BY wr.id, u.name, s.name, s.address, wr.project_name, wr.clock_in_address, wr.clock_out_address ORDER BY wr.date DESC, wr.clock_in DESC';
   return { sql, params };
 }
 
@@ -335,8 +342,8 @@ router.get('/records/export', async (req, res) => {
       const mins = calcDurationMins(r.clock_in, r.clock_out);
       return {
         Employee:            r.employee,
-        Store:               r.store,
-        Address:             r.address,
+        Store:               r.store || r.project_name || '',
+        Address:             r.address || '',
         Date:                r.date,
         'Clock In':          r.clock_in  ? new Date(r.clock_in).toLocaleString()  : '',
         'Clock-In Address':  r.clock_in_address  || '',
@@ -362,7 +369,9 @@ router.get('/records/export', async (req, res) => {
       return res.send(buf);
     }
 
-    const cols = Object.keys(rows[0] || {});
+    const cols = rows.length > 0
+      ? Object.keys(rows[0])
+      : ['Employee', 'Store', 'Address', 'Date', 'Clock In', 'Clock-In Address', 'Clock Out', 'Clock-Out Address', 'Duration', 'Notes', 'Media Files'];
     const csvEscape = v => `"${String(v).replace(/"/g, '""')}"`;
     const csv = [
       cols.map(csvEscape).join(','),

@@ -36,9 +36,9 @@ router.get('/current-record', async (req, res) => {
               COALESCE(s.name, wr.project_name) as display_name
        FROM work_records wr
        LEFT JOIN stores s ON s.id = wr.store_id
-       WHERE wr.user_id = $1 AND wr.clock_out IS NULL
+       WHERE wr.user_id = $1 AND wr.company_id = $2 AND wr.clock_out IS NULL
        ORDER BY wr.clock_in DESC LIMIT 1`,
-      [req.user.id]
+      [req.user.id, req.companyId]
     );
     res.json(rows[0] || null);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
@@ -67,8 +67,8 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
 
     // Check no open record
     const { rows: open } = await query(
-      'SELECT id FROM work_records WHERE user_id = $1 AND clock_out IS NULL',
-      [req.user.id]
+      'SELECT id FROM work_records WHERE user_id = $1 AND company_id = $2 AND clock_out IS NULL',
+      [req.user.id, req.companyId]
     );
     if (open.length) return res.status(400).json({ error: 'You already have an open shift. Clock out first.' });
 
@@ -103,8 +103,8 @@ router.post('/clock-out', upload.array('media', 10), async (req, res) => {
     }
 
     const { rows } = await query(
-      'SELECT * FROM work_records WHERE id = $1 AND user_id = $2 AND clock_out IS NULL',
-      [record_id, req.user.id]
+      'SELECT * FROM work_records WHERE id = $1 AND user_id = $2 AND company_id = $3 AND clock_out IS NULL',
+      [record_id, req.user.id, req.companyId]
     );
     const record = rows[0];
     if (!record) return res.status(404).json({ error: 'Open record not found' });
@@ -153,11 +153,11 @@ router.get('/my-records', async (req, res) => {
       FROM work_records wr
       LEFT JOIN stores s ON s.id = wr.store_id
       LEFT JOIN media m ON m.record_id = wr.id
-      WHERE wr.user_id = $1
+      WHERE wr.user_id = $1 AND wr.company_id = $2
       GROUP BY wr.id, s.name, wr.project_name
       ORDER BY wr.date DESC, wr.clock_in DESC
       LIMIT 60
-    `, [req.user.id]);
+    `, [req.user.id, req.companyId]);
     res.json(rows);
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
@@ -260,10 +260,10 @@ router.delete('/calendar/:id', async (req, res) => {
 
 // ─── Breaks ───────────────────────────────────────────────────────────────────
 
-async function getOpenRecord(userId) {
+async function getOpenRecord(userId, companyId) {
   const { rows } = await query(
-    'SELECT id FROM work_records WHERE user_id = $1 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1',
-    [userId]
+    'SELECT id FROM work_records WHERE user_id = $1 AND company_id = $2 AND clock_out IS NULL ORDER BY clock_in DESC LIMIT 1',
+    [userId, companyId]
   );
   return rows[0] || null;
 }
@@ -278,7 +278,7 @@ async function getActiveBreak(recordId) {
 
 router.get('/break/active', async (req, res) => {
   try {
-    const record = await getOpenRecord(req.user.id);
+    const record = await getOpenRecord(req.user.id, req.companyId);
     if (!record) return res.json(null);
     const brk = await getActiveBreak(record.id);
     res.json(brk || null);
@@ -287,7 +287,7 @@ router.get('/break/active', async (req, res) => {
 
 router.post('/break/start', async (req, res) => {
   try {
-    const record = await getOpenRecord(req.user.id);
+    const record = await getOpenRecord(req.user.id, req.companyId);
     if (!record) return res.status(400).json({ error: 'No active shift' });
     const existing = await getActiveBreak(record.id);
     if (existing) return res.status(400).json({ error: 'Break already active' });
@@ -301,7 +301,7 @@ router.post('/break/start', async (req, res) => {
 
 router.post('/break/end', async (req, res) => {
   try {
-    const record = await getOpenRecord(req.user.id);
+    const record = await getOpenRecord(req.user.id, req.companyId);
     if (!record) return res.status(400).json({ error: 'No active shift' });
     const brk = await getActiveBreak(record.id);
     if (!brk) return res.status(400).json({ error: 'No active break' });
