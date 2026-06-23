@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     sql += ' ORDER BY created_at DESC';
     const { rows } = await query(sql, params);
     res.json(rows);
-  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Get single ────────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ router.get('/:id', async (req, res) => {
     );
     if (!rows.length) return res.status(404).json({ error: 'Invoice not found' });
     res.json(rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Shared: compute totals ────────────────────────────────────────────────────
@@ -82,7 +82,7 @@ router.post('/', async (req, res) => {
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Invoice number already exists' });
-    console.error(err); res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -115,7 +115,7 @@ router.put('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     if (err.code === '23505') return res.status(400).json({ error: 'Invoice number already exists' });
-    console.error(err); res.status(500).json({ error: err.message });
+    console.error(err); res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -134,7 +134,7 @@ router.patch('/:id/status', async (req, res) => {
       [newStatus, newStatus === 'paid' ? new Date() : null, req.params.id, req.companyId]
     );
     res.json({ status: newStatus });
-  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── Delete ────────────────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ router.delete('/:id', async (req, res) => {
   try {
     await query('DELETE FROM invoices WHERE id=$1 AND company_id=$2', [req.params.id, req.companyId]);
     res.json({ success: true });
-  } catch (err) { console.error(err); res.status(500).json({ error: err.message }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
 // ── PDF — Wave-style layout ───────────────────────────────────────────────────
@@ -331,7 +331,7 @@ router.get('/:id/pdf', async (req, res) => {
     doc.end();
   } catch (err) {
     console.error(err);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+    if (!res.headersSent) res.status(500).json({ error: 'Server error' });
   }
 });
 

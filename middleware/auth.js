@@ -2,6 +2,10 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../database');
 
 if (!process.env.JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('FATAL: JWT_SECRET must be set in production. Exiting.');
+    process.exit(1);
+  }
   console.warn('WARNING: JWT_SECRET not set. Using insecure fallback — set JWT_SECRET in production.');
 }
 const JWT_SECRET = process.env.JWT_SECRET || 'worktrack-secret-change-me';
@@ -59,4 +63,14 @@ async function requireSuperAdmin(req, res, next) {
   });
 }
 
-module.exports = { requireAuth, requireAdmin, requireSuperAdmin, JWT_SECRET };
+// Validates that :id route param is a positive integer — prevents invalid DB queries
+function requireNumericId(req, res, next) {
+  const id = parseInt(req.params.id, 10);
+  if (!Number.isFinite(id) || id <= 0) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+  req.params.id = String(id);
+  next();
+}
+
+module.exports = { requireAuth, requireAdmin, requireSuperAdmin, JWT_SECRET, requireNumericId };

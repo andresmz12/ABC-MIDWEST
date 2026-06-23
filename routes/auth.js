@@ -118,7 +118,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    const hash = bcrypt.hashSync(admin_password, 10);
+    const hash = await bcrypt.hash(admin_password, 10);
     await query(
       `INSERT INTO users (company_id, name, username, password, role, email) VALUES ($1, $2, $3, $4, 'admin', $5)`,
       [companyId, admin_name.trim(), admin_username.trim(), hash, admin_email?.trim() || null]

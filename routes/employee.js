@@ -215,6 +215,9 @@ router.get('/calendar', async (req, res) => {
   try {
     if (!await checkCalendarAccess(req.user.id)) return res.status(403).json({ error: 'No calendar access' });
     const { month } = req.query;
+    if (month && !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'Invalid month format. Use YYYY-MM.' });
+    }
     let sql = 'SELECT * FROM scheduled_jobs WHERE company_id = $1';
     const params = [req.companyId];
     if (month) { sql += ' AND scheduled_date LIKE $2'; params.push(month + '%'); }

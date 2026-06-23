@@ -9,7 +9,7 @@ const PDFDocument = require('pdfkit');
 const archiver = require('archiver');
 const multer = require('multer');
 const { query, withTransaction } = require('../database');
-const { requireAdmin } = require('../middleware/auth');
+const { requireAdmin, requireNumericId } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
 
 const memUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -24,6 +24,54 @@ router.get('/company', async (req, res) => {
     const { rows } = await query('SELECT id, name, slug, logo_url, timezone FROM companies WHERE id = $1', [req.companyId]);
     if (!rows.length) return res.status(404).json({ error: 'Company not found' });
     res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/company', async (req, res) => {
+  try {
+    const { name, timezone } = req.body;
+    if (!name?.trim()) return res.status(400).json({ error: 'Company name is required' });
+    const validTz = timezone?.trim() || 'America/Chicago';
+    await query(
+      'UPDATE companies SET name = $1, timezone = $2 WHERE id = $3',
+      [name.trim(), validTz, req.companyId]
+    );
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ── Admin account endpoints ────────────────────────────────────────────────────
+
+router.get('/account', async (req, res) => {
+  try {
+    const { rows } = await query(
+      'SELECT id, name, username, email FROM users WHERE id = $1 AND company_id = $2',
+      [req.user.id, req.companyId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Account not found' });
+    res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/account/password', async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'current_password and new_password required' });
+    }
+    if (new_password.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+    const { rows } = await query(
+      'SELECT password FROM users WHERE id = $1 AND company_id = $2',
+      [req.user.id, req.companyId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Account not found' });
+    const valid = await bcrypt.compare(current_password, rows[0].password);
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+    const hash = await bcrypt.hash(new_password, 10);
+    await query('UPDATE users SET password = $1 WHERE id = $2', [hash, req.user.id]);
+    res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
@@ -86,7 +134,7 @@ router.post('/employees', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.delete('/employees/:id', async (req, res) => {
+router.delete('/employees/:id', requireNumericId, async (req, res) => {
   try {
     const result = await query(
       "DELETE FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
@@ -97,7 +145,7 @@ router.delete('/employees/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.post('/employees/:id/force-logout', async (req, res) => {
+router.post('/employees/:id/force-logout', requireNumericId, async (req, res) => {
   try {
     const { rows } = await query(
       "SELECT id FROM users WHERE id = $1 AND role = 'employee' AND company_id = $2",
@@ -109,7 +157,7 @@ router.post('/employees/:id/force-logout', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/employees/:id', async (req, res) => {
+router.put('/employees/:id', requireNumericId, async (req, res) => {
   try {
     const { name, username, password, email, store_ids } = req.body;
     if (!name || !username) return res.status(400).json({ error: 'Name and username required' });
@@ -139,12 +187,12 @@ router.put('/employees/:id', async (req, res) => {
       return res.status(400).json({ error: 'One or more stores not found' });
     }
 
+    const newHash = password ? await bcrypt.hash(password, 10) : null;
     await withTransaction(async client => {
-      if (password) {
-        const hash = bcrypt.hashSync(password, 10);
+      if (newHash) {
         await client.query(
           "UPDATE users SET name = $1, username = $2, password = $3, email = $4 WHERE id = $5 AND role = 'employee' AND company_id = $6",
-          [name, username, hash, email || null, req.params.id, req.companyId]
+          [name, username, newHash, email || null, req.params.id, req.companyId]
         );
       } else {
         await client.query(
@@ -192,7 +240,7 @@ router.post('/employees/import', memUpload.single('file'), async (req, res) => {
           [emp.username, req.companyId]
         );
         if (existing.length) { errors.push(`"${emp.username}": username already taken`); continue; }
-        const hash = bcrypt.hashSync(emp.password, 10);
+        const hash = await bcrypt.hash(emp.password, 10);
         await query(
           'INSERT INTO users (company_id, name, username, password, role) VALUES ($1, $2, $3, $4, $5)',
           [req.companyId, emp.name, emp.username, hash, 'employee']
@@ -228,7 +276,7 @@ router.post('/stores', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/stores/:id', async (req, res) => {
+router.put('/stores/:id', requireNumericId, async (req, res) => {
   try {
     const { name, address } = req.body;
     if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
@@ -241,7 +289,7 @@ router.put('/stores/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.delete('/stores/:id', async (req, res) => {
+router.delete('/stores/:id', requireNumericId, async (req, res) => {
   try {
     const result = await query('DELETE FROM stores WHERE id = $1 AND company_id = $2', [req.params.id, req.companyId]);
     if (!result.rowCount) return res.status(404).json({ error: 'Store not found' });
@@ -452,7 +500,7 @@ router.get('/projects/export', async (req, res) => {
 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
-router.post('/records/:id/force-clock-out', async (req, res) => {
+router.post('/records/:id/force-clock-out', requireNumericId, async (req, res) => {
   try {
     const { rows } = await query(
       'SELECT id FROM work_records WHERE id = $1 AND clock_out IS NULL AND company_id = $2',
@@ -468,7 +516,7 @@ router.post('/records/:id/force-clock-out', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.get('/records/:id/media', async (req, res) => {
+router.get('/records/:id/media', requireNumericId, async (req, res) => {
   try {
     // Verify record belongs to this company
     const { rows: rec } = await query(
@@ -509,7 +557,7 @@ function fetchFileBuffer(urlStr) {
   });
 }
 
-router.get('/records/:id/media/download', async (req, res) => {
+router.get('/records/:id/media/download', requireNumericId, async (req, res) => {
   try {
     const { rows: recs } = await query(
       'SELECT wr.id, u.name as employee, wr.date FROM work_records wr JOIN users u ON u.id = wr.user_id WHERE wr.id = $1 AND wr.company_id = $2',
@@ -538,7 +586,8 @@ router.get('/records/:id/media/download', async (req, res) => {
       try {
         if (!m.url) continue;
         const buf = await fetchFileBuffer(m.url);
-        archive.append(buf, { name: `${m.type}/${m.id}_${m.original_name}` });
+        const safeFile = (m.original_name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.{2,}/g, '_').slice(0, 100);
+        archive.append(buf, { name: `${m.type}/${m.id}_${safeFile}` });
       } catch (err) {
         console.error(`Failed to fetch media ${m.id}:`, err.message);
       }
@@ -555,6 +604,9 @@ router.get('/records/:id/media/download', async (req, res) => {
 router.get('/scheduled-jobs', async (req, res) => {
   try {
     const { month } = req.query;
+    if (month && !/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'Invalid month format. Use YYYY-MM.' });
+    }
     let sql = 'SELECT * FROM scheduled_jobs WHERE company_id = $1';
     const params = [req.companyId];
     if (month) { sql += ' AND scheduled_date LIKE $2'; params.push(month + '%'); }
@@ -577,7 +629,7 @@ router.post('/scheduled-jobs', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.put('/scheduled-jobs/:id', async (req, res) => {
+router.put('/scheduled-jobs/:id', requireNumericId, async (req, res) => {
   try {
     const { title, scheduled_date, assigned_to, location, notes, start_time, end_time } = req.body;
     if (!title || !scheduled_date) return res.status(400).json({ error: 'title and scheduled_date required' });
@@ -590,7 +642,7 @@ router.put('/scheduled-jobs/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-router.delete('/scheduled-jobs/:id', async (req, res) => {
+router.delete('/scheduled-jobs/:id', requireNumericId, async (req, res) => {
   try {
     await query('DELETE FROM scheduled_jobs WHERE id=$1 AND company_id=$2', [req.params.id, req.companyId]);
     res.json({ success: true });
