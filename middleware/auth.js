@@ -1,14 +1,26 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { query } = require('../database');
 
-if (!process.env.JWT_SECRET) {
+let JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  // Auto-generate a temporary secret (for development and emergency recovery only)
+  JWT_SECRET = crypto.randomBytes(32).toString('hex');
+
   if (process.env.NODE_ENV === 'production') {
-    console.error('FATAL: JWT_SECRET must be set in production. Exiting.');
-    process.exit(1);
+    console.error('⚠️  SECURITY WARNING: JWT_SECRET not configured in environment variables!');
+    console.error('🔑 Generated temporary secret (tokens will be INVALID after restart):');
+    console.error(`   JWT_SECRET=${JWT_SECRET}`);
+    console.error('');
+    console.error('⚡ ACTION REQUIRED: Add this to your hosting platform IMMEDIATELY:');
+    console.error('   Railway → Env Variables → Add JWT_SECRET with the value above');
+    console.error('');
+  } else {
+    console.warn('⚠️  JWT_SECRET not set. Using randomly generated temporary secret for development.');
+    console.warn(`   (In production, always set JWT_SECRET as an environment variable)`);
   }
-  console.warn('WARNING: JWT_SECRET not set. Using insecure fallback — set JWT_SECRET in production.');
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'worktrack-secret-change-me';
 
 async function requireAuth(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1];
