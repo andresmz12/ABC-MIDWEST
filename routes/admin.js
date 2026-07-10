@@ -99,6 +99,9 @@ router.post('/employees', async (req, res) => {
     if (!name || !username || !password) {
       return res.status(400).json({ error: 'Name, username and password required' });
     }
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
     if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
       return res.status(400).json({ error: 'At least one store must be assigned' });
     }
@@ -161,6 +164,9 @@ router.put('/employees/:id', requireNumericId, async (req, res) => {
   try {
     const { name, username, password, email, store_ids } = req.body;
     if (!name || !username) return res.status(400).json({ error: 'Name and username required' });
+    if (password && password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
     if (!store_ids || !Array.isArray(store_ids) || store_ids.length === 0) {
       return res.status(400).json({ error: 'At least one store must be assigned' });
     }

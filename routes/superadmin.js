@@ -38,6 +38,9 @@ router.post('/companies', async (req, res) => {
     if (!name || !slug || !admin_name || !admin_username || !admin_password) {
       return res.status(400).json({ error: 'name, slug, admin_name, admin_username and admin_password required' });
     }
+    if (admin_password.length < 8) {
+      return res.status(400).json({ error: 'Admin password must be at least 8 characters' });
+    }
 
     const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
     if (!/^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/.test(cleanSlug)) {
@@ -165,8 +168,12 @@ router.post('/companies/:id/admins/:adminId/reset-password', async (req, res) =>
     }
 
     const hash = bcrypt.hashSync(new_password, 10);
+    // force_logout = TRUE invalidates any existing session on next request —
+    // a password reset is often a response to a compromised/lost-device
+    // account, so the old session (and whoever holds its JWT) must not
+    // keep working for up to 12h just because the token hasn't expired yet.
     const result = await query(
-      `UPDATE users SET password = $1, force_logout = FALSE
+      `UPDATE users SET password = $1, force_logout = TRUE
        WHERE id = $2 AND company_id = $3 AND role = 'admin'`,
       [hash, req.params.adminId, req.params.id]
     );
