@@ -557,13 +557,36 @@ async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS arrival_events (
       id SERIAL PRIMARY KEY,
-      company_id INTEGER NOT NULL REFERENCES companies(id),
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id),
       store_id INTEGER NOT NULL REFERENCES stores(id),
       event_type TEXT CHECK(event_type IN ('arrival', 'departure')),
       distance_meters INTEGER,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
+  `);
+
+  // Ensure cascade is set even if the table was already created without it
+  await pool.query(`
+    DO $$
+    BEGIN
+      ALTER TABLE arrival_events DROP CONSTRAINT IF EXISTS arrival_events_company_id_fkey;
+      ALTER TABLE arrival_events ADD CONSTRAINT arrival_events_company_id_fkey
+        FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
+  `);
+
+  // invoices.company_id was added as a plain column (Phase 1) but never got
+  // an FK constraint — add it now so deleting a company cleans up its invoices too
+  await pool.query(`
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'invoices_company_id_fkey' AND conrelid = 'invoices'::regclass) THEN
+        ALTER TABLE invoices ADD CONSTRAINT invoices_company_id_fkey FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE;
+      END IF;
+    EXCEPTION WHEN others THEN NULL;
+    END $$
   `);
 
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_employee_locations_company_id ON employee_locations(company_id)`);

@@ -569,6 +569,84 @@
   </div>
 </div>
 
+<!-- ── Manage Admins Modal ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="adminsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Admins — <span id="adminsCompanyName"></span></span>
+      <button class="modal-close" id="adminsCloseBtn" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="adminsList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="adminsCancelBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Admin Modal (username/name/email + password reset) ───────── -->
+<div class="modal-overlay" id="editAdminModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Edit Admin</span>
+      <button class="modal-close" id="editAdminCloseBtn" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-error" id="editAdminError"></div>
+      <input type="hidden" id="eaCompanyId">
+      <input type="hidden" id="eaAdminId">
+
+      <div class="modal-section-label">Account Info</div>
+      <div class="field">
+        <label for="eaName">Full Name *</label>
+        <input type="text" id="eaName">
+      </div>
+      <div class="field">
+        <label for="eaUsername">Username *</label>
+        <input type="text" id="eaUsername" autocapitalize="none">
+      </div>
+      <div class="field">
+        <label for="eaEmail">Email</label>
+        <input type="email" id="eaEmail">
+      </div>
+
+      <div class="modal-section-label" style="margin-top:22px">Reset Password</div>
+      <div class="field">
+        <label for="eaNewPassword">New Password <span style="font-weight:400;color:var(--muted)">(leave blank to keep current)</span></label>
+        <input type="password" id="eaNewPassword" placeholder="•••••••• (min 8 characters)">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="editAdminCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="editAdminSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Company Modal (type-to-confirm) ─────────────────────────── -->
+<div class="modal-overlay" id="deleteCompanyModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" style="color:var(--red)">⚠️ Delete Company</span>
+      <button class="modal-close" id="deleteCompanyCloseBtn" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="alert-error" id="deleteCompanyError"></div>
+      <input type="hidden" id="dcCompanyId">
+      <p style="margin-bottom:14px">This permanently deletes <strong id="dcCompanyName"></strong> and <strong>all</strong> of its data — employees, admins, stores, time records, payroll, invoices, documents. This cannot be undone.</p>
+      <div class="field">
+        <label for="dcConfirmInput">Type the company name to confirm</label>
+        <input type="text" id="dcConfirmInput" autocapitalize="none">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="deleteCompanyCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="deleteCompanyConfirmBtn" style="background:var(--red)">Delete Permanently</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const token = localStorage.getItem('token');
   const user  = JSON.parse(localStorage.getItem('user') || 'null');
@@ -634,9 +712,11 @@
           <td>
             <div class="actions">
               <button class="btn btn-sm btn-edit" onclick="editCompany(${c.id})">Edit</button>
+              <button class="btn btn-sm btn-edit" onclick="openAdminsModal(${c.id})">Admins</button>
               <button class="btn btn-sm ${c.active ? 'btn-deactivate' : 'btn-activate'}" onclick="toggleActive(${c.id}, ${c.active})">
                 ${c.active ? 'Deactivate' : 'Activate'}
               </button>
+              <button class="btn btn-sm btn-deactivate" style="background:#FEE2E2;color:var(--red)" onclick="openDeleteCompanyModal(${c.id})">Delete</button>
             </div>
           </td>
         </tr>
@@ -765,6 +845,145 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Save';
+    }
+  });
+
+  // ── Manage Admins ──
+  function closeAdminsModal() { document.getElementById('adminsModal').classList.remove('show'); }
+  document.getElementById('adminsCloseBtn').addEventListener('click', closeAdminsModal);
+  document.getElementById('adminsCancelBtn').addEventListener('click', closeAdminsModal);
+  document.getElementById('adminsModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeAdminsModal(); });
+
+  let adminsCache = [];
+  let adminsCacheCompanyId = null;
+
+  async function openAdminsModal(companyId) {
+    const c = companiesCache.find(x => x.id === companyId);
+    document.getElementById('adminsCompanyName').textContent = c ? c.name : '';
+    document.getElementById('adminsList').innerHTML = '<p style="color:var(--muted)">Loading…</p>';
+    document.getElementById('adminsModal').classList.add('show');
+    try {
+      adminsCache = await api('GET', `/companies/${companyId}/admins`);
+      adminsCacheCompanyId = companyId;
+      const list = document.getElementById('adminsList');
+      if (!adminsCache.length) {
+        list.innerHTML = '<p style="color:var(--muted)">No admin accounts for this company.</p>';
+        return;
+      }
+      list.innerHTML = adminsCache.map(a => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div>
+            <div style="font-weight:600">${esc(a.name)}</div>
+            <div style="color:var(--muted);font-size:.85rem">@${esc(a.username)}${a.email ? ' · ' + esc(a.email) : ''}</div>
+          </div>
+          <button class="btn btn-sm btn-edit" onclick="openEditAdminModal(${a.id})">Edit</button>
+        </div>
+      `).join('');
+    } catch (err) {
+      document.getElementById('adminsList').innerHTML = `<p style="color:var(--red)">${esc(err.message)}</p>`;
+    }
+  }
+
+  // ── Edit Admin ──
+  function closeEditAdminModal() { document.getElementById('editAdminModal').classList.remove('show'); }
+  document.getElementById('editAdminCloseBtn').addEventListener('click', closeEditAdminModal);
+  document.getElementById('editAdminCancelBtn').addEventListener('click', closeEditAdminModal);
+  document.getElementById('editAdminModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditAdminModal(); });
+
+  function openEditAdminModal(adminId) {
+    const a = adminsCache.find(x => x.id === adminId);
+    if (!a) return;
+    document.getElementById('editAdminError').classList.remove('show');
+    document.getElementById('eaCompanyId').value = adminsCacheCompanyId;
+    document.getElementById('eaAdminId').value = a.id;
+    document.getElementById('eaName').value = a.name;
+    document.getElementById('eaUsername').value = a.username;
+    document.getElementById('eaEmail').value = a.email || '';
+    document.getElementById('eaNewPassword').value = '';
+    document.getElementById('editAdminModal').classList.add('show');
+  }
+
+  document.getElementById('editAdminSaveBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('editAdminError');
+    const btn = document.getElementById('editAdminSaveBtn');
+    errEl.classList.remove('show');
+    const companyId = document.getElementById('eaCompanyId').value;
+    const adminId = document.getElementById('eaAdminId').value;
+    const newPassword = document.getElementById('eaNewPassword').value;
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      await api('PUT', `/companies/${companyId}/admins/${adminId}`, {
+        name: document.getElementById('eaName').value.trim(),
+        username: document.getElementById('eaUsername').value.trim(),
+        email: document.getElementById('eaEmail').value.trim()
+      });
+
+      if (newPassword) {
+        if (newPassword.length < 8) throw new Error('New password must be at least 8 characters');
+        await api('POST', `/companies/${companyId}/admins/${adminId}/reset-password`, { new_password: newPassword });
+      }
+
+      closeEditAdminModal();
+      openAdminsModal(parseInt(companyId, 10));
+      loadCompanies();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Save';
+    }
+  });
+
+  // ── Delete Company (type-to-confirm) ──
+  function closeDeleteCompanyModal() { document.getElementById('deleteCompanyModal').classList.remove('show'); }
+  document.getElementById('deleteCompanyCloseBtn').addEventListener('click', closeDeleteCompanyModal);
+  document.getElementById('deleteCompanyCancelBtn').addEventListener('click', closeDeleteCompanyModal);
+  document.getElementById('deleteCompanyModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeDeleteCompanyModal(); });
+
+  function openDeleteCompanyModal(companyId) {
+    const c = companiesCache.find(x => x.id === companyId);
+    if (!c) return;
+    document.getElementById('deleteCompanyError').classList.remove('show');
+    document.getElementById('dcCompanyId').value = companyId;
+    document.getElementById('dcCompanyName').textContent = c.name;
+    document.getElementById('dcConfirmInput').value = '';
+    document.getElementById('deleteCompanyModal').classList.add('show');
+  }
+
+  document.getElementById('deleteCompanyConfirmBtn').addEventListener('click', async () => {
+    const errEl = document.getElementById('deleteCompanyError');
+    const btn = document.getElementById('deleteCompanyConfirmBtn');
+    errEl.classList.remove('show');
+    const companyId = document.getElementById('dcCompanyId').value;
+    const c = companiesCache.find(x => x.id === parseInt(companyId, 10));
+    const typed = document.getElementById('dcConfirmInput').value;
+
+    if (!c || typed !== c.name) {
+      errEl.textContent = 'Company name does not match';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    try {
+      const res = await fetch('/api/superadmin/companies/' + companyId, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ confirm_name: typed })
+      });
+      if (res.status === 401) { localStorage.clear(); location.href = '/superadmin/login/'; return; }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+
+      closeDeleteCompanyModal();
+      loadCompanies();
+      loadStats();
+    } catch (ex) {
+      errEl.textContent = ex.message;
+      errEl.classList.add('show');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Delete Permanently';
     }
   });
 

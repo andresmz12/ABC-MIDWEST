@@ -100,11 +100,77 @@ router.put('/companies/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
-// ── Delete (deactivate) company ────────────────────────────────────────────────
+// ── Permanently delete a company and all its data ──────────────────────────────
+// Requires the caller to re-type the company's exact name as confirmation,
+// checked here (not just in the UI) since this is irreversible.
 
 router.delete('/companies/:id', async (req, res) => {
   try {
-    await query(`UPDATE companies SET active = FALSE WHERE id = $1`, [req.params.id]);
+    const { confirm_name } = req.body;
+    const { rows } = await query('SELECT name FROM companies WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Company not found' });
+
+    if (confirm_name !== rows[0].name) {
+      return res.status(400).json({ error: 'Company name confirmation does not match' });
+    }
+
+    // ON DELETE CASCADE on every company_id FK cleans up users, stores,
+    // work_records, media, payroll, invoices, etc. in one shot.
+    await query('DELETE FROM companies WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+// ── Admins per company ──────────────────────────────────────────────────────────
+
+router.get('/companies/:id/admins', async (req, res) => {
+  try {
+    const { rows } = await query(
+      `SELECT id, name, username, email, created_at FROM users
+       WHERE company_id = $1 AND role = 'admin' ORDER BY name`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.put('/companies/:id/admins/:adminId', async (req, res) => {
+  try {
+    const { name, username, email } = req.body;
+    if (!name?.trim() || !username?.trim()) {
+      return res.status(400).json({ error: 'Name and username required' });
+    }
+
+    const { rows: existing } = await query(
+      'SELECT id FROM users WHERE username = $1 AND company_id = $2 AND id != $3',
+      [username.trim(), req.params.id, req.params.adminId]
+    );
+    if (existing.length) return res.status(400).json({ error: 'Username already taken in this company' });
+
+    const result = await query(
+      `UPDATE users SET name = $1, username = $2, email = $3
+       WHERE id = $4 AND company_id = $5 AND role = 'admin'`,
+      [name.trim(), username.trim(), email?.trim() || null, req.params.adminId, req.params.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Admin not found' });
+    res.json({ success: true });
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
+});
+
+router.post('/companies/:id/admins/:adminId/reset-password', async (req, res) => {
+  try {
+    const { new_password } = req.body;
+    if (!new_password || new_password.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters' });
+    }
+
+    const hash = bcrypt.hashSync(new_password, 10);
+    const result = await query(
+      `UPDATE users SET password = $1, force_logout = FALSE
+       WHERE id = $2 AND company_id = $3 AND role = 'admin'`,
+      [hash, req.params.adminId, req.params.id]
+    );
+    if (!result.rowCount) return res.status(404).json({ error: 'Admin not found' });
     res.json({ success: true });
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
