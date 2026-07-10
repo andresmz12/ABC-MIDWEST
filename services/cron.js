@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const { query } = require('../database');
 const { sendAdminSummary, sendEmployeeReminder } = require('./email');
+const { checkArrivals } = require('./geofence');
 
 // Current time as HH:MM (24h) in a given timezone
 function currentHHMM(timezone) {
@@ -156,7 +157,16 @@ function initCron() {
     }
   });
 
-  console.log('Cron initialized: email reminders running every minute (per-company timezones).');
+  // Geofence: check for arrivals every 10 minutes
+  cron.schedule('*/10 * * * *', async () => {
+    try {
+      await checkArrivals();
+    } catch (err) {
+      console.error('[Cron] Geofence check error:', err.message);
+    }
+  });
+
+  console.log('Cron initialized: email reminders every minute, geofence checks every 10 minutes.');
 }
 
 module.exports = { initCron };

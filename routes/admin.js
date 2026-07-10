@@ -1183,4 +1183,130 @@ router.patch('/rest-requests/:id', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// ── Geofence: Store location confirmation ──────────────────────────────────────
+
+// Get pending store locations (proposed by employees on first visit)
+router.get('/pending-locations', async (req, res) => {
+  try {
+    const { rows } = await query(`
+      SELECT
+        psl.id, psl.store_id, s.name as store_name, s.address,
+        psl.latitude, psl.longitude,
+        u.name as proposed_by,
+        psl.created_at
+      FROM pending_store_locations psl
+      JOIN stores s ON s.id = psl.store_id
+      JOIN users u ON u.id = psl.user_id
+      WHERE psl.status = 'pending' AND s.company_id = $1
+      ORDER BY psl.created_at DESC
+    `, [req.companyId]);
+
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Approve a pending store location
+router.post('/pending-locations/:id/approve', requireNumericId(), async (req, res) => {
+  try {
+    const { rows: pending } = await query(
+      'SELECT * FROM pending_store_locations WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (!pending.length) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    const { store_id, latitude, longitude } = pending[0];
+
+    // Verify the store belongs to this company
+    const { rows: store } = await query(
+      'SELECT id FROM stores WHERE id = $1 AND company_id = $2',
+      [store_id, req.companyId]
+    );
+    if (!store.length) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Save coordinates to store
+    await query(
+      'UPDATE stores SET latitude = $1, longitude = $2 WHERE id = $3',
+      [latitude, longitude, store_id]
+    );
+
+    // Mark as approved
+    await query(
+      'UPDATE pending_store_locations SET status = $1 WHERE id = $2',
+      ['approved', req.params.id]
+    );
+
+    res.json({ success: true, message: 'Store location saved' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Reject a pending store location
+router.post('/pending-locations/:id/reject', requireNumericId(), async (req, res) => {
+  try {
+    const { rows: pending } = await query(
+      'SELECT store_id FROM pending_store_locations WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (!pending.length) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+
+    // Verify store belongs to this company
+    const { rows: store } = await query(
+      'SELECT id FROM stores WHERE id = $1 AND company_id = $2',
+      [pending[0].store_id, req.companyId]
+    );
+    if (!store.length) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Mark as rejected
+    await query(
+      'UPDATE pending_store_locations SET status = $1 WHERE id = $2',
+      ['rejected', req.params.id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Update store hours and geofence settings
+router.put('/stores/:id', requireNumericId(), async (req, res) => {
+  try {
+    const { name, address, opening_time, closing_time, latitude, longitude } = req.body;
+
+    if (!name?.trim()) {
+      return res.status(400).json({ error: 'Store name required' });
+    }
+
+    await query(
+      `UPDATE stores
+       SET name = $1, address = $2, opening_time = $3, closing_time = $4,
+           latitude = $5, longitude = $6
+       WHERE id = $7 AND company_id = $8`,
+      [name.trim(), address || '', opening_time || null, closing_time || null,
+       latitude || null, longitude || null, req.params.id, req.companyId]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

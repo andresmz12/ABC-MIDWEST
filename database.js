@@ -515,6 +515,56 @@ async function initDb() {
     )
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_documents_company_id ON documents(company_id)`);
+
+  // ── Geofencing for auto arrival detection ───────────────────────────────────
+  // Add columns to stores for geolocation and working hours
+  await pool.query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS latitude NUMERIC(10,7)`);
+  await pool.query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS longitude NUMERIC(10,7)`);
+  await pool.query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS opening_time TIME`);
+  await pool.query(`ALTER TABLE stores ADD COLUMN IF NOT EXISTS closing_time TIME`);
+
+  // Store real-time employee locations
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS employee_locations (
+      user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      lat NUMERIC(10,7) NOT NULL,
+      lng NUMERIC(10,7) NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Pending store locations proposed by employees
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS pending_store_locations (
+      id SERIAL PRIMARY KEY,
+      store_id INTEGER NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      latitude NUMERIC(10,7) NOT NULL,
+      longitude NUMERIC(10,7) NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(store_id, status) WHERE status='pending'
+    )
+  `);
+
+  // Log of auto-detected arrivals/departures
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS arrival_events (
+      id SERIAL PRIMARY KEY,
+      company_id INTEGER NOT NULL REFERENCES companies(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      store_id INTEGER NOT NULL REFERENCES stores(id),
+      event_type TEXT CHECK(event_type IN ('arrival', 'departure')),
+      distance_meters INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_employee_locations_company_id ON employee_locations(company_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_pending_store_locations_store_id ON pending_store_locations(store_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_arrival_events_company_id ON arrival_events(company_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_arrival_events_user_id ON arrival_events(user_id)`);
 }
 
 module.exports = { query, withTransaction, initDb };

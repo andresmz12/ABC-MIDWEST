@@ -109,4 +109,40 @@ async function sendAdminSummary(jobs, dateStr, adminEmails, label, companyName) 
   ));
 }
 
-module.exports = { sendEmployeeReminder, sendAdminSummary };
+// ── Send geofence arrival email ────────────────────────────────────────────
+
+async function sendGeofenceEmail(employee, store, distance, eventType) {
+  const client = getClient();
+  if (!client || !employee.email) return;
+
+  const name = employee.company_name || 'WorkTrack';
+  const distStr = distance.toFixed(0);
+
+  let html;
+  if (eventType === 'arrival') {
+    html = baseTemplate(name, `✅ Llegada detectada`, `
+      <p style="margin-top:0"><strong>${esc(employee.name)}</strong> ha llegado a <strong>${esc(store.name)}</strong></p>
+      <p style="color:#666; font-size:.9em">📍 Distancia: ${distStr}m | Hora: ${new Date().toLocaleString()}</p>
+      <p style="color:#9ca3af; font-size:12px; margin-top:20px">Este es un registro automático basado en geolocalización</p>
+    `);
+  } else {
+    html = baseTemplate(name, `⏱️ Salida detectada`, `
+      <p style="margin-top:0"><strong>${esc(employee.name)}</strong> ha salido de <strong>${esc(store.name)}</strong></p>
+      <p style="color:#666; font-size:.9em">📍 Distancia: ${distStr}m | Hora: ${new Date().toLocaleString()}</p>
+    `);
+  }
+
+  try {
+    await client.send({
+      to: employee.email,
+      from: FROM,
+      subject: `${name} — ${eventType === 'arrival' ? '✅ Llegada' : '⏱️ Salida'} en ${store.name}`,
+      html
+    });
+    console.log(`[Email] Geofence ${eventType} → ${employee.email}`);
+  } catch (err) {
+    console.error(`[Email] Geofence email failed for ${employee.email}:`, err.message);
+  }
+}
+
+module.exports = { sendEmployeeReminder, sendAdminSummary, sendGeofenceEmail };

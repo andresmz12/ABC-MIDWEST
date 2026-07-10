@@ -28,6 +28,29 @@ router.get('/stores', async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Server error' }); }
 });
 
+// Update employee location (for automatic geofence detection)
+router.post('/location', async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng) {
+      return res.status(400).json({ error: 'Latitude and longitude required' });
+    }
+
+    // Save/update employee's current location
+    await query(`
+      INSERT INTO employee_locations (user_id, company_id, lat, lng, updated_at)
+      VALUES ($1, $2, $3, $4, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET lat=$3, lng=$4, updated_at=NOW()
+    `, [req.user.id, req.companyId, lat, lng]);
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // Get current open record for this employee
 router.get('/current-record', async (req, res) => {
   try {
@@ -87,6 +110,24 @@ router.post('/clock-in', upload.array('media', 10), async (req, res) => {
         'INSERT INTO media (record_id, filename, original_name, mime_type, type, url) VALUES ($1, $2, $3, $4, $5, $6)',
         [recordId, file.filename, file.originalname, file.mimetype, 'clock_in', file.path || null]
       );
+    }
+
+    // If first time at this store, propose its location to admin
+    if (store_id && lat && lng) {
+      const { rows: storeData } = await query(
+        'SELECT latitude, longitude FROM stores WHERE id = $1',
+        [store_id]
+      );
+
+      if (storeData[0] && !storeData[0].latitude && !storeData[0].longitude) {
+        await query(`
+          INSERT INTO pending_store_locations (store_id, user_id, latitude, longitude, status)
+          VALUES ($1, $2, $3, $4, 'pending')
+          ON CONFLICT DO NOTHING
+        `, [store_id, req.user.id, lat, lng]);
+
+        console.log(`[Geofence] Location proposed for store ${store_id}`);
+      }
     }
 
     res.status(201).json({ id: recordId, clock_in: clockIn });
