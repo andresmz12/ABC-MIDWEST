@@ -543,9 +543,14 @@ async function initDb() {
       latitude NUMERIC(10,7) NOT NULL,
       longitude NUMERIC(10,7) NOT NULL,
       status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(store_id, status) WHERE status='pending'
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
+  `);
+
+  // Ensure only one pending location per store
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_pending_store_locations_unique
+    ON pending_store_locations(store_id) WHERE status='pending'
   `);
 
   // Log of auto-detected arrivals/departures
