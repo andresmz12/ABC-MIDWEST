@@ -1064,7 +1064,7 @@
         if (tab === 'records')   loadRecords();
         if (tab === 'projects')  loadProjects();
         if (tab === 'employees') loadEmployees();
-        if (tab === 'stores')    loadStores();
+        if (tab === 'stores') { loadStores(); loadPendingLocations(); }
         if (tab === 'payroll')   initPayrollTab();
         if (tab === 'calendar')  initCalendarTab();
         if (tab === 'restdays')  { loadRestDays(); loadRestRequests(); }
@@ -1757,6 +1757,63 @@
         btn.disabled = false; btn.textContent = '📥 Import Excel';
       }
     });
+
+    // ── Load Pending Store Locations (Geofence) ───────────────────
+    async function loadPendingLocations() {
+      const card = document.getElementById('pendingLocationsCard');
+      const list = document.getElementById('pendingLocationsList');
+      try {
+        const pending = await api('/admin/pending-locations');
+        if (!pending || pending.length === 0) {
+          card.style.display = 'none';
+          return;
+        }
+        card.style.display = 'block';
+        list.innerHTML = pending.map(p => `
+          <div class="list-item" style="border:1.5px solid #ffc107;border-radius:8px;margin-bottom:10px">
+            <div class="list-item-info">
+              <div class="list-item-name">📍 ${escHtml(p.store_name)}</div>
+              <div class="list-item-sub">${escHtml(p.address)}</div>
+              <div style="font-size:.85rem;color:var(--muted);margin-top:4px">
+                <strong>Coordinates:</strong> ${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}<br>
+                <strong>Proposed by:</strong> ${escHtml(p.proposed_by)}<br>
+                <strong>Date:</strong> ${new Date(p.created_at).toLocaleString()}
+              </div>
+            </div>
+            <div class="list-item-actions" style="gap:6px">
+              <button class="btn btn-sm btn-success" onclick="approvePendingLocation(${p.id}); return false" style="background:#28a745;color:#fff;border:none">✓ Approve</button>
+              <button class="btn btn-sm btn-danger" onclick="rejectPendingLocation(${p.id}); return false">✗ Reject</button>
+            </div>
+          </div>
+        `).join('');
+      } catch(ex) {
+        console.error('Failed to load pending locations:', ex);
+        card.style.display = 'none';
+      }
+    }
+
+    window.approvePendingLocation = async (id) => {
+      if (!confirm('Approve this location?')) return;
+      try {
+        await api(`/admin/pending-locations/${id}/approve`, { method: 'POST' });
+        alert('✅ Location approved!');
+        loadStores();
+        loadPendingLocations();
+      } catch(ex) {
+        alert('❌ ' + ex.message);
+      }
+    };
+
+    window.rejectPendingLocation = async (id) => {
+      if (!confirm('Reject this location?')) return;
+      try {
+        await api(`/admin/pending-locations/${id}/reject`, { method: 'POST' });
+        alert('✅ Location rejected');
+        loadPendingLocations();
+      } catch(ex) {
+        alert('❌ ' + ex.message);
+      }
+    };
 
     // ── Import Stores from Excel ──────────────────────────────────
     document.getElementById('importStoresBtn').addEventListener('click', () => {
