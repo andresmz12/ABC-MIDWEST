@@ -1209,7 +1209,7 @@ router.get('/pending-locations', async (req, res) => {
 });
 
 // Approve a pending store location
-router.post('/pending-locations/:id/approve', requireNumericId(), async (req, res) => {
+router.post('/pending-locations/:id/approve', requireNumericId, async (req, res) => {
   try {
     const { rows: pending } = await query(
       'SELECT * FROM pending_store_locations WHERE id = $1',
@@ -1251,7 +1251,7 @@ router.post('/pending-locations/:id/approve', requireNumericId(), async (req, re
 });
 
 // Reject a pending store location
-router.post('/pending-locations/:id/reject', requireNumericId(), async (req, res) => {
+router.post('/pending-locations/:id/reject', requireNumericId, async (req, res) => {
   try {
     const { rows: pending } = await query(
       'SELECT store_id FROM pending_store_locations WHERE id = $1',
@@ -1285,7 +1285,7 @@ router.post('/pending-locations/:id/reject', requireNumericId(), async (req, res
 });
 
 // Update store hours and geofence settings
-router.put('/stores/:id', requireNumericId(), async (req, res) => {
+router.put('/stores/:id', requireNumericId, async (req, res) => {
   try {
     const { name, address, opening_time, closing_time, latitude, longitude } = req.body;
 
