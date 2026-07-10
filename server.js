@@ -9,6 +9,10 @@ const { initCron } = require('./services/cron');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Railway's proxy (single hop) so req.ip and express-rate-limit see the
+// real client IP from X-Forwarded-For instead of throwing/misattributing limits
+app.set('trust proxy', 1);
+
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // inline scripts throughout the app
