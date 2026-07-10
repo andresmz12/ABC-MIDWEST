@@ -323,6 +323,15 @@
   <!-- ── STORES TAB ─────────────────────────────────────────────── -->
   <div id="tab-stores" class="content" style="display:none">
     <div class="container">
+      <!-- Pending Locations Panel -->
+      <div class="card" style="margin-top:16px" id="pendingLocationsCard" style="display:none">
+        <div class="section-header">
+          <h2>📍 Approve Store Locations</h2>
+        </div>
+        <div id="pendingLocationsList"></div>
+      </div>
+
+      <!-- Store List -->
       <div class="card" style="margin-top:16px">
         <div class="section-header">
           <h2 data-i18n="stores">Stores</h2>
@@ -963,6 +972,17 @@
             <label for="storeAddress">Address</label>
             <input type="text" id="storeAddress" class="form-control" placeholder="123 Main St, City, ST" required>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="form-group">
+              <label for="storeOpeningTime">Opening Time</label>
+              <input type="time" id="storeOpeningTime" class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="storeClosingTime">Closing Time</label>
+              <input type="time" id="storeClosingTime" class="form-control">
+            </div>
+          </div>
+          <small style="display:block;color:var(--muted);margin-top:-8px;margin-bottom:12px">Set working hours for geofence detection (optional)</small>
           <button type="submit" class="btn btn-primary" id="storeSubmitBtn">Save Store</button>
         </form>
       </div>
@@ -1634,13 +1654,24 @@
       }
     }
 
-    window.editStore = (id, name, address) => {
+    window.editStore = async (id, name, address) => {
       editingStoreId = id;
       document.getElementById('storeModalTitle').textContent = 'Edit Store';
       document.getElementById('storeName').value    = name;
       document.getElementById('storeAddress').value = address;
       document.getElementById('storeError').classList.remove('show');
       document.getElementById('storeSubmitBtn').textContent = 'Update Store';
+
+      // Load full store data including hours
+      try {
+        const stores = await api('/admin/stores');
+        const store = stores.find(s => s.id == id);
+        if (store) {
+          document.getElementById('storeOpeningTime').value = store.opening_time || '';
+          document.getElementById('storeClosingTime').value = store.closing_time || '';
+        }
+      } catch(ex) { console.error(ex); }
+
       document.getElementById('storeModal').classList.add('open');
     };
 
@@ -1675,7 +1706,9 @@
       try {
         const payload = {
           name: document.getElementById('storeName').value.trim(),
-          address: document.getElementById('storeAddress').value.trim()
+          address: document.getElementById('storeAddress').value.trim(),
+          opening_time: document.getElementById('storeOpeningTime').value || null,
+          closing_time: document.getElementById('storeClosingTime').value || null
         };
         if (editingStoreId) {
           await api(`/admin/stores/${editingStoreId}`, { method: 'PUT', body: JSON.stringify(payload) });
