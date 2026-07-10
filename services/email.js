@@ -109,13 +109,16 @@ async function sendAdminSummary(jobs, dateStr, adminEmails, label, companyName) 
   ));
 }
 
-// ── Send geofence arrival email ────────────────────────────────────────────
+// ── Send geofence arrival email to admins ──────────────────────────────────
+// Notifies the company's admin recipients (not the employee — they already
+// know they arrived, this is a supervision notification).
 
-async function sendGeofenceEmail(employee, store, distance, eventType) {
+async function sendGeofenceEmail(employee, store, distance, eventType, adminEmails, companyName) {
+  if (!adminEmails || !adminEmails.length) return;
   const client = getClient();
-  if (!client || !employee.email) return;
+  if (!client) return;
 
-  const name = employee.company_name || 'WorkTrack';
+  const name = companyName || 'WorkTrack';
   const distStr = distance.toFixed(0);
 
   let html;
@@ -132,17 +135,13 @@ async function sendGeofenceEmail(employee, store, distance, eventType) {
     `);
   }
 
-  try {
-    await client.send({
-      to: employee.email,
-      from: FROM,
-      subject: `${name} — ${eventType === 'arrival' ? '✅ Llegada' : '⏱️ Salida'} en ${store.name}`,
-      html
-    });
-    console.log(`[Email] Geofence ${eventType} → ${employee.email}`);
-  } catch (err) {
-    console.error(`[Email] Geofence email failed for ${employee.email}:`, err.message);
-  }
+  const subject = `${name} — ${eventType === 'arrival' ? '✅ Llegada' : '⏱️ Salida'}: ${employee.name} en ${store.name}`;
+
+  await Promise.all(adminEmails.map(to =>
+    client.send({ to, from: FROM, subject, html })
+      .then(() => console.log(`[Email] Geofence ${eventType} → ${to}`))
+      .catch(err => console.error(`[Email] Geofence email failed for ${to}:`, err.message))
+  ));
 }
 
 module.exports = { sendEmployeeReminder, sendAdminSummary, sendGeofenceEmail };

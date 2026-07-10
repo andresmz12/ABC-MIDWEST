@@ -278,11 +278,18 @@ router.post('/stores', async (req, res) => {
 
 router.put('/stores/:id', requireNumericId, async (req, res) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, opening_time, closing_time, latitude, longitude } = req.body;
     if (!name || !address) return res.status(400).json({ error: 'Name and address required' });
+    // COALESCE preserves existing coordinates when the form doesn't send them
+    // (the store edit modal has no lat/lng fields — those are set via the
+    // employee-proposed-location approval flow)
     const result = await query(
-      'UPDATE stores SET name = $1, address = $2 WHERE id = $3 AND company_id = $4',
-      [name, address, req.params.id, req.companyId]
+      `UPDATE stores
+       SET name = $1, address = $2, opening_time = $3, closing_time = $4,
+           latitude = COALESCE($5, latitude), longitude = COALESCE($6, longitude)
+       WHERE id = $7 AND company_id = $8`,
+      [name, address, opening_time || null, closing_time || null,
+       latitude || null, longitude || null, req.params.id, req.companyId]
     );
     if (!result.rowCount) return res.status(404).json({ error: 'Store not found' });
     res.json({ success: true });
@@ -1275,31 +1282,6 @@ router.post('/pending-locations/:id/reject', requireNumericId, async (req, res) 
     await query(
       'UPDATE pending_store_locations SET status = $1 WHERE id = $2',
       ['rejected', req.params.id]
-    );
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
-
-// Update store hours and geofence settings
-router.put('/stores/:id', requireNumericId, async (req, res) => {
-  try {
-    const { name, address, opening_time, closing_time, latitude, longitude } = req.body;
-
-    if (!name?.trim()) {
-      return res.status(400).json({ error: 'Store name required' });
-    }
-
-    await query(
-      `UPDATE stores
-       SET name = $1, address = $2, opening_time = $3, closing_time = $4,
-           latitude = $5, longitude = $6
-       WHERE id = $7 AND company_id = $8`,
-      [name.trim(), address || '', opening_time || null, closing_time || null,
-       latitude || null, longitude || null, req.params.id, req.companyId]
     );
 
     res.json({ success: true });

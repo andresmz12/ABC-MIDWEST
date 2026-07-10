@@ -75,6 +75,15 @@ async function checkArrivals() {
           AND el.updated_at > NOW() - INTERVAL '20 minutes'
       `, [store.company_id]);
 
+      if (!employees.length) continue;
+
+      // Admin recipients for this company — notified on arrival, not the employee
+      const { rows: adminRows } = await query(
+        `SELECT email FROM admin_recipients WHERE company_id = $1 AND active = TRUE`,
+        [store.company_id]
+      );
+      const adminEmails = adminRows.map(r => r.email);
+
       for (const emp of employees) {
         const distance = calculateDistance(
           parseFloat(emp.lat), parseFloat(emp.lng),
@@ -98,8 +107,8 @@ async function checkArrivals() {
               VALUES ($1, $2, $3, 'arrival', $4)
             `, [store.company_id, emp.user_id, store.id, Math.round(distance)]);
 
-            // Send email to employee and admins
-            await sendGeofenceEmail(emp, store, distance, 'arrival');
+            // Notify admins of the arrival
+            await sendGeofenceEmail(emp, store, distance, 'arrival', adminEmails, emp.company_name);
 
             console.log(`✅ [Arrival] ${emp.name} detected at ${store.name} (${distance.toFixed(0)}m)`);
           }
